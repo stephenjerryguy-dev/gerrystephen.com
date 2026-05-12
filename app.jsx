@@ -82,7 +82,7 @@ function Snowfall({ count = 50, intensity = 1 }) {
 function PenguinCard({ size = 380, float = true, style = {} }) {
   return (
     <div className={`pengcard ${float ? 'float' : ''}`} style={{ width: size, ...style }}>
-      <img src="assets/penguin.jpg" alt="gerry the penguin" />
+      <img src="assets/pudgy-penguin.webp" alt="Gerry Stephen's Pudgy Penguin" />
     </div>);
 
 }
@@ -93,20 +93,21 @@ function Topbar() {
     <header className="topbar" data-screen-label="topbar">
       <div className="brand">
         <div className="brand-mark">
-          <img src="assets/penguin.jpg" alt="" />
+          <img src="assets/pudgy-penguin.webp" alt="" />
         </div>
-        <div className="brand-text">gerrystephen<span>.eth</span></div>
+        <div className="brand-text">gerrystephen<span>.com</span></div>
       </div>
       <nav className="topnav">
         <a href="#journey">Journey</a>
-        <a href="#projects">Projects</a>
+        <a href="#projects">Web3</a>
+        <a href="#nfts">NFTs</a>
         <a href="#inkfinity">Inkfinity</a>
         <a href="#now">Now</a>
-        <a href="#bluestar">Blue Star</a>
-        <a href="#zeppole">Zeppole</a>
+        <a href="#bluestar">Hospitality</a>
+        <a href="#zeppole">Cafe</a>
         <a href="#contact">Contact</a>
       </nav>
-      <a href="https://hub.xyz/gerry" target="_blank" rel="noopener" className="top-cta">opensea.io/profile/gerrystephen</a>
+      <a href="https://opensea.io/profile/gerrystephen" target="_blank" rel="noopener" className="top-cta">OpenSea</a>
     </header>);
 
 }
@@ -183,6 +184,7 @@ function Hero({ y, mouse, intensity }) {
   return (
     <section className="hero" id="top" ref={ref}>
       <div className="hero-pin">
+        <div className="cold-wash" style={{ opacity: Math.min(0.82, progress * 1.25) }} />
         <div className="layer sky" style={{ transform: `translate3d(0, ${skyY}px, 0)` }}>
           <div className="aurora" />
           <div className="sun" style={{ transform: `translate3d(${px * 0.3}px, ${progress * -40}px, 0)` }} />
@@ -266,13 +268,28 @@ function Hero({ y, mouse, intensity }) {
         </div>
 
         <div className="hero-copy" style={{ opacity: copyOpacity, transform: `translate3d(0, ${copyY}px, 0)` }}>
-          <div className="eyebrow"><span className="dot live" /> A FAMILY NAME · ONCHAIN FOREVER</div>
-          <h1 className="display">A penguin<br />on a<br /><em>warm beach</em><br />building cool things.</h1>
-          <p className="lede">Gerry. Web3 native, hospitality operator, frozen-drink-adjacent. An iglu on the sand.</p>
+          <h1 className="display">Welcome to<br />Gerry's<br /><em>iglu.</em></h1>
+          <p className="lede">A one-page home base for the journey: business, Web3, family legacy, and the Pudgy that made the cold internet feel warm.</p>
           <div className="hero-cta">
-            <a className="btn primary" href="#journey">Enter the iglu →</a>
-            <a className="btn ghost" href="#contact">Say hi</a>
+            <a className="btn primary" href="#journey">Scroll to discover →</a>
+            <a className="btn ghost" href="#projects">View Web3 identity</a>
           </div>
+        </div>
+
+        <div className="terminal-copy terminal-left" style={{ opacity: copyOpacity }}>
+          <strong>IGLU // GERRY STEPHEN</strong>
+          <span>Copyright © 2026</span>
+          <span>Business / Web3 / Legacy</span>
+        </div>
+
+        <div className="terminal-copy terminal-right" style={{ opacity: copyOpacity }}>
+          <strong>///// Manifesto</strong>
+          <span>Build useful things at the intersection of community, hospitality, AI, and crypto.</span>
+        </div>
+
+        <div className="father-note" style={{ opacity: copyOpacity }}>
+          <span>Keep building, son.</span>
+          <small>Eric Guy</small>
         </div>
 
         <div className="hero-bigtitle" style={{ opacity: titleOp, transform: `translate3d(0, ${(1 - titleOp) * 60}px, 0) scale(${0.96 + titleOp * 0.04})` }}>
@@ -310,27 +327,27 @@ function Chapter({ num, kicker, title }) {
         <span className="chapter-num">{num}</span>
         <span className="chapter-kicker">{kicker}</span>
       </div>
-      <h2 className="chapter-title" style={{ width: "476px" }}>{title}</h2>
+      <h2 className="chapter-title">{title}</h2>
     </div>);
 
 }
 
 // ---------- Timeline ----------
 const TIMELINE = [
-{ year: '2021', tag: 'First mint · Sappy Seals', body: 'Minted my first NFT at 3am — a Sappy Seal. Refreshed the page twice. Wife asked what I was doing. I said "real estate."' },
-{ year: '2021', tag: 'Inkfinity Canvas · for Dad', body: 'Put my dad\'s signed canvases on chain — Eric Guy. Inkfinity Canvas. The family name, immutable forever.' },
-{ year: '2022', tag: 'In memoriam · Eric Guy', body: 'Lost my dad. Kept his signature on chain. Some part of him is still minting alongside me.' },
-{ year: '2022', tag: 'Pudgy era', body: 'Adopted a penguin in a flat cap and goggles. Never looked back. Cold weather, warm community.' },
-{ year: '2023', tag: 'Tools & community', body: 'Shipped tools for collectors, talked at meetups, made friends I\'ll never see in person but trust with my keys.' },
-{ year: '2024', tag: 'Builder', body: 'Stopped just collecting. Started building — agents, trading desks, the kinds of tools I wished existed.' },
-{ year: '2025', tag: 'IRL bridge', body: 'Started bridging on-chain energy into real businesses — apartments by the sea, a bakery on a corner.' },
-{ year: '2026', tag: 'One OS', body: 'A little iglu on the internet. You are standing inside it. One name, every chain.' }];
+{ year: '2021', tag: 'First mint · Sappy Seals', body: 'The rabbit hole opened through community, identity, and the feeling that ownership could become culture.' },
+{ year: '2021', tag: 'Inkfinity Canvas · for Dad', body: 'Eric Guy signed the work by hand. Inkfinity Canvas put that signature somewhere permanent.' },
+{ year: '2022', tag: 'In memoriam · Eric Guy', body: 'After losing my dad, the chain became more than a market. It became a place to preserve a name.' },
+{ year: '2022', tag: 'Pudgy era', body: 'A penguin in a flat cap and goggles became the mascot for a warmer way to build in a cold market.' },
+{ year: '2023', tag: 'Community & tools', body: 'Collector energy turned into product instincts: useful tools, useful relationships, and sharper taste.' },
+{ year: '2024', tag: 'Builder mode', body: 'AI agents, trading systems, and experiments started becoming less like hobbies and more like infrastructure.' },
+{ year: '2025', tag: 'IRL bridge', body: 'The online network started touching real businesses: hospitality, food, local operations, and community.' },
+{ year: '2026', tag: 'One home base', body: 'gerrystephen.com becomes the iglu: one identity for Web3, business, family, and the next build.' }];
 
 
 function Timeline() {
   return (
     <section className="timeline" id="journey">
-      <Chapter num="01" kicker="On-chain" title="The Web3 journey." />
+      <Chapter num="01" kicker="On-chain" title="The road from collector to operator." />
       <div className="rail">
         <div className="rail-line" />
         {TIMELINE.map((t, i) =>
@@ -350,18 +367,17 @@ function Timeline() {
 
 // ---------- Projects ----------
 const PROJECTS = [
-{ title: 'Inkfinity Canvas', kind: 'For Dad · 2021', note: 'Eric Guy — my late father. His signed canvases, on chain forever.', glyph: '✎', href: 'https://opensea.io/collection/inkfinity-canvas' },
-{ title: 'Sappy Seals', kind: 'First mint · 2021', note: 'Where the journey started. Still hold.', glyph: '◐' },
-{ title: 'Pudgy Penguins', kind: 'Holder', note: 'Flat cap, goggles, warm community.', glyph: '❄' },
-{ title: 'gerrystephen.eth', kind: 'Identity', note: 'One name across every chain.', glyph: '⌬' },
-{ title: 'OpenSea', kind: 'Marketplace', note: '@gerrystephen — the rolodex.', glyph: '◈' },
-{ title: 'Hub Profile', kind: 'Link-in-bio', note: 'hub.xyz/gerry.', glyph: '✦' }];
+{ title: 'Inkfinity Canvas', kind: 'Family archive · 2021', note: 'Eric Guy signed canvases preserved as a permanent collection.', glyph: 'EG', href: 'https://opensea.io/collection/inkfinity-canvas' },
+{ title: 'Sappy Seals', kind: 'First mint', note: 'The community that pulled the first thread and made Web3 feel human.', glyph: 'SS' },
+{ title: 'Pudgy Penguins', kind: 'Holder', note: 'The flat-cap penguin energy that shaped the iglu visual language.', glyph: 'PP' },
+{ title: 'gerrystephen.eth', kind: 'Identity', note: 'One name for wallets, collections, experiments, and public reputation.', glyph: 'Ξ' },
+{ title: 'OpenSea', kind: 'Collection', note: 'The public gallery for penguins, seals, Inkfinity, and ephemera.', glyph: 'OS', href: 'https://opensea.io/profile/gerrystephen' }];
 
 
 function Projects() {
   return (
     <section className="projects" id="projects">
-      <Chapter num="02" kicker="Featured" title="Things I've touched." />
+      <Chapter num="02" kicker="Web3 identity" title="A collector profile with builder fingerprints." />
       <div className="proj-grid">
         {PROJECTS.map((p, i) => {
           const Tag = p.href ? 'a' : 'div';
@@ -382,23 +398,133 @@ function Projects() {
 
 }
 
+// ---------- NFT Carousel ----------
+const NFT_WALLETS = [
+'0xCf3b8981AbAa56a8E41117b0c721C05F608400A7',
+'0x382556a543aad855c07678e7f8e820d0d90429bb',
+'0xc3ce1eb539c1cc031ecd7b95e8c00768bf324403'];
+
+const NFT_FALLBACKS = [
+{ name: 'Flat Cap Pudgy', collection: 'Pudgy Penguins', image: 'assets/pudgy-penguin.webp', href: 'https://opensea.io/collection/pudgypenguins', wallet: 'gerrystephen.eth' },
+{ name: 'Inkfinity Canvas', collection: 'Eric Guy archive', glyph: 'E.G.', href: 'https://opensea.io/collection/inkfinity-canvas', wallet: 'family archive' },
+{ name: 'Sappy Seals', collection: 'First mint energy', glyph: 'SS', href: 'https://opensea.io/collection/sappy-seals', wallet: 'collector trail' },
+{ name: 'gerrystephen.eth', collection: 'On-chain identity', glyph: 'Ξ', href: 'https://app.ens.domains/gerrystephen.eth', wallet: 'one name' }];
+
+function normalizeNft(item, wallet) {
+  const token = item?.token || item;
+  const collection = token?.collection || {};
+  const contract = token?.contract;
+  const tokenId = token?.tokenId || token?.token_id;
+  const collectionHref = collection?.slug ? `https://opensea.io/collection/${collection.slug}` : 'https://opensea.io/profile/gerrystephen';
+  return {
+    name: token?.name || `${collection?.name || 'NFT'} #${tokenId || ''}`.trim(),
+    collection: collection?.name || token?.collectionName || 'Collected NFT',
+    image: token?.imageSmall || token?.image || token?.imageUrl || token?.metadata?.image,
+    href: contract && tokenId ? `https://opensea.io/assets/ethereum/${contract}/${tokenId}` : collectionHref,
+    wallet: wallet.slice(0, 6) + '...' + wallet.slice(-4)
+  };
+}
+
+function NftCarousel() {
+  const [items, setItems] = useState(NFT_FALLBACKS);
+  const [source, setSource] = useState('curated');
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    async function loadNfts() {
+      try {
+        const apiResponse = await fetch('/api/nfts', { signal: controller.signal });
+        if (apiResponse.ok) {
+          const apiData = await apiResponse.json();
+          const apiItems = (apiData?.nfts || []).filter((nft) => nft.href?.includes('/assets/'));
+          if (apiItems.length) {
+            setItems(apiItems);
+            setSource('wallet');
+            setIndex(0);
+            return;
+          }
+        }
+        const requests = NFT_WALLETS.map((wallet) =>
+          fetch(`https://api-ethereum.reservoir.tools/users/${wallet}/tokens/v10?limit=12&sortBy=floorAskPrice`, {
+            signal: controller.signal,
+            headers: { accept: 'application/json' }
+          })
+          .then((res) => res.ok ? res.json() : Promise.reject(new Error('NFT API unavailable')))
+          .then((data) => (data?.tokens || []).map((item) => normalizeNft(item, wallet)))
+        );
+        const loaded = (await Promise.allSettled(requests))
+        .flatMap((result) => result.status === 'fulfilled' ? result.value : [])
+        .filter((nft) => nft.name && nft.image && nft.href?.includes('/assets/'))
+        .slice(0, 12);
+        if (loaded.length) {
+          setItems(loaded);
+          setSource('wallet');
+          setIndex(0);
+        }
+      } catch (e) {
+        setItems(NFT_FALLBACKS);
+      }
+    }
+    loadNfts();
+    return () => controller.abort();
+  }, []);
+
+  const next = () => setIndex((i) => (i + 1) % items.length);
+  const prev = () => setIndex((i) => (i - 1 + items.length) % items.length);
+  const visible = items.map((_, i) => items[(index + i) % items.length]).slice(0, Math.min(4, items.length));
+
+  return (
+    <section className="nft-showcase" id="nfts">
+      <div className="nft-head">
+        <Chapter num="03" kicker="OpenSea" title="Top NFTs from the iglu." />
+        <div className="nft-actions">
+          <button type="button" className="icon-btn" aria-label="Previous NFT" onClick={prev}>‹</button>
+          <button type="button" className="icon-btn" aria-label="Next NFT" onClick={next}>›</button>
+        </div>
+      </div>
+      <p className="lede nft-lede">
+        {source === 'wallet' ? 'Pulled live from the public wallets connected to gerrystephen.eth. Each card opens the actual OpenSea asset.' : 'A curated fallback while live wallet data is unavailable in the browser.'}
+      </p>
+      <div className="nft-track">
+        {visible.map((nft, i) =>
+        <a key={`${nft.name}-${i}`} className="nft-card" href={nft.href || 'https://opensea.io/profile/gerrystephen'} target="_blank" rel="noopener">
+            <div className="nft-art">
+              {nft.image ? <img src={nft.image} alt={nft.name} loading="lazy" /> : <div className="nft-glyph">{nft.glyph}</div>}
+            </div>
+            <div className="nft-meta">
+              <span>{nft.collection}</span>
+              <strong>{nft.name}</strong>
+              <small>{nft.href?.includes('/assets/') ? 'Open actual NFT' : nft.wallet}</small>
+            </div>
+          </a>
+        )}
+      </div>
+    </section>);
+}
+
 // ---------- Inkfinity Canvas (gallery for Dad) ----------
 const INKFINITY = [
-{ title: 'NFTVisionary', tag: 'Featured', note: 'The piece that started it.', featured: true },
-{ title: 'NuttyProfessor', tag: 'Canvas', note: 'Pen on paper. Signed E. Guy.' },
-{ title: 'ThunderOfThoughts', tag: 'Canvas', note: 'A crowded mind, distilled.' }];
+{ title: 'NFTVisionary', tag: 'Featured', note: 'The piece that started it.', featured: true, variant: 'visionary' },
+{ title: 'NuttyProfessor', tag: 'Canvas', note: 'Pen on paper. Signed E. Guy.', variant: 'professor' },
+{ title: 'ThunderOfThoughts', tag: 'Canvas', note: 'A crowded mind, distilled.', variant: 'thunder' }];
 
 function InkfinityGallery() {
   return (
     <section className="inkfinity" id="inkfinity">
-      <Chapter num="03" kicker="For Dad · Inkfinity Canvas" title="Eric Guy signed canvases." />
-      <p className="lede inkfinity-lede">My late father's hand-signed work, brought on chain in 2021. Each piece is a paper canvas he drew, signed, and dated. They live now where they can\'t be lost.</p>
+      <Chapter num="04" kicker="For Dad · Inkfinity Canvas" title="Eric Guy signed canvases." />
+      <p className="lede inkfinity-lede">My late father's hand-signed work, brought on chain in 2021. Each piece is a paper canvas he drew, signed, and dated. They live now where they can't be lost.</p>
       <div className="ink-grid">
         {INKFINITY.map((p, i) =>
         <Reveal key={p.title} delay={i * 100}>
             <a className={`ink-card ${p.featured ? 'featured' : ''}`} href="https://opensea.io/collection/inkfinity-canvas" target="_blank" rel="noopener">
               <div className="ink-canvas">
-                <div className="ink-frame">
+                <div className={`ink-frame ink-art ${p.variant}`}>
+                  <span className="ink-line l1" />
+                  <span className="ink-line l2" />
+                  <span className="ink-line l3" />
+                  <span className="ink-orb o1" />
+                  <span className="ink-orb o2" />
                   <div className="ink-mark">E.G.</div>
                   <div className="ink-stamp">{p.tag}</div>
                 </div>
@@ -430,19 +556,19 @@ function Stats() {
 
 // ---------- Now Building ----------
 const NOW = [
-{ glyph: '⚙', title: 'AI Agents', note: 'Autonomous workers for on-chain ops, content, and the boring glue between them.' },
+{ glyph: 'AI', title: 'AI Agents', note: 'Autonomous workers for on-chain ops, content, and the boring glue between them.' },
 { glyph: '↗', title: 'Trading', note: 'Systems for spotting and executing — quant-flavored, vibes-tuned.' },
-{ glyph: '▽', title: 'Seal Stay', note: 'Where Web3 meets hospitality. Stay tuned — opening soon.' }];
+{ title: 'Seal Stay', note: 'Where Web3 meets hospitality. Stay tuned — opening soon.', logo: 'assets/seal-stay-logo.png' }];
 
 function NowBuilding() {
   return (
     <section className="now-building" id="now">
-      <Chapter num="04" kicker="Now" title="Currently building." />
+      <Chapter num="05" kicker="Now" title="Currently building the next layer." />
       <div className="nb-grid">
         {NOW.map((n, i) =>
         <Reveal key={n.title} delay={i * 80}>
             <div className="nb-card">
-              <div className="nb-glyph">{n.glyph}</div>
+              {n.logo ? <img className="nb-logo" src={n.logo} alt="Seal Stay logo" /> : <div className="nb-glyph">{n.glyph}</div>}
               <div className="nb-title">{n.title}</div>
               <div className="nb-note">{n.note}</div>
             </div>
@@ -464,34 +590,32 @@ function BlueStar({ y, intensity, warm }) {
       <div className="venture-grid">
         <Reveal>
           <div className="venture-copy">
-            <Chapter num="05" kicker="IRL · Hospitality" title="Blue Star Apartments & Hotel." />
-            <p className="lede big">A blue door, a key, the sea. Apartments and hotel where the wifi is fast, the coffee is strong, and the balconies face something better than your inbox.
-
-
-            </p>
+            <Chapter num="06" kicker="IRL · Hospitality" title="Blue Star Apartments & Hotel." />
+            <p className="lede big">A blue door, a key, the sea. Apartments and hotel rooms for guests who want the island to feel calm, useful, and quietly connected.</p>
             <ul className="venture-bullets">
               <li><span>★</span> Long & short-stay suites</li>
               <li><span>★</span> Sea-facing balconies</li>
-              <li><span>★</span> Crypto accepted, of course</li>
+              <li><span>★</span> Local hospitality with digital-native operations</li>
             </ul>
-            <a className="btn primary blue" href="#contact">Book a stay →</a>
+            <a className="btn primary blue" href="https://www.bluestarstay.com/web3" target="_blank" rel="noopener">Book a stay →</a>
           </div>
         </Reveal>
         <Reveal delay={120}>
           <div className="venture-vis">
-            <div className="window-frame">
-              <div className="pane">
-                <div className="ph-stripe a" />
-                <div className="ph-stripe b" />
-                <div className="ph-stripe c" />
-                <div className="ph-label">[ photo · balcony at golden hour ]</div>
+            <div className="hotel-scene" aria-label="Blue Star hotel visual">
+              <div className="hotel-sky" />
+              <div className="hotel-sun" />
+              <div className="hotel-building">
+                <div className="hotel-sign">BLUE STAR</div>
+                <div className="hotel-window a" />
+                <div className="hotel-window b" />
+                <div className="hotel-window c" />
+                <div className="hotel-window d" />
+                <div className="hotel-door" />
               </div>
-              <div className="pane">
-                <div className="ph-stripe a" />
-                <div className="ph-stripe b" />
-                <div className="ph-stripe c" />
-                <div className="ph-label">[ photo · the blue door ]</div>
-              </div>
+              <div className="hotel-balcony one" />
+              <div className="hotel-balcony two" />
+              <div className="hotel-sea" />
             </div>
           </div>
         </Reveal>
@@ -515,16 +639,21 @@ function Zeppole({ y, intensity, warm }) {
                 <div>DOLCI</div>
                 <div className="tiny">EST. WARM</div>
               </div>
-              <div className="ph-stripe a" />
-              <div className="ph-stripe b" />
-              <div className="ph-stripe c" />
-              <div className="ph-label">[ photo · tray of zeppole ]</div>
+              <div className="pastry-tray">
+                <span />
+                <span />
+                <span />
+                <span />
+                <span />
+              </div>
+              <div className="espresso-cup" />
+              <div className="z-note">fresh pastry · brunch · coffee</div>
             </div>
           </div>
         </Reveal>
         <Reveal delay={120}>
           <div className="venture-copy">
-            <Chapter num="06" kicker="IRL · Eatery + Bakery" title={<>Zeppole Dolci<br />Café. Eatery. Bakery</>} />
+            <Chapter num="07" kicker="IRL · Eatery + Bakery" title={<>Zeppole Dolci<br />Café. Eatery. Bakery</>} />
             <p className="lede big">
               Sugar, dough, a small machine that makes espresso. A café that takes pastry
               seriously and itself less so. Fried to order. Cornetti at sunrise.
@@ -545,14 +674,13 @@ function Zeppole({ y, intensity, warm }) {
 // ---------- Contact ----------
 function Contact() {
   const cards = [
-  { kind: '@ x', handle: 'gerrydoteth', note: 'Shitposts, signal, occasional alpha.', href: 'https://x.com/gerrydoteth', label: 'Follow' },
-  { kind: '⌬ hub', handle: 'hub.xyz/gerry', note: 'Every link, one rolodex.', href: 'https://hub.xyz/gerry', label: 'Open' },
-  { kind: '◈ opensea', handle: 'gerrystephen', note: 'The collection — penguins, pixels, ephemera.', href: 'https://opensea.io/profile/gerrystephen', label: 'Browse' },
+  { kind: '@ x', handle: 'gerrydoteth', note: 'Builder notes, collector signal, and the occasional market thought.', href: 'https://x.com/gerrydoteth', label: 'Follow' },
+  { kind: '◈ opensea', handle: 'gerrystephen', note: 'Penguins, seals, Inkfinity, and the public collector trail.', href: 'https://opensea.io/profile/gerrystephen', label: 'Browse' },
   { kind: '✦ ventures', handle: 'Blue Star · Zeppole', note: 'Stay over, eat well, tell a friend.', href: '#bluestar', label: 'Visit', warm: true }];
 
   return (
     <section className="contact" id="contact">
-      <Chapter num="07" kicker="Hello" title="Knock on the iglu." />
+      <Chapter num="08" kicker="Hello" title="Come through the iglu." />
       <div className="contact-grid">
         {cards.map((c, i) =>
         <Reveal key={c.kind} delay={i * 80}>
@@ -565,7 +693,7 @@ function Contact() {
           </Reveal>
         )}
       </div>
-      <div className="signoff">Eric Guy signed canvases.<br />I sign blocks.</div>
+      <div className="signoff">Eric Guy signed canvases.<br />I keep building rooms.</div>
       <div className="dedication">For my dad, Eric Guy. <span>—2022 · in memoriam</span></div>
       <div className="wallets">
         <div className="wallets-lbl">Wallets · gerrystephen.eth resolves to</div>
@@ -598,6 +726,7 @@ function App() {
       <Marquee items={['gerrystephen.eth', 'inkfinity canvas ✎', 'eric guy', 'sappy seals', 'pudgy holder', 'web3 since 2021', 'building IRL', 'hot weather, iced lattes', 'opensea / gerrystephen']} />
       <Timeline />
       <Projects />
+      <NftCarousel />
       <InkfinityGallery />
       <Stats />
       <NowBuilding />
@@ -616,12 +745,12 @@ function App() {
 function TweaksUI({ tweaks, setTweak }) {
   return (
     <TweaksPanel title="Tweaks" defaultPosition={{ right: 24, bottom: 24 }}>
-      <TweakSection title="Atmosphere">
+      <TweakSection label="Atmosphere">
         <TweakSlider label="Parallax intensity" value={tweaks.parallaxIntensity} min={0} max={100} step={5} onChange={(v) => setTweak('parallaxIntensity', v)} />
         <TweakToggle label="Snowfall" value={tweaks.snowfall} onChange={(v) => setTweak('snowfall', v)} />
         <TweakToggle label="Warm chapter palette" value={tweaks.warmChapters} onChange={(v) => setTweak('warmChapters', v)} />
       </TweakSection>
-      <TweakSection title="Type & color">
+      <TweakSection label="Type & color">
         <TweakSelect label="Display font" value={tweaks.displayFont}
         options={[
         { label: 'Inter Tight', value: 'Inter Tight' },
