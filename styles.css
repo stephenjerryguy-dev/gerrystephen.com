@@ -1081,38 +1081,6 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 1000px) { .nb-grid { grid-template-columns: 1fr; } }
 @media (max-width: 700px) { .now-building { padding: 100px 24px; } }
 
-/* ---------- Wallets band ---------- */
-.wallets {
-  margin-top: 36px;
-  text-align: center;
-  padding: 24px 8px 0;
-  border-top: 1px solid rgba(255,255,255,0.08);
-}
-.wallets-lbl {
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: rgba(220,238,247,0.5);
-  margin-bottom: 12px;
-}
-.wallets-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  align-items: center;
-  font-family: var(--mono);
-  font-size: 11px;
-  color: rgba(220,238,247,0.65);
-  word-break: break-all;
-}
-.wallets-list span {
-  padding: 4px 10px;
-  border-radius: 6px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.06);
-}
-
 /* ---------- Ventures ---------- */
 .venture { position: relative; padding: 140px 80px; overflow: hidden; }
 .venture-bg { position: absolute; inset: 0; z-index: -1; }
@@ -1136,6 +1104,12 @@ a { color: inherit; text-decoration: none; }
 .venture-bullets li span { font-size: 14px; color: var(--ice-deep); }
 .venture-bullets.warm li { border-bottom-color: rgba(92,52,22,0.25); }
 .venture-bullets.warm li span { color: var(--warm-coffee); }
+.venture-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
 
 @media (max-width: 1000px) {
   .venture { padding: 100px 24px; }
@@ -1184,6 +1158,23 @@ a { color: inherit; text-decoration: none; }
   border: 1px solid rgba(255,255,255,0.24);
   box-shadow: 0 34px 90px rgba(3,18,34,0.34);
 }
+.hotel-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.84;
+  filter: saturate(1.04) contrast(0.96);
+}
+.hotel-scene::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(14,31,44,0.08), rgba(14,31,44,0.34)),
+    radial-gradient(520px 320px at 72% 12%, rgba(255,226,169,0.42), transparent 62%);
+}
 .hotel-sun {
   position: absolute;
   top: 58px;
@@ -1191,8 +1182,9 @@ a { color: inherit; text-decoration: none; }
   width: 120px;
   height: 120px;
   border-radius: 50%;
-  background: radial-gradient(circle, #fff 0%, #FFE2A9 58%, rgba(255,226,169,0) 72%);
+  background: radial-gradient(circle, rgba(255,255,255,0.95) 0%, #FFE2A9 58%, rgba(255,226,169,0) 72%);
   box-shadow: 0 0 80px rgba(255,218,146,0.7);
+  z-index: 1;
 }
 .hotel-building {
   position: absolute;
@@ -1206,6 +1198,8 @@ a { color: inherit; text-decoration: none; }
     linear-gradient(180deg, #F8FAFC 0%, #DDE7EF 100%);
   border: 1px solid rgba(12,44,74,0.16);
   box-shadow: 0 20px 50px rgba(10,38,60,0.18);
+  opacity: 0.72;
+  z-index: 1;
 }
 .hotel-sign {
   position: absolute;
@@ -1266,6 +1260,13 @@ a { color: inherit; text-decoration: none; }
   background: rgba(14,44,74,0.28);
   border-radius: 999px;
 }
+.hotel-sign,
+.hotel-window,
+.hotel-door,
+.hotel-balcony,
+.hotel-sea {
+  z-index: 2;
+}
 .hotel-balcony.one { bottom: 255px; }
 .hotel-balcony.two { bottom: 140px; }
 .hotel-sea {
@@ -1325,6 +1326,16 @@ a { color: inherit; text-decoration: none; }
   align-content: end;
   gap: 8px;
   margin: 0 auto;
+}
+.z-logo {
+  position: absolute;
+  top: 26px;
+  right: 24px;
+  width: min(150px, 38%);
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 12px 20px rgba(92,52,22,0.14));
+  z-index: 2;
 }
 .pastry-tray {
   position: relative;
@@ -1419,7 +1430,7 @@ a { color: inherit; text-decoration: none; }
 .contact .chapter-num { border-color: rgba(255,255,255,0.25); color: #fff; }
 .contact-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 18px;
   margin: 50px 0;
 }

@@ -45,6 +45,21 @@ function useInView(ref, threshold = 0.15) {
   return seen;
 }
 
+function slowScrollTo(targetY, duration = 2600) {
+  const startY = window.scrollY;
+  const delta = targetY - startY;
+  const start = performance.now();
+  const ease = (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+  function frame(now) {
+    const progress = Math.min(1, (now - start) / duration);
+    window.scrollTo(0, startY + delta * ease(progress));
+    if (progress < 1) requestAnimationFrame(frame);
+  }
+
+  requestAnimationFrame(frame);
+}
+
 function Reveal({ children, delay = 0, className = '' }) {
   const ref = useRef(null);
   const seen = useInView(ref);
@@ -180,6 +195,13 @@ function Hero({ y, mouse, intensity }) {
   const copyOpacity = Math.max(0, 1 - progress * 2.4);
   const copyY = progress * -90;
   const titleOp = progress > 0.55 ? Math.min(1, (progress - 0.55) * 4) : 0;
+  const rideParallax = (e) => {
+    e.preventDefault();
+    const target = ref.current
+      ? ref.current.offsetTop + ref.current.offsetHeight - window.innerHeight + 4
+      : window.innerHeight * 1.9;
+    slowScrollTo(target, 3600);
+  };
 
   return (
     <section className="hero" id="top" ref={ref}>
@@ -271,7 +293,7 @@ function Hero({ y, mouse, intensity }) {
           <h1 className="display">Welcome to<br />Gerry's<br /><em>iglu.</em></h1>
           <p className="lede">A one-page home base for the journey: business, Web3, family legacy, and the Pudgy that made the cold internet feel warm.</p>
           <div className="hero-cta">
-            <a className="btn primary" href="#journey">Scroll to discover →</a>
+            <a className="btn primary" href="#journey" onClick={rideParallax}>Scroll to discover →</a>
             <a className="btn ghost" href="#projects">View Web3 identity</a>
           </div>
         </div>
@@ -336,12 +358,12 @@ function Chapter({ num, kicker, title }) {
 const TIMELINE = [
 { year: '2021', tag: 'First mint · Sappy Seals', body: 'The rabbit hole opened through community, identity, and the feeling that ownership could become culture.' },
 { year: '2021', tag: 'Inkfinity Canvas · for Dad', body: 'Eric Guy signed the work by hand. Inkfinity Canvas put that signature somewhere permanent.' },
-{ year: '2022', tag: 'In memoriam · Eric Guy', body: 'After losing my dad, the chain became more than a market. It became a place to preserve a name.' },
-{ year: '2022', tag: 'Pudgy era', body: 'A penguin in a flat cap and goggles became the mascot for a warmer way to build in a cold market.' },
+{ year: '2022', tag: 'In memoriam · Eric Guy', body: 'After losing my dad, the chain became more than a market. It became a place to preserve a name, a builder, and the standard he set.' },
+{ year: '2022', tag: 'Lil Pudgy chapter', body: 'I had a Lil Pudgy early, sold it, and kept circling the ecosystem from the outside.' },
 { year: '2023', tag: 'Community & tools', body: 'Collector energy turned into product instincts: useful tools, useful relationships, and sharper taste.' },
 { year: '2024', tag: 'Builder mode', body: 'AI agents, trading systems, and experiments started becoming less like hobbies and more like infrastructure.' },
-{ year: '2025', tag: 'IRL bridge', body: 'The online network started touching real businesses: hospitality, food, local operations, and community.' },
-{ year: '2026', tag: 'One home base', body: 'gerrystephen.com becomes the iglu: one identity for Web3, business, family, and the next build.' }];
+{ year: '2025', tag: 'IRL bridge', body: 'Fifteen years building beside my dad turned into a new chapter: hospitality, food, local operations, and community.' },
+{ year: '2026', tag: 'Actual Pudgy era', body: 'This is when I became an actual Pudgy Penguin holder. The iglu finally had its mascot.' }];
 
 
 function Timeline() {
@@ -370,7 +392,7 @@ const PROJECTS = [
 { title: 'Inkfinity Canvas', kind: 'Family archive · 2021', note: 'Eric Guy signed canvases preserved as a permanent collection.', glyph: 'EG', href: 'https://opensea.io/collection/inkfinity-canvas' },
 { title: 'Sappy Seals', kind: 'First mint', note: 'The community that pulled the first thread and made Web3 feel human.', glyph: 'SS' },
 { title: 'Pudgy Penguins', kind: 'Holder', note: 'The flat-cap penguin energy that shaped the iglu visual language.', glyph: 'PP' },
-{ title: 'gerrystephen.eth', kind: 'Identity', note: 'One name for wallets, collections, experiments, and public reputation.', glyph: 'Ξ' },
+{ title: 'gerrystephen.eth', kind: 'Identity', note: 'One name for collections, experiments, and public reputation.', glyph: 'Ξ' },
 { title: 'OpenSea', kind: 'Collection', note: 'The public gallery for penguins, seals, Inkfinity, and ephemera.', glyph: 'OS', href: 'https://opensea.io/profile/gerrystephen' }];
 
 
@@ -406,8 +428,11 @@ const NFT_WALLETS = [
 
 const NFT_FALLBACKS = [
 { name: 'Flat Cap Pudgy', collection: 'Pudgy Penguins', image: 'assets/pudgy-penguin.webp', href: 'https://opensea.io/collection/pudgypenguins', wallet: 'gerrystephen.eth' },
+{ name: 'Lil Pudgys', collection: 'Pudgy ecosystem', glyph: 'LP', href: 'https://opensea.io/collection/lilpudgys', wallet: 'ecosystem' },
+{ name: 'Pudgy Rods', collection: 'Pudgy ecosystem', glyph: 'PR', href: 'https://opensea.io/collection/pudgyrods', wallet: 'ecosystem' },
+{ name: 'Sappy Seals', collection: 'First mint energy', glyph: 'SS', href: 'https://opensea.io/collection/sappy-seals', wallet: 'seal ecosystem' },
+{ name: 'Pixl Pets', collection: 'Sappy ecosystem', glyph: 'PX', href: 'https://opensea.io/collection/pixlpets', wallet: 'seal ecosystem' },
 { name: 'Inkfinity Canvas', collection: 'Eric Guy archive', glyph: 'E.G.', href: 'https://opensea.io/collection/inkfinity-canvas', wallet: 'family archive' },
-{ name: 'Sappy Seals', collection: 'First mint energy', glyph: 'SS', href: 'https://opensea.io/collection/sappy-seals', wallet: 'collector trail' },
 { name: 'gerrystephen.eth', collection: 'On-chain identity', glyph: 'Ξ', href: 'https://app.ens.domains/gerrystephen.eth', wallet: 'one name' }];
 
 function normalizeNft(item, wallet) {
@@ -477,14 +502,14 @@ function NftCarousel() {
   return (
     <section className="nft-showcase" id="nfts">
       <div className="nft-head">
-        <Chapter num="03" kicker="OpenSea" title="Top NFTs from the iglu." />
+        <Chapter num="03" kicker="OpenSea" title="Pudgy, Seal, and Inkfinity from the iglu." />
         <div className="nft-actions">
           <button type="button" className="icon-btn" aria-label="Previous NFT" onClick={prev}>‹</button>
           <button type="button" className="icon-btn" aria-label="Next NFT" onClick={next}>›</button>
         </div>
       </div>
       <p className="lede nft-lede">
-        {source === 'wallet' ? 'Pulled live from the public wallets connected to gerrystephen.eth. Each card opens the actual OpenSea asset.' : 'A curated fallback while live wallet data is unavailable in the browser.'}
+        {source === 'wallet' ? 'Pulled live from the public collection trail. Each card opens the actual OpenSea asset.' : 'A curated ecosystem carousel while live NFT data is unavailable in the browser.'}
       </p>
       <div className="nft-track">
         {visible.map((nft, i) =>
@@ -547,9 +572,9 @@ function Stats() {
   return (
     <section className="stats">
       <div className="stat"><div className="num">5</div><div className="lbl">years on-chain</div></div>
-      <div className="stat"><div className="num">2</div><div className="lbl">businesses standing</div></div>
+      <div className="stat"><div className="num">15</div><div className="lbl">years building with dad</div></div>
       <div className="stat"><div className="num">1</div><div className="lbl">penguin in a flat cap</div></div>
-      <div className="stat"><div className="num">∞</div><div className="lbl">cups of coffee</div></div>
+      <div className="stat"><div className="num">40+</div><div className="lbl">years of Eric Guy building</div></div>
     </section>);
 
 }
@@ -591,18 +616,22 @@ function BlueStar({ y, intensity, warm }) {
         <Reveal>
           <div className="venture-copy">
             <Chapter num="06" kicker="IRL · Hospitality" title="Blue Star Apartments & Hotel." />
-            <p className="lede big">A blue door, a key, the sea. Apartments and hotel rooms for guests who want the island to feel calm, useful, and quietly connected.</p>
+            <p className="lede big">Blue Star is part of the Guy family build story: construction roots, island hospitality, and years of work turned into a place people can actually stay.</p>
             <ul className="venture-bullets">
               <li><span>★</span> Long & short-stay suites</li>
               <li><span>★</span> Sea-facing balconies</li>
               <li><span>★</span> Local hospitality with digital-native operations</li>
             </ul>
-            <a className="btn primary blue" href="https://www.bluestarstay.com/web3" target="_blank" rel="noopener">Book a stay →</a>
+            <div className="venture-actions">
+              <a className="btn primary blue" href="https://www.bluestarstay.com/web3" target="_blank" rel="noopener">Book a stay →</a>
+              <a className="btn ghost" href="https://www.instagram.com/bluestarstay/" target="_blank" rel="noopener">Instagram</a>
+            </div>
           </div>
         </Reveal>
         <Reveal delay={120}>
           <div className="venture-vis">
             <div className="hotel-scene" aria-label="Blue Star hotel visual">
+              <img className="hotel-photo" src="assets/bluestar-building.jpg" alt="Blue Star Apartments and Hotel building" />
               <div className="hotel-sky" />
               <div className="hotel-sun" />
               <div className="hotel-building">
@@ -634,6 +663,7 @@ function Zeppole({ y, intensity, warm }) {
         <Reveal>
           <div className="venture-vis">
             <div className="z-card">
+              <img className="z-logo" src="assets/zeppole-logo.png" alt="Zeppole Dolci logo" />
               <div className="z-stamp">
                 <div>ZEPPOLE</div>
                 <div>DOLCI</div>
@@ -663,7 +693,7 @@ function Zeppole({ y, intensity, warm }) {
               <li><span>●</span> American/Italian cuisine - Brunch!</li>
               <li><span>●</span> A booth in the back for builders</li>
             </ul>
-            <a className="btn primary warm" href="#contact">Find the café →</a>
+            <a className="btn primary warm" href="https://www.instagram.com/zeppoledolci/" target="_blank" rel="noopener">Zeppole Instagram →</a>
           </div>
         </Reveal>
       </div>
@@ -676,7 +706,8 @@ function Contact() {
   const cards = [
   { kind: '@ x', handle: 'gerrydoteth', note: 'Builder notes, collector signal, and the occasional market thought.', href: 'https://x.com/gerrydoteth', label: 'Follow' },
   { kind: '◈ opensea', handle: 'gerrystephen', note: 'Penguins, seals, Inkfinity, and the public collector trail.', href: 'https://opensea.io/profile/gerrystephen', label: 'Browse' },
-  { kind: '✦ ventures', handle: 'Blue Star · Zeppole', note: 'Stay over, eat well, tell a friend.', href: '#bluestar', label: 'Visit', warm: true }];
+  { kind: '★ bluestar', handle: '@bluestarstay', note: 'Family-built hospitality in Grenada.', href: 'https://www.instagram.com/bluestarstay/', label: 'Open', warm: true },
+  { kind: '● zeppole', handle: '@zeppoledolci', note: 'Cafe, eatery, bakery, and the daily coffee ritual.', href: 'https://www.instagram.com/zeppoledolci/', label: 'Open', warm: true }];
 
   return (
     <section className="contact" id="contact">
@@ -693,16 +724,8 @@ function Contact() {
           </Reveal>
         )}
       </div>
-      <div className="signoff">Eric Guy signed canvases.<br />I keep building rooms.</div>
+      <div className="signoff">Eric Guy built for forty years.<br />I was lucky to build beside him for fifteen.</div>
       <div className="dedication">For my dad, Eric Guy. <span>—2022 · in memoriam</span></div>
-      <div className="wallets">
-        <div className="wallets-lbl">Wallets · gerrystephen.eth resolves to</div>
-        <div className="wallets-list">
-          <span>0xCf3b8981AbAa56a8E41117b0c721C05F608400A7</span>
-          <span>0x382556a543aad855c07678e7f8e820d0d90429bb</span>
-          <span>0xc3ce1eb539c1cc031ecd7b95e8c00768bf324403</span>
-        </div>
-      </div>
     </section>);
 
 }
