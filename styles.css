@@ -510,18 +510,19 @@ a { color: inherit; text-decoration: none; }
   overflow: hidden;
 }
 .marquee-track {
-  display: inline-flex;
+  display: flex;
+  width: max-content;
   white-space: nowrap;
-  animation: marq 38s linear infinite;
+  animation: marq 32s linear infinite;
   font-family: var(--display-font), serif;
   font-size: 28px;
   font-weight: 500;
   letter-spacing: 0;
-  padding-left: 56px;
+  will-change: transform;
 }
-.marquee-item { display: inline-flex; align-items: center; gap: 24px; margin-right: 56px; }
+.marquee-item { display: inline-flex; align-items: center; gap: 24px; padding-right: 56px; flex: 0 0 auto; }
 .m-dot { width: 10px; height: 10px; border-radius: 50%; background: oklch(0.85 0.1 var(--accent-hue)); display: inline-block; }
-@keyframes marq { to { transform: translateX(-33.33%); } }
+@keyframes marq { to { transform: translate3d(-50%, 0, 0); } }
 
 /* ---------- Reveal ---------- */
 .reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.8s ease, transform 0.8s ease; }
@@ -848,12 +849,19 @@ a { color: inherit; text-decoration: none; }
 .nft-track {
   position: relative;
   z-index: 1;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: flex;
   gap: 18px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: thin;
+  padding: 4px 2px 18px;
+  mask-image: linear-gradient(90deg, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%);
 }
 .nft-card {
   display: block;
+  flex: 0 0 clamp(210px, 24vw, 300px);
+  scroll-snap-align: start;
   background: rgba(255,255,255,0.72);
   border: 1px solid rgba(14,31,44,0.08);
   border-radius: 8px;
@@ -863,6 +871,19 @@ a { color: inherit; text-decoration: none; }
   backdrop-filter: blur(12px);
   animation: cardRise 420ms ease both;
   animation-delay: calc(var(--i, 0) * 55ms);
+}
+.smart-track.is-looped {
+  overflow: hidden;
+}
+.smart-track.is-looped .nft-card {
+  animation-name: cardRise, ecosystemDrift;
+  animation-duration: 420ms, 22s;
+  animation-timing-function: ease, linear;
+  animation-delay: calc(var(--i, 0) * 55ms), 0s;
+  animation-iteration-count: 1, infinite;
+}
+.smart-track:hover .nft-card {
+  animation-play-state: running, paused;
 }
 .nft-card:hover {
   transform: translateY(-6px);
@@ -888,8 +909,30 @@ a { color: inherit; text-decoration: none; }
 }
 .nft-glyph {
   font-family: var(--display-font), serif;
-  font-size: clamp(46px, 7vw, 94px);
+  font-size: clamp(34px, 5.6vw, 82px);
   color: var(--bluestar);
+  text-align: center;
+  padding: 18px;
+  overflow-wrap: anywhere;
+}
+.asset-card .nft-art {
+  background:
+    radial-gradient(circle at 42% 22%, rgba(255,255,255,0.9), transparent 32%),
+    linear-gradient(135deg, #0E1F2C, #1F4E7A 52%, #3B7A57);
+}
+.asset-card .nft-glyph {
+  width: 68%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(238,246,251,0.92);
+  color: var(--ink);
+  box-shadow: 0 18px 48px rgba(0,0,0,0.2);
+  font-family: var(--mono);
+  font-size: clamp(16px, 3vw, 28px);
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 .nft-meta {
   padding: 18px 18px 20px;
@@ -918,8 +961,12 @@ a { color: inherit; text-decoration: none; }
   from { opacity: 0; transform: translateY(18px); }
   to { opacity: 1; transform: translateY(0); }
 }
+@keyframes ecosystemDrift {
+  from { translate: 0 0; }
+  to { translate: calc(-100% - 18px) 0; }
+}
 @media (max-width: 1000px) {
-  .nft-track { grid-template-columns: repeat(2, 1fr); }
+  .nft-card { flex-basis: clamp(220px, 42vw, 300px); }
 }
 @media (max-width: 700px) {
   .nft-showcase { padding: 100px 24px; }
@@ -928,7 +975,8 @@ a { color: inherit; text-decoration: none; }
   .ecosystem-stage { padding: 16px; }
   .ecosystem-focus { align-items: flex-start; flex-direction: column; }
   .ecosystem-focus strong { white-space: normal; }
-  .nft-track { grid-template-columns: 1fr; }
+  .nft-track { mask-image: none; }
+  .nft-card { flex-basis: min(82vw, 320px); }
 }
 
 /* ---------- Monad Game ---------- */

@@ -419,7 +419,7 @@ function Marquee({ items }) {
   return (
     <div className="marquee" aria-hidden="true">
       <div className="marquee-track">
-        {[...items, ...items, ...items].map((it, i) =>
+        {[...items, ...items].map((it, i) =>
         <span key={i} className="marquee-item">
             <span className="m-dot" /> {it}
           </span>
@@ -448,7 +448,7 @@ const TIMELINE = [
 { year: '2021', tag: 'Inkfinity Canvas · family craft', body: 'Eric Guy signed the work by hand. Inkfinity Canvas put that signature somewhere permanent.' },
 { year: '2022', tag: 'The Guy standard', body: 'My dad ran construction for decades. I spent fifteen years beside him learning how real work gets scoped, built, and carried forward. His legacy now lives on forever.' },
 { year: '2022', tag: 'Lil Pudgy chapter', body: 'I had a Lil Pudgy early, sold it, and kept circling the ecosystem from the outside.' },
-{ year: '2023', tag: 'Community & tools', body: 'I kept showing up for Sappy Seals: constant memes, Twitter and Instagram timeline energy, and support for the whole ecosystem. I still do.' },
+{ year: '2023', tag: 'Community & tools', body: 'I kept showing up for Sappy Seals with constant memes across X, Instagram, TikTok, and YouTube Shorts while supporting the whole ecosystem. I still do.' },
 { year: '2024', tag: 'IRL bridge', body: 'Fifteen years building beside my dad turned into a new chapter: hospitality, food, local operations, and community.' },
 { year: '2025', tag: 'AI expansion', body: 'The huge uptick in AI capability changed what I could build: operations, memes, trades, and Great Terriers, a collection I started in 2022.' },
 { year: '2026', tag: 'Actual Pudgy era', body: 'This is when I became an actual Pudgy Penguin holder. The iglu finally had its mascot.' }];
@@ -522,15 +522,17 @@ const NFT_ECOSYSTEMS = [
   keywords: ['sappy', 'seal', 'pixl', 'pixel', 'omnia', 'pets', 'pixelverse'],
   fallback: [
   { name: 'Sappy Seals ecosystem', collection: 'Owned-token images only', glyph: 'SS', tokenId: 'pending', contract: 'pending' },
+  { name: 'PIXL', collection: 'Pixlverse ecosystem', glyph: 'PIXL', tokenId: 'asset', amount: 'syncing', chain: 'Ethereum' },
   { name: 'Pixl and Omnia items', collection: 'Owned-token images only', glyph: 'PX', tokenId: 'pending', contract: 'pending' }]
 },
 {
   id: 'pudgy',
   label: 'Pudgy Penguins ecosystem',
-  note: 'The penguin, Lil Pudgy, and Pudgy Rods.',
-  keywords: ['pudgy', 'penguin', 'lil pudgy', 'rod'],
+  note: 'The penguin, Lil Pudgy, Pudgy Rods, and PENGU.',
+  keywords: ['pudgy', 'penguin', 'lil pudgy', 'rod', 'pengu'],
   fallback: [
   { name: 'Pudgy Penguin', collection: 'Pudgy Penguins ecosystem', image: 'assets/pudgy-penguin.webp', tokenId: 'pending', contract: 'pending' },
+  { name: 'PENGU', collection: 'Pudgy Penguins ecosystem', glyph: 'PENGU', tokenId: 'asset', amount: 'syncing', chain: 'Abstract' },
   { name: 'Lil Pudgy and Rods', collection: 'Owned-token images only', glyph: 'PP', tokenId: 'pending', contract: 'pending' }]
 },
 {
@@ -539,7 +541,18 @@ const NFT_ECOSYSTEMS = [
   note: 'Eric Guy signed canvases and the permanent collection around them.',
   keywords: ['inkfinity', 'nftvisionary', 'nuttyprofessor', 'thunderofthoughts', 'e. guy'],
   fallback: [
-  { name: 'Inkfinity Canvas', collection: 'Signed work', glyph: 'E.G.', tokenId: 'pending', contract: 'pending' }]
+  { name: 'NFTVisionary', collection: 'Inkfinity Canvas', image: 'assets/inkfinity-visionary.svg', href: 'https://opensea.io/collection/inkfinity-canvas', tokenId: 'canvas', contract: 'inkfinity' },
+  { name: 'NuttyProfessor', collection: 'Inkfinity Canvas', image: 'assets/inkfinity-professor.svg', href: 'https://opensea.io/collection/inkfinity-canvas', tokenId: 'canvas', contract: 'inkfinity' },
+  { name: 'ThunderOfThoughts', collection: 'Inkfinity Canvas', image: 'assets/inkfinity-thoughts.svg', href: 'https://opensea.io/collection/inkfinity-canvas', tokenId: 'canvas', contract: 'inkfinity' }]
+},
+{
+  id: 'great-terriers',
+  label: 'Great Terriers',
+  note: 'A collection started in 2022, coming into the next build cycle.',
+  keywords: ['great terriers'],
+  fallback: [
+  { name: 'Great Terriers', collection: 'Coming soon', glyph: 'GT', tokenId: 'soon', contract: 'soon' },
+  { name: '2022 origin', collection: 'Collection in progress', glyph: '22', tokenId: 'soon', contract: 'soon' }]
 }];
 
 function ecosystemForNft(nft) {
@@ -555,7 +568,7 @@ function buildEcosystemSlides(items) {
     const ecosystemItems = items.filter((nft) => ecosystemForNft(nft)?.id === ecosystem.id);
     return {
       ...ecosystem,
-      items: (ecosystemItems.length ? ecosystemItems : ecosystem.fallback).slice(0, 4)
+      items: (ecosystemItems.length ? ecosystemItems : ecosystem.fallback)
     };
   });
   return slides;
@@ -581,6 +594,7 @@ function NftCarousel() {
   const [groups, setGroups] = useState(() => buildEcosystemSlides([]));
   const [source, setSource] = useState('curated');
   const [index, setIndex] = useState(0);
+  const [assetData, setAssetData] = useState([]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -624,6 +638,15 @@ function NftCarousel() {
   }, []);
 
   useEffect(() => {
+    const controller = new AbortController();
+    fetch('/api/ecosystem-assets', { signal: controller.signal })
+      .then((res) => res.ok ? res.json() : Promise.reject(new Error('asset api unavailable')))
+      .then((data) => setAssetData(data?.assets || []))
+      .catch(() => setAssetData([]));
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
     if (groups.length <= 1) return undefined;
     const timer = window.setInterval(() => {
       setIndex((i) => (i + 1) % groups.length);
@@ -633,24 +656,29 @@ function NftCarousel() {
 
   const next = () => setIndex((i) => (i + 1) % groups.length);
   const prev = () => setIndex((i) => (i - 1 + groups.length) % groups.length);
-  const activeGroup = groups[index] || groups[0];
+  const groupsWithAssets = groups.map((group) => ({
+    ...group,
+    items: [...assetData.filter((asset) => asset.ecosystem === group.id), ...(group.items || [])]
+  }));
+  const activeGroup = groupsWithAssets[index] || groupsWithAssets[0];
   const visible = activeGroup?.items || [];
+  const smartItems = visible.length < 8 ? [...visible, ...visible].slice(0, Math.max(4, visible.length * 2)) : visible;
 
   return (
     <section className="nft-showcase" id="nfts">
       <div className="nft-head">
-        <Chapter num="02" kicker="My community ecosystems" title="Sappy, Pudgy, and Inkfinity." />
+        <Chapter num="02" kicker="My community ecosystems" title="Sappy, Pudgy, Inkfinity, and what comes next." />
         <div className="nft-actions">
           <button type="button" className="icon-btn" aria-label="Previous NFT" onClick={prev}>‹</button>
           <button type="button" className="icon-btn" aria-label="Next NFT" onClick={next}>›</button>
         </div>
       </div>
       <p className="lede nft-lede">
-        {source === 'wallet' ? `${activeGroup?.note} Exact owned-token cards open the matching OpenSea asset page.` : `${activeGroup?.note} Waiting on exact token metadata for this ecosystem.`}
+        {source === 'wallet' ? `${activeGroup?.note} Cards open the matching asset, collection, or explorer page.` : `${activeGroup?.note} Waiting on exact metadata for this ecosystem.`}
       </p>
       <div className={`ecosystem-stage ${activeGroup?.id || ''}`}>
         <div className="ecosystem-tabs" aria-label="NFT ecosystem carousel position">
-          {groups.map((group, i) =>
+          {groupsWithAssets.map((group, i) =>
           <button key={group.id} type="button" className={i === index ? 'active' : ''} onClick={() => setIndex(i)}>
               <span>{String(i + 1).padStart(2, '0')}</span>
               <strong>{group.label}</strong>
@@ -660,18 +688,26 @@ function NftCarousel() {
         </div>
         <div className="ecosystem-focus">
           <span>{activeGroup?.label}</span>
-          <strong>{visible.length} featured pieces</strong>
+          <strong>{visible.length} featured items</strong>
         </div>
-        <div className="nft-track">
-          {visible.map((nft, i) =>
-          <a key={`${nft.name}-${i}`} className={`nft-card ${nft.tokenId === 'pending' ? 'disabled' : ''}`} href={nft.href || '#nfts'} target="_blank" rel="noopener" style={{ '--i': i }}>
+        <div className={`nft-track smart-track ${visible.length < 5 ? 'is-looped' : ''}`}>
+          {smartItems.map((nft, i) =>
+          <a key={`${nft.name}-${nft.tokenId}-${i}`} className={`nft-card ${nft.tokenId === 'pending' || nft.tokenId === 'soon' ? 'disabled' : ''} ${nft.tokenId === 'asset' ? 'asset-card' : ''}`} href={nft.href || '#nfts'} target="_blank" rel="noopener" style={{ '--i': i }}>
               <div className="nft-art">
                 {nft.image ? <img src={nft.image} alt={nft.name} loading="lazy" /> : <div className="nft-glyph">{nft.glyph}</div>}
               </div>
               <div className="nft-meta">
                 <span>{nft.collection}</span>
                 <strong>{nft.name}</strong>
-                <small>{nft.tokenId && nft.tokenId !== 'pending' ? `${nft.contract.slice(0, 6)}...${nft.contract.slice(-4)} / #${nft.tokenId}` : 'Exact token data pending'}</small>
+                <small>
+                  {nft.tokenId === 'asset'
+                    ? `${nft.amount || 'syncing'} · ${nft.chain}`
+                    : nft.tokenId === 'soon'
+                      ? 'Coming soon'
+                      : nft.tokenId && nft.tokenId !== 'pending'
+                        ? `${String(nft.contract).slice(0, 6)}...${String(nft.contract).slice(-4)} / #${nft.tokenId}`
+                        : 'Exact token data pending'}
+                </small>
               </div>
             </a>
           )}
@@ -688,6 +724,8 @@ const MONAD_TESTNET = {
   rpcUrls: ['https://testnet-rpc.monad.xyz'],
   blockExplorerUrls: ['https://testnet.monadexplorer.com']
 };
+
+const GAME_NAME = 'Iglu Merge';
 
 function shortWallet(account) {
   return account ? `${account.slice(0, 6)}...${account.slice(-4)}` : 'Connect wallet';
@@ -907,7 +945,7 @@ function MonadGame() {
           from: account,
           to: account,
           value: '0x0',
-          data: hexFromText(`gerrystephen.com Monad Merge score=${score} maxTile=${maxTile}`)
+          data: hexFromText(`gerrystephen.com ${GAME_NAME} score=${score} maxTile=${maxTile}`)
         }]
       });
       setTxHash(hash);
@@ -920,20 +958,23 @@ function MonadGame() {
   return (
     <section className="monad-game" id="monad-game">
       <div className="game-copy">
-        <Chapter num="04" kicker="Monad game" title="Monad Merge." />
-        <p className="lede">A 2048-style focus game for BuildAnything: merge the Monad tiles, chase bigger runs, and post a score receipt on Monad Testnet.</p>
+        <Chapter num="04" kicker="Built on Monad" title={`${GAME_NAME}.`} />
+        <p className="lede">A 2048-style focus game for BuildAnything: merge the tiles, chase bigger runs, and post a score receipt on Monad Testnet.</p>
         <div className="game-actions">
           <button type="button" className="btn primary" onClick={connectMonad}>{shortWallet(account)}</button>
           <button type="button" className="btn ghost" onClick={newGame}>New run</button>
+          <a className="btn ghost" href="/?app=iglu-merge#monad-game" target="_blank" rel="noopener">Open app window</a>
           <button type="button" className="btn ghost" onClick={submitScore} disabled={!score}>Submit score</button>
         </div>
         <div className="game-status">
           <span>{walletState}</span>
           <span>{isMonad ? 'Monad Testnet' : 'Wrong network'}</span>
+          <span>PWA ready</span>
+          <span>Telegram / Farcaster / Roblox path</span>
           {txHash && <a href={`https://testnet.monadexplorer.com/tx/${txHash}`} target="_blank" rel="noopener">View score tx</a>}
         </div>
       </div>
-      <div className="game-shell" role="application" aria-label="Monad Merge game">
+      <div className="game-shell" role="application" aria-label={`${GAME_NAME} game`}>
         <div className="game-hud">
           <div><span>Score</span><strong>{score}</strong></div>
           <div><span>Best</span><strong>{best}</strong></div>
@@ -942,7 +983,7 @@ function MonadGame() {
         <div
           className="game-board merge-board"
           role="grid"
-          aria-label="Monad Merge board"
+          aria-label={`${GAME_NAME} board`}
           onTouchStart={(event) => setTouchStart({ x: event.touches[0].clientX, y: event.touches[0].clientY })}
           onTouchEnd={handleTouchEnd}>
           {board.map((value, cell) =>
@@ -1023,8 +1064,8 @@ function Stats() {
 
 // ---------- Now Building ----------
 const NOW = [
-{ glyph: 'AI', title: 'AI Agents', note: 'Autonomous workers for on-chain ops, content, and the boring glue between them.' },
-{ glyph: '↗', title: 'Trading', note: 'Systems for spotting and executing — quant-flavored, vibes-tuned.' },
+{ glyph: 'AI', title: 'AI Agents', note: 'Autonomous workers for off-chain ops in hospitality, content, and the boring glue between them.' },
+{ glyph: '★', title: 'Blue Star Web3', note: 'Live now: Sappy Seals and Pudgy Penguins ecosystem holders get booking benefits for vacation, worcation, and nomadic stays. Inkfinity Canvas holders are the founders-tier collection.' },
 { title: 'Seal Stay', note: 'Where Web3 meets hospitality. Stay tuned — opening soon.', logo: 'assets/seal-stay-logo.png' }];
 
 function NowBuilding() {
@@ -1065,8 +1106,8 @@ function BlueStar({ y, intensity, warm }) {
               <li><span>★</span> Local hospitality with digital-native operations</li>
             </ul>
             <a className="web3-callout" href="https://www.bluestarstay.com/web3" target="_blank" rel="noopener">
-              <span>Web3 stays</span>
-              <strong>Crypto-native booking, NFT perks, and a direct path for digital guests.</strong>
+              <span>Web3 stays are live</span>
+              <strong>Sappy Seals and Pudgy ecosystem holders get booking benefits. Inkfinity Canvas holders sit in the founders tier.</strong>
             </a>
             <div className="venture-actions">
               <a className="btn primary blue" href="https://www.bluestarstay.com/web3" target="_blank" rel="noopener">Book a stay →</a>
