@@ -34,6 +34,94 @@ function useMouse() {
   return pos;
 }
 
+function useAmbientScrollSound(y) {
+  const audioRef = useRef(null);
+
+  useEffect(() => {
+    function makeNoiseBuffer(ctx, seconds = 2) {
+      const length = ctx.sampleRate * seconds;
+      const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      let last = 0;
+      for (let i = 0; i < length; i += 1) {
+        last = last * 0.98 + (Math.random() * 2 - 1) * 0.02;
+        data[i] = last * 3.4;
+      }
+      return buffer;
+    }
+
+    function createSource(ctx, buffer, filterType, frequency, q = 0.7) {
+      const source = ctx.createBufferSource();
+      const filter = ctx.createBiquadFilter();
+      source.buffer = buffer;
+      source.loop = true;
+      filter.type = filterType;
+      filter.frequency.value = frequency;
+      filter.Q.value = q;
+      source.connect(filter);
+      source.start();
+      return { source, filter };
+    }
+
+    function startAmbience() {
+      if (audioRef.current) {
+        audioRef.current.ctx.resume?.();
+        return;
+      }
+
+      const AudioCtor = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtor) return;
+      const ctx = new AudioCtor();
+      const noise = makeNoiseBuffer(ctx);
+      const master = ctx.createGain();
+      const beachGain = ctx.createGain();
+      const snowGain = ctx.createGain();
+      const beach = createSource(ctx, noise, 'lowpass', 720, 0.8);
+      const snow = createSource(ctx, noise, 'highpass', 1600, 0.4);
+
+      master.gain.value = 0.08;
+      beachGain.gain.value = 0.7;
+      snowGain.gain.value = 0;
+      beach.filter.connect(beachGain).connect(master);
+      snow.filter.connect(snowGain).connect(master);
+      master.connect(ctx.destination);
+
+      audioRef.current = { ctx, beachGain, snowGain, beach, snow };
+      ctx.resume?.();
+    }
+
+    const opts = { passive: true };
+    window.addEventListener('pointerdown', startAmbience, opts);
+    window.addEventListener('wheel', startAmbience, opts);
+    window.addEventListener('touchstart', startAmbience, opts);
+    window.addEventListener('keydown', startAmbience);
+    return () => {
+      window.removeEventListener('pointerdown', startAmbience);
+      window.removeEventListener('wheel', startAmbience);
+      window.removeEventListener('touchstart', startAmbience);
+      window.removeEventListener('keydown', startAmbience);
+      const audio = audioRef.current;
+      if (!audio) return;
+      audio.beach.source.stop();
+      audio.snow.source.stop();
+      audio.ctx.close?.();
+      audioRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+    const cold = Math.min(1, Math.max(0, y / maxScroll));
+    const beachLevel = Math.max(0, 0.78 - cold * 0.84);
+    const snowLevel = Math.max(0, (cold - 0.18) / 0.82) * 0.58;
+    const now = audio.ctx.currentTime;
+    audio.beachGain.gain.setTargetAtTime(beachLevel, now, 0.45);
+    audio.snowGain.gain.setTargetAtTime(snowLevel, now, 0.55);
+  }, [y]);
+}
+
 function useInView(ref, threshold = 0.15) {
   const [seen, setSeen] = useState(false);
   useEffect(() => {
@@ -108,7 +196,7 @@ function Topbar() {
     <header className="topbar" data-screen-label="topbar">
       <div className="brand">
         <div className="brand-mark">
-          <img src="assets/pudgy-penguin.webp" alt="" />
+          <img src="assets/pudgy-penguin-cutout.png" alt="" />
         </div>
         <div className="brand-text">gerrystephen<span>.com</span></div>
       </div>
@@ -775,6 +863,7 @@ function App() {
   const [tweaks, setTweaks] = useTweaks(TWEAK_DEFAULTS);
   const y = useScrollY();
   const mouse = useMouse();
+  useAmbientScrollSound(y);
 
   useEffect(() => {
     document.documentElement.style.setProperty('--display-font', `"${tweaks.displayFont}"`);
