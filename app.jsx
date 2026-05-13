@@ -310,7 +310,7 @@ function Hero({ y, mouse, intensity }) {
         </div>
 
         <div className="father-note" style={{ opacity: copyOpacity }}>
-          <span>Craft first. Keep building.</span>
+          <span>Strength over beauty.</span>
           <small>Eric Guy</small>
         </div>
 
