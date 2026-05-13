@@ -11,7 +11,8 @@ const TOKEN_URI_SELECTOR = '0xc87b56dd';
 const ERC1155_URI_SELECTOR = '0x0e89341c';
 const OMNIA_PETS_CONTRACT = '0x4e76c23fe2a4e37b5e07b5625e17098baab86c18';
 const OMNIA_ITEMS_CONTRACT = '0xf0ea56402b2e2b27556d7abf4236c7327722fe41';
-const FORCE_METADATA_REFRESH = new Set([OMNIA_PETS_CONTRACT, OMNIA_ITEMS_CONTRACT]);
+const INKFINITY_CONTRACT = '0x4de49a57235cc0d4d22baad106a4dc302c8d935e';
+const FORCE_METADATA_REFRESH = new Set([OMNIA_PETS_CONTRACT, OMNIA_ITEMS_CONTRACT, INKFINITY_CONTRACT]);
 const ECOSYSTEMS = [
   {
     id: 'sappy',
@@ -37,7 +38,9 @@ const ECOSYSTEMS = [
   {
     id: 'inkfinity',
     label: 'Inkfinity Canvas',
-    contracts: [],
+    contracts: [
+      '0x4de49a57235cc0d4d22baad106a4dc302c8d935e',
+    ],
     keywords: ['inkfinity', 'nftvisionary', 'nuttyprofessor', 'thunderofthoughts', 'e. guy'],
   },
 ];

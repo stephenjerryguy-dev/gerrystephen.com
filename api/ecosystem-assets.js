@@ -10,9 +10,9 @@ const ASSETS = [
   {
     id: 'pengu',
     ecosystem: 'pudgy',
-    name: 'PENGU',
+    name: '$PENGU',
     collection: 'Pudgy Penguins ecosystem',
-    symbol: 'PENGU',
+    symbol: '$PENGU',
     chain: 'Abstract',
     rpc: ABSTRACT_RPC,
     contract: '0x9eBe3A824Ca958e4b3Da772D2065518F009CBa62',
@@ -23,15 +23,16 @@ const ASSETS = [
   {
     id: 'pixl',
     ecosystem: 'sappy',
-    name: 'PIXL',
-    collection: 'Pixlverse ecosystem',
-    symbol: 'PIXL',
+    name: '$PIXL',
+    collection: 'Omnia ecosystem',
+    symbol: '$PIXL',
     chain: 'Ethereum',
     rpc: ETH_RPC,
     contract: '0x427A03fb96D9A94a6727fBCfbBA143444090dD64',
     wallet: ETH_WALLET,
     href: `https://etherscan.io/token/0x427A03fb96D9A94a6727fBCfbBA143444090dD64?a=${ETH_WALLET}`,
     image: 'https://cdn.dexscreener.com/cms/images/df894589157dc6cba4da1b969b44944defa2c7ac291457d5fccabef0af32e017?width=800&height=800&quality=95&format=auto',
+    fallbackAmount: '103,278.52',
   },
 ];
 
@@ -93,7 +94,7 @@ async function withBalance(asset) {
     const tokenImage = await fetchTokenImage(asset.contract).catch(() => undefined);
     return {
       ...asset,
-      amount: 'syncing',
+      amount: asset.fallbackAmount || 'syncing',
       tokenId: 'asset',
       image: tokenImage || asset.image || null,
       glyph: asset.symbol,

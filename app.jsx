@@ -518,21 +518,21 @@ const NFT_ECOSYSTEMS = [
 {
   id: 'sappy',
   label: 'Sappy Seals ecosystem',
-  note: 'Seals, Omnia Pets, Omnia items, and PIXL.',
+  note: 'Seals, Omnia Pets, Omnia items, and $PIXL.',
   keywords: ['sappy', 'pixl', 'omnia', 'pets'],
   fallback: [
   { name: 'Sappy Seals ecosystem', collection: 'Owned-token images only', glyph: 'SS', tokenId: 'pending', contract: 'pending' },
-  { name: 'PIXL', collection: 'Omnia ecosystem', glyph: 'PIXL', tokenId: 'asset', amount: 'syncing', chain: 'Ethereum' },
+  { name: '$PIXL', collection: 'Omnia ecosystem', glyph: '$PIXL', tokenId: 'asset', amount: '103,278.52', chain: 'Ethereum' },
   { name: 'Omnia items', collection: 'Owned-token images only', glyph: 'OM', tokenId: 'pending', contract: 'pending' }]
 },
 {
   id: 'pudgy',
   label: 'Pudgy Penguins ecosystem',
-  note: 'The penguin, Lil Pudgy, Pudgy Rods, and PENGU.',
+  note: 'The penguin, Lil Pudgy, Pudgy Rods, and $PENGU.',
   keywords: ['pudgy', 'penguin', 'lil pudgy', 'rod', 'pengu'],
   fallback: [
   { name: 'Pudgy Penguin', collection: 'Pudgy Penguins ecosystem', image: 'assets/pudgy-penguin.webp', tokenId: 'pending', contract: 'pending' },
-  { name: 'PENGU', collection: 'Pudgy Penguins ecosystem', glyph: 'PENGU', tokenId: 'asset', amount: 'syncing', chain: 'Abstract' },
+  { name: '$PENGU', collection: 'Pudgy Penguins ecosystem', glyph: '$PENGU', tokenId: 'asset', amount: 'syncing', chain: 'Abstract' },
   { name: 'Lil Pudgy and Rods', collection: 'Owned-token images only', glyph: 'PP', tokenId: 'pending', contract: 'pending' }]
 },
 {
