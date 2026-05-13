@@ -24,6 +24,7 @@ const ECOSYSTEMS = [
       '0xf0ea56402b2e2b27556d7abf4236c7327722fe41',
     ],
     keywords: ['sappy', 'pixl', 'omnia', 'pets'],
+    strictKeywords: ['pixseals', 'sappy key', 'sappy keys', 'pixlverse item', 'pixlverse items', 'omnia item', 'omnia items'],
   },
   {
     id: 'pudgy',
@@ -34,6 +35,7 @@ const ECOSYSTEMS = [
       '0x062e691c2054de82f28008a8ccc6d7a1c8ce060d',
     ],
     keywords: ['pudgy', 'penguin', 'lil pudgy', 'rod'],
+    strictKeywords: ['pudgy pin', 'pudgy pins', 'pengupin', 'pengu pin', 'pengupins', 'truepengu', 'soulbound'],
   },
   {
     id: 'inkfinity',
@@ -42,6 +44,7 @@ const ECOSYSTEMS = [
       '0x4de49a57235cc0d4d22baad106a4dc302c8d935e',
     ],
     keywords: ['inkfinity', 'nftvisionary', 'nuttyprofessor', 'thunderofthoughts', 'e. guy'],
+    previewContracts: [INKFINITY_CONTRACT],
   },
 ];
 
@@ -52,7 +55,8 @@ function ecosystemForNft(nft) {
 
   const haystack = `${nft?.collection || ''} ${nft?.name || ''}`.toLowerCase();
   return ECOSYSTEMS.find((ecosystem) =>
-    ecosystem.id === 'inkfinity' && ecosystem.keywords.some((keyword) => haystack.includes(keyword))
+    (ecosystem.id === 'inkfinity' && ecosystem.keywords.some((keyword) => haystack.includes(keyword)))
+    || ecosystem.strictKeywords?.some((keyword) => haystack.includes(keyword))
   );
 }
 
@@ -60,6 +64,7 @@ function normalizeCollectionName(name, contract) {
   const normalizedContract = contract?.toLowerCase?.();
   if (normalizedContract === OMNIA_PETS_CONTRACT) return 'Omnia Pets';
   if (normalizedContract === OMNIA_ITEMS_CONTRACT) return 'Omnia items';
+  if (normalizedContract === INKFINITY_CONTRACT) return 'Inkfinity Canvas';
   return name;
 }
 
@@ -138,7 +143,7 @@ async function ethCall(contract, data) {
   return json.result;
 }
 
-async function fetchTokenMetadataImage(contract, tokenId) {
+async function fetchTokenMetadata(contract, tokenId) {
   const callData = tokenCallData(TOKEN_URI_SELECTOR, tokenId);
   const fallbackCallData = tokenCallData(ERC1155_URI_SELECTOR, tokenId);
   const tokenUriHex = await ethCall(contract, callData).catch(() => undefined)
@@ -147,7 +152,15 @@ async function fetchTokenMetadataImage(contract, tokenId) {
   if (!tokenUri) return undefined;
 
   const metadata = await fetch(tokenUri).then((res) => res.ok ? res.json() : undefined).catch(() => undefined);
-  return ipfsToHttps(metadata?.image || metadata?.image_url || metadata?.animation_url);
+  if (!metadata) return undefined;
+  return {
+    name: metadata.name,
+    image: ipfsToHttps(metadata?.image || metadata?.image_url || metadata?.animation_url),
+  };
+}
+
+async function fetchTokenMetadataImage(contract, tokenId) {
+  return (await fetchTokenMetadata(contract, tokenId))?.image;
 }
 
 async function fetchMetadataImageFromUri(uri) {
@@ -157,7 +170,7 @@ async function fetchMetadataImageFromUri(uri) {
   return ipfsToHttps(metadata?.image || metadata?.image_url || metadata?.animation_url);
 }
 
-function normalizeToken(item, wallet) {
+function normalizeToken(item, wallet = 'collection') {
   const token = item?.token || item || {};
   const collection = token.collection || {};
   const contract = token.contract || token.contractAddress || token.collection?.id;
@@ -172,7 +185,7 @@ function normalizeToken(item, wallet) {
     href: `https://opensea.io/assets/ethereum/${contract}/${tokenId}`,
     contract,
     tokenId,
-    wallet: `${wallet.slice(0, 6)}...${wallet.slice(-4)}`,
+    wallet: wallet === 'collection' ? 'collection' : `${wallet.slice(0, 6)}...${wallet.slice(-4)}`,
   };
 }
 
@@ -233,12 +246,39 @@ async function fetchReservoirNfts(wallet, contract) {
   const normalized = (data.tokens || [])
     .map((item) => normalizeToken(item, wallet))
     .filter(Boolean);
-  return Promise.all(normalized.map(async (nft) => ({
+  return Promise.all(normalized.map(refreshNftMetadata));
+}
+
+async function refreshNftMetadata(nft) {
+  const needsRefresh = FORCE_METADATA_REFRESH.has(nft.contract?.toLowerCase?.());
+  const metadata = needsRefresh || !nft.image
+    ? await fetchTokenMetadata(nft.contract, nft.tokenId).catch(() => undefined)
+    : undefined;
+
+  return {
     ...nft,
-    image: FORCE_METADATA_REFRESH.has(nft.contract?.toLowerCase?.())
-      ? await fetchTokenMetadataImage(nft.contract, nft.tokenId).catch(() => undefined) || nft.image
-      : nft.image || await fetchTokenMetadataImage(nft.contract, nft.tokenId),
-  })));
+    name: normalizeItemName(metadata?.name || nft.name, nft.contract),
+    image: metadata?.image || nft.image,
+  };
+}
+
+async function fetchCollectionPreviewNfts(contract) {
+  const params = new URLSearchParams({
+    collection: contract,
+    limit: '8',
+    sortBy: 'tokenId',
+    includeAttributes: 'false',
+  });
+
+  const response = await fetch(`${RESERVOIR_API}/tokens/v7?${params.toString()}`, {
+    headers: { accept: 'application/json' },
+  });
+  if (!response.ok) return [];
+  const data = await response.json();
+  const normalized = (data.tokens || [])
+    .map((item) => normalizeToken(item))
+    .filter(Boolean);
+  return Promise.all(normalized.map(refreshNftMetadata));
 }
 
 export default async function handler(req, res) {
@@ -252,9 +292,13 @@ export default async function handler(req, res) {
     );
 
     const blockscoutResponses = await Promise.allSettled(WALLETS.map(fetchBlockscoutNfts));
+    const previewResponses = await Promise.allSettled(
+      ECOSYSTEMS.flatMap((ecosystem) => ecosystem.previewContracts || []).map(fetchCollectionPreviewNfts)
+    );
     const allNfts = [
       ...reservoirResponses.flatMap((result) => (result.status === 'fulfilled' ? result.value : [])),
       ...blockscoutResponses.flatMap((result) => (result.status === 'fulfilled' ? result.value : [])),
+      ...previewResponses.flatMap((result) => (result.status === 'fulfilled' ? result.value : [])),
     ];
 
     let nfts = curatedEcosystemNfts(allNfts.filter((nft) => nft.image));

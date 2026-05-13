@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gerry-iglu-v6';
+const CACHE_NAME = 'gerry-iglu-v7';
 const APP_SHELL = [
   '/',
   '/index.html',

@@ -518,22 +518,23 @@ const NFT_ECOSYSTEMS = [
 {
   id: 'sappy',
   label: 'Sappy Seals ecosystem',
-  note: 'Seals, Omnia Pets, Omnia items, and $PIXL.',
-  keywords: ['sappy', 'pixl', 'omnia', 'pets'],
+  note: 'Seals, Pixseals, Sappy Keys, Omnia Pets, Omnia items, and $PIXL.',
+  keywords: ['sappy', 'pixl', 'omnia', 'pets', 'pixseals', 'sappy key', 'pixlverse items'],
   fallback: [
   { name: 'Sappy Seals ecosystem', collection: 'Owned-token images only', glyph: 'SS', tokenId: 'pending', contract: 'pending' },
   { name: '$PIXL', collection: 'Omnia ecosystem', glyph: '$PIXL', tokenId: 'asset', amount: '103,278.52', chain: 'Ethereum' },
-  { name: 'Omnia items', collection: 'Owned-token images only', glyph: 'OM', tokenId: 'pending', contract: 'pending' }]
+  { name: 'Omnia items', collection: 'Pixlverse item metadata accepted', glyph: 'OM', tokenId: 'pending', contract: 'pending' },
+  { name: 'Pixseals and Sappy Keys', collection: 'Owned-token images only', glyph: 'KEY', tokenId: 'pending', contract: 'pending' }]
 },
 {
   id: 'pudgy',
   label: 'Pudgy Penguins ecosystem',
-  note: 'The penguin, Lil Pudgy, Pudgy Rods, and $PENGU.',
-  keywords: ['pudgy', 'penguin', 'lil pudgy', 'rod', 'pengu'],
+  note: 'The penguin, Lil Pudgy, Pudgy Rods, Pudgy Pins, SBTs, and $PENGU.',
+  keywords: ['pudgy', 'penguin', 'lil pudgy', 'rod', 'pengu', 'pudgy pin', 'soulbound', 'truepengu'],
   fallback: [
   { name: 'Pudgy Penguin', collection: 'Pudgy Penguins ecosystem', image: 'assets/pudgy-penguin.webp', tokenId: 'pending', contract: 'pending' },
   { name: '$PENGU', collection: 'Pudgy Penguins ecosystem', glyph: '$PENGU', tokenId: 'asset', amount: 'syncing', chain: 'Abstract' },
-  { name: 'Lil Pudgy and Rods', collection: 'Owned-token images only', glyph: 'PP', tokenId: 'pending', contract: 'pending' }]
+  { name: 'Lil Pudgy, Rods, Pins, SBTs', collection: 'Owned-token images only', glyph: 'PP', tokenId: 'pending', contract: 'pending' }]
 },
 {
   id: 'inkfinity',
@@ -778,6 +779,17 @@ const MONAD_TILE_NAMES = {
   512: 'SALMONAD',
   1024: 'FOCUS',
   2048: 'HYPER'
+};
+
+const MONAD_TILE_CHARACTERS = {
+  16: 'Chog',
+  32: 'Molandak',
+  64: 'Mouch',
+  128: 'Moka',
+  256: 'Moyaki',
+  512: 'Salmonad',
+  1024: 'Focus',
+  2048: 'Hyper'
 };
 
 const MONAD_CHARACTERS = [
@@ -1032,7 +1044,7 @@ function MonadGame() {
             role="gridcell"
             className={`game-cell merge-cell ${value ? 'filled' : ''} tile-${value}`}
             aria-label={value ? `${value} tile` : 'Empty tile'}>
-              {value ? <><strong>{value}</strong><span>{MONAD_TILE_NAMES[value] || 'MON'}</span></> : null}
+              {value ? <><strong>{value}</strong><span>{MONAD_TILE_NAMES[value] || 'MON'}</span>{MONAD_TILE_CHARACTERS[value] && <em>{MONAD_TILE_CHARACTERS[value]}</em>}</> : null}
             </div>
           )}
           {gameOver && <div className="game-over"><strong>Board locked</strong><button type="button" onClick={newGame}>Run it back</button></div>}
