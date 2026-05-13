@@ -185,7 +185,7 @@ function Snowfall({ count = 50, intensity = 1 }) {
 function PenguinCard({ size = 380, float = true, style = {} }) {
   return (
     <div className={`pengcard ${float ? 'float' : ''}`} style={{ width: size, ...style }}>
-      <img src="assets/pudgy-penguin.webp" alt="Gerry Stephen's Pudgy Penguin" />
+      <img src="assets/pudgy-penguin-cutout.png" alt="Gerry Stephen's Pudgy Penguin" />
     </div>);
 
 }
@@ -852,8 +852,8 @@ function Contact() {
           </Reveal>
         )}
       </div>
-      <div className="signoff">Eric Guy built for decades.<br />I carry the standard forward.</div>
-      <div className="dedication">Built from the Guy family standard. <span>Eric Guy · craft first</span></div>
+      <div className="signoff">My father, a visionary successfully built for decades.<br />I carry the standard forward.</div>
+      <div className="dedication">Built from the Guy family standard. <span>Eric Guy · strength before beauty</span></div>
     </section>);
 
 }
