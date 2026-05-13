@@ -427,25 +427,23 @@ const NFT_WALLETS = [
 '0xc3ce1eb539c1cc031ecd7b95e8c00768bf324403'];
 
 const NFT_FALLBACKS = [
-{ name: 'Flat Cap Pudgy', collection: 'Pudgy Penguins', image: 'assets/pudgy-penguin.webp', href: 'https://opensea.io/collection/pudgypenguins', wallet: 'gerrystephen.eth' },
-{ name: 'Lil Pudgys', collection: 'Pudgy ecosystem', glyph: 'LP', href: 'https://opensea.io/collection/lilpudgys', wallet: 'ecosystem' },
-{ name: 'Pudgy Rods', collection: 'Pudgy ecosystem', glyph: 'PR', href: 'https://opensea.io/collection/pudgyrods', wallet: 'ecosystem' },
-{ name: 'Sappy Seals', collection: 'First mint energy', glyph: 'SS', href: 'https://opensea.io/collection/sappy-seals', wallet: 'seal ecosystem' },
-{ name: 'Pixl Pets', collection: 'Sappy ecosystem', glyph: 'PX', href: 'https://opensea.io/collection/pixlpets', wallet: 'seal ecosystem' },
-{ name: 'Inkfinity Canvas', collection: 'Eric Guy archive', glyph: 'E.G.', href: 'https://opensea.io/collection/inkfinity-canvas', wallet: 'family archive' },
-{ name: 'gerrystephen.eth', collection: 'On-chain identity', glyph: 'Ξ', href: 'https://app.ens.domains/gerrystephen.eth', wallet: 'one name' }];
+{ name: 'Exact NFT metadata loading', collection: 'Contract + token ID', image: 'assets/pudgy-penguin.webp', tokenId: 'pending', contract: 'pending' },
+{ name: 'Pudgy ecosystem', collection: 'Owned-token images only', glyph: 'PP', tokenId: 'pending', contract: 'pending' },
+{ name: 'Sappy ecosystem', collection: 'Owned-token images only', glyph: 'SS', tokenId: 'pending', contract: 'pending' },
+{ name: 'Inkfinity Canvas', collection: 'Owned-token images only', glyph: 'E.G.', tokenId: 'pending', contract: 'pending' }];
 
 function normalizeNft(item, wallet) {
   const token = item?.token || item;
   const collection = token?.collection || {};
   const contract = token?.contract;
   const tokenId = token?.tokenId || token?.token_id;
-  const collectionHref = collection?.slug ? `https://opensea.io/collection/${collection.slug}` : 'https://opensea.io/profile/gerrystephen';
   return {
     name: token?.name || `${collection?.name || 'NFT'} #${tokenId || ''}`.trim(),
     collection: collection?.name || token?.collectionName || 'Collected NFT',
     image: token?.imageSmall || token?.image || token?.imageUrl || token?.metadata?.image,
-    href: contract && tokenId ? `https://opensea.io/assets/ethereum/${contract}/${tokenId}` : collectionHref,
+    href: contract && tokenId ? `https://opensea.io/assets/ethereum/${contract}/${tokenId}` : undefined,
+    contract,
+    tokenId,
     wallet: wallet.slice(0, 6) + '...' + wallet.slice(-4)
   };
 }
@@ -471,7 +469,7 @@ function NftCarousel() {
           }
         }
         const requests = NFT_WALLETS.map((wallet) =>
-          fetch(`https://api-ethereum.reservoir.tools/users/${wallet}/tokens/v10?limit=12&sortBy=floorAskPrice`, {
+          fetch(`https://api.reservoir.tools/users/${wallet}/tokens/v10?limit=12&sortBy=floorAskPrice`, {
             signal: controller.signal,
             headers: { accept: 'application/json' }
           })
@@ -509,18 +507,18 @@ function NftCarousel() {
         </div>
       </div>
       <p className="lede nft-lede">
-        {source === 'wallet' ? 'Pulled live from the public collection trail. Each card opens the actual OpenSea asset.' : 'A curated ecosystem carousel while live NFT data is unavailable in the browser.'}
+        {source === 'wallet' ? 'Pulled from exact contract addresses and token IDs. Each card opens the matching OpenSea asset page.' : 'Waiting on live token metadata. The live site replaces these with exact owned NFTs when the API returns images.'}
       </p>
       <div className="nft-track">
         {visible.map((nft, i) =>
-        <a key={`${nft.name}-${i}`} className="nft-card" href={nft.href || 'https://opensea.io/profile/gerrystephen'} target="_blank" rel="noopener">
+        <a key={`${nft.name}-${i}`} className={`nft-card ${nft.tokenId === 'pending' ? 'disabled' : ''}`} href={nft.href || '#nfts'} target="_blank" rel="noopener">
             <div className="nft-art">
               {nft.image ? <img src={nft.image} alt={nft.name} loading="lazy" /> : <div className="nft-glyph">{nft.glyph}</div>}
             </div>
             <div className="nft-meta">
               <span>{nft.collection}</span>
               <strong>{nft.name}</strong>
-              <small>{nft.href?.includes('/assets/') ? 'Open actual NFT' : nft.wallet}</small>
+              <small>{nft.tokenId && nft.tokenId !== 'pending' ? `${nft.contract.slice(0, 6)}...${nft.contract.slice(-4)} / #${nft.tokenId}` : 'Exact token data pending'}</small>
             </div>
           </a>
         )}

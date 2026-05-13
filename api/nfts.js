@@ -4,10 +4,65 @@ const WALLETS = [
   '0xc3ce1eb539c1cc031ecd7b95e8c00768bf324403',
 ];
 
+const RESERVOIR_API = 'https://api.reservoir.tools';
+const ETH_RPC = 'https://eth.llamarpc.com';
+const TOKEN_URI_SELECTOR = '0xc87b56dd';
+const ERC1155_URI_SELECTOR = '0x0e89341c';
+
+function ipfsToHttps(uri) {
+  if (!uri || typeof uri !== 'string') return undefined;
+  if (uri.startsWith('ipfs://ipfs/')) return `https://ipfs.io/ipfs/${uri.slice(12)}`;
+  if (uri.startsWith('ipfs://')) return `https://ipfs.io/ipfs/${uri.slice(7)}`;
+  if (uri.startsWith('ar://')) return `https://arweave.net/${uri.slice(5)}`;
+  return uri;
+}
+
+function tokenCallData(selector, tokenId) {
+  const id = BigInt(tokenId).toString(16).padStart(64, '0');
+  return `${selector}${id}`;
+}
+
+function decodeAbiString(hex) {
+  if (!hex || hex === '0x') return undefined;
+  const clean = hex.slice(2);
+  const offset = Number.parseInt(clean.slice(0, 64), 16) * 2;
+  const length = Number.parseInt(clean.slice(offset, offset + 64), 16) * 2;
+  const data = clean.slice(offset + 64, offset + 64 + length);
+  return Buffer.from(data, 'hex').toString('utf8').replace(/\0+$/, '');
+}
+
+async function ethCall(contract, data) {
+  const response = await fetch(ETH_RPC, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'eth_call',
+      params: [{ to: contract, data }, 'latest'],
+    }),
+  });
+  if (!response.ok) return undefined;
+  const json = await response.json();
+  return json.result;
+}
+
+async function fetchTokenMetadataImage(contract, tokenId) {
+  const callData = tokenCallData(TOKEN_URI_SELECTOR, tokenId);
+  const fallbackCallData = tokenCallData(ERC1155_URI_SELECTOR, tokenId);
+  const tokenUriHex = await ethCall(contract, callData).catch(() => undefined)
+    || await ethCall(contract, fallbackCallData).catch(() => undefined);
+  const tokenUri = ipfsToHttps(decodeAbiString(tokenUriHex)?.replace('{id}', BigInt(tokenId).toString(16).padStart(64, '0')));
+  if (!tokenUri) return undefined;
+
+  const metadata = await fetch(tokenUri).then((res) => res.ok ? res.json() : undefined).catch(() => undefined);
+  return ipfsToHttps(metadata?.image || metadata?.image_url || metadata?.animation_url);
+}
+
 function normalizeToken(item, wallet) {
   const token = item?.token || item || {};
   const collection = token.collection || {};
-  const contract = token.contract;
+  const contract = token.contract || token.contractAddress || token.collection?.id;
   const tokenId = token.tokenId || token.token_id;
 
   if (!contract || !tokenId) return null;
@@ -15,8 +70,10 @@ function normalizeToken(item, wallet) {
   return {
     name: token.name || `${collection.name || 'NFT'} #${tokenId}`,
     collection: collection.name || 'Collected NFT',
-    image: token.imageSmall || token.image || token.imageUrl || token.metadata?.image,
+    image: ipfsToHttps(token.imageSmall || token.image || token.imageUrl || token.metadata?.image),
     href: `https://opensea.io/assets/ethereum/${contract}/${tokenId}`,
+    contract,
+    tokenId,
     wallet: `${wallet.slice(0, 6)}...${wallet.slice(-4)}`,
   };
 }
@@ -25,13 +82,17 @@ export default async function handler(req, res) {
   try {
     const responses = await Promise.allSettled(
       WALLETS.map(async (wallet) => {
-        const url = `https://api-ethereum.reservoir.tools/users/${wallet}/tokens/v10?limit=24&sortBy=floorAskPrice&excludeSpam=true&excludeNsfw=true`;
+        const url = `${RESERVOIR_API}/users/${wallet}/tokens/v10?limit=48&sortBy=floorAskPrice&excludeSpam=true&excludeNsfw=true`;
         const response = await fetch(url, { headers: { accept: 'application/json' } });
         if (!response.ok) return [];
         const data = await response.json();
-        return (data.tokens || [])
+        const normalized = (data.tokens || [])
           .map((item) => normalizeToken(item, wallet))
           .filter(Boolean);
+        return Promise.all(normalized.map(async (nft) => ({
+          ...nft,
+          image: nft.image || await fetchTokenMetadataImage(nft.contract, nft.tokenId),
+        })));
       })
     );
 
