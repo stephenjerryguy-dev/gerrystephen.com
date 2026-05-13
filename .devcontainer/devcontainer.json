@@ -1,0 +1,26 @@
+{
+  "name": "gerrystephen.com",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
+  "forwardPorts": [4173],
+  "portsAttributes": {
+    "4173": {
+      "label": "Static site preview",
+      "onAutoForward": "openPreview"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "esbenp.prettier-vscode",
+        "streetsidesoftware.code-spell-checker",
+        "github.vscode-github-actions"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "files.eol": "\n"
+      }
+    }
+  },
+  "postCreateCommand": "npm install -g serve",
+  "postAttachCommand": "serve -s . -l 4173"
+}

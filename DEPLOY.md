@@ -43,4 +43,5 @@ Then in the Cloudflare dashboard → **Pages → Custom domains → Set up domai
 - The site is fully static. No build step required.
 - `index.html` is a copy of `Igloo.html` so the root URL serves the site. Both URLs work.
 - Caching: HTML revalidates every 5 min, assets are immutable for 1 year (see `vercel.json`).
+- New work should happen from GitHub Codespaces when possible. See `CODESPACES.md`.
 - When you have the actual Inkfinity Canvas piece images, drop them in `assets/` and tell me — I'll wire them in.
