@@ -14,6 +14,7 @@ const ECOSYSTEMS = [
     id: 'sappy',
     label: 'Sappy Seals ecosystem',
     contracts: [
+      '0x1c70d0a86475cc707b48aa79f112857e7957274f',
       '0x364c828ee171616a39897688a831c2499ad972ec',
       '0x4e76c23fe2a4e37b5e07b5625e17098baab86c18',
       '0xf0ea56402b2e2b27556d7abf4236c7327722fe41',
@@ -51,6 +52,12 @@ function ecosystemForNft(nft) {
 
 function curatedEcosystemNfts(nfts) {
   const seen = new Set();
+  const contractRank = (nft) => {
+    const contract = nft.contract?.toLowerCase?.();
+    const ecosystem = ecosystemForNft(nft);
+    const index = ecosystem?.contracts.indexOf(contract);
+    return index >= 0 ? index : 99;
+  };
   return nfts
     .map((nft) => {
       const ecosystem = ecosystemForNft(nft);
@@ -68,7 +75,7 @@ function curatedEcosystemNfts(nfts) {
       const bContract = b.contract?.toLowerCase?.();
       const aScore = ecosystemForNft(a)?.contracts.includes(aContract) ? 0 : 1;
       const bScore = ecosystemForNft(b)?.contracts.includes(bContract) ? 0 : 1;
-      return aScore - bScore;
+      return (aScore - bScore) || (contractRank(a) - contractRank(b));
     })
     .slice(0, 36);
 }
