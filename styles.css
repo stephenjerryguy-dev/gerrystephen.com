@@ -1131,6 +1131,44 @@ a { color: inherit; text-decoration: none; }
 .bluestar.warm .chapter-num { border-color: rgba(255,255,255,0.3); color: #fff; }
 .bluestar.warm .venture-bullets li { border-bottom-color: rgba(255,255,255,0.18); }
 .bluestar.warm .venture-bullets li span { color: var(--warm-caramel); }
+.web3-callout {
+  display: grid;
+  gap: 8px;
+  width: min(520px, 100%);
+  margin: 24px 0 6px;
+  padding: 18px 20px;
+  border-radius: 8px;
+  border: 1px solid rgba(31,78,122,0.22);
+  background: rgba(255,255,255,0.58);
+  color: var(--bluestar-deep);
+  text-decoration: none;
+  box-shadow: 0 18px 38px rgba(14,44,74,0.12);
+  transition: transform 220ms ease, background 220ms ease, border-color 220ms ease;
+}
+.web3-callout:hover {
+  transform: translateY(-3px);
+  background: rgba(255,255,255,0.76);
+  border-color: rgba(31,78,122,0.38);
+}
+.web3-callout span {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--bluestar);
+}
+.web3-callout strong {
+  font-size: clamp(17px, 1.5vw, 22px);
+  line-height: 1.25;
+  font-weight: 700;
+}
+.bluestar.warm .web3-callout {
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.22);
+  color: #fff;
+  box-shadow: 0 18px 38px rgba(0,0,0,0.16);
+}
+.bluestar.warm .web3-callout span { color: var(--warm-caramel); }
 .bs-sun {
   position: absolute; top: 18%; right: 8%;
   width: 220px; height: 220px;
@@ -1155,9 +1193,7 @@ a { color: inherit; text-decoration: none; }
   min-height: 560px;
   overflow: hidden;
   border-radius: 8px;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.44), rgba(255,255,255,0) 36%),
-    linear-gradient(180deg, #9DD8F0 0%, #E8F5F7 48%, #D8B16F 49%, #F3D99B 100%);
+  background: #B8DEEA;
   border: 1px solid rgba(255,255,255,0.24);
   box-shadow: 0 34px 90px rgba(3,18,34,0.34);
 }
@@ -1167,120 +1203,11 @@ a { color: inherit; text-decoration: none; }
   width: 100%;
   height: 100%;
   object-fit: cover;
-  opacity: 0.84;
-  filter: saturate(1.04) contrast(0.96);
+  opacity: 1;
+  filter: saturate(1.04) contrast(0.98);
 }
 .hotel-scene::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(180deg, rgba(14,31,44,0.08), rgba(14,31,44,0.34)),
-    radial-gradient(520px 320px at 72% 12%, rgba(255,226,169,0.42), transparent 62%);
-}
-.hotel-sun {
-  position: absolute;
-  top: 58px;
-  right: 64px;
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255,255,255,0.95) 0%, #FFE2A9 58%, rgba(255,226,169,0) 72%);
-  box-shadow: 0 0 80px rgba(255,218,146,0.7);
-  z-index: 1;
-}
-.hotel-building {
-  position: absolute;
-  left: 13%;
-  right: 17%;
-  bottom: 72px;
-  height: 340px;
-  border-radius: 8px 8px 0 0;
-  background:
-    linear-gradient(90deg, rgba(255,255,255,0.16), transparent 18% 80%, rgba(0,0,0,0.08)),
-    linear-gradient(180deg, #F8FAFC 0%, #DDE7EF 100%);
-  border: 1px solid rgba(12,44,74,0.16);
-  box-shadow: 0 20px 50px rgba(10,38,60,0.18);
-  opacity: 0.72;
-  z-index: 1;
-}
-.hotel-sign {
-  position: absolute;
-  top: 24px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.22em;
-  color: var(--bluestar);
-  background: rgba(255,255,255,0.72);
-  border: 1px solid rgba(31,78,122,0.18);
-  border-radius: 6px;
-  padding: 8px 12px;
-  white-space: nowrap;
-}
-.hotel-window {
-  position: absolute;
-  width: 64px;
-  height: 88px;
-  border-radius: 6px;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.7), rgba(255,255,255,0.12)),
-    linear-gradient(135deg, #5EA4CE, #1F4E7A);
-  border: 5px solid #fff;
-  box-shadow: inset 0 0 0 1px rgba(31,78,122,0.2);
-}
-.hotel-window.a { top: 84px; left: 18%; }
-.hotel-window.b { top: 84px; right: 18%; }
-.hotel-window.c { top: 198px; left: 18%; }
-.hotel-window.d { top: 198px; right: 18%; }
-.hotel-door {
-  position: absolute;
-  left: 50%;
-  bottom: 0;
-  width: 92px;
-  height: 138px;
-  transform: translateX(-50%);
-  border-radius: 8px 8px 0 0;
-  background: linear-gradient(180deg, #1F4E7A, #0E2C4A);
-  border: 6px solid rgba(255,255,255,0.92);
-}
-.hotel-door::after {
-  content: "";
-  position: absolute;
-  top: 64px;
-  right: 16px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--warm-caramel);
-}
-.hotel-balcony {
-  position: absolute;
-  left: 9%;
-  right: 13%;
-  height: 12px;
-  background: rgba(14,44,74,0.28);
-  border-radius: 999px;
-}
-.hotel-sign,
-.hotel-window,
-.hotel-door,
-.hotel-balcony,
-.hotel-sea {
-  z-index: 2;
-}
-.hotel-balcony.one { bottom: 255px; }
-.hotel-balcony.two { bottom: 140px; }
-.hotel-sea {
-  position: absolute;
-  left: -10%;
-  right: -10%;
-  bottom: 0;
-  height: 84px;
-  background:
-    repeating-linear-gradient(180deg, rgba(255,255,255,0.42) 0 2px, transparent 2px 12px),
-    linear-gradient(180deg, #3BBDB4, #0F8C8A);
+  content: none;
 }
 .pane {
   position: relative;
@@ -1330,15 +1257,39 @@ a { color: inherit; text-decoration: none; }
   gap: 8px;
   margin: 0 auto;
 }
+.z-photo-card {
+  padding: 0;
+  overflow: hidden;
+  background: #F4EFE6;
+  align-content: stretch;
+}
+.z-photo-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(30,18,9,0.02) 42%, rgba(30,18,9,0.56) 100%);
+  pointer-events: none;
+}
+.z-shop-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(1.02) contrast(0.98);
+}
 .z-logo {
   position: absolute;
-  top: 26px;
+  top: 24px;
   right: 24px;
   width: min(150px, 38%);
   height: auto;
   object-fit: contain;
   filter: drop-shadow(0 12px 20px rgba(92,52,22,0.14));
   z-index: 2;
+  background: rgba(255,248,234,0.9);
+  border-radius: 8px;
+  padding: 8px;
 }
 .pastry-tray {
   position: relative;
@@ -1397,22 +1348,31 @@ a { color: inherit; text-decoration: none; }
   border-radius: 0 18px 18px 0;
 }
 .z-note {
-  position: relative;
-  z-index: 1;
+  position: absolute;
+  left: 24px;
+  bottom: 24px;
+  z-index: 2;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgba(92,52,22,0.62);
+  color: #FFF8EA;
+  background: rgba(50,28,12,0.56);
+  border: 1px solid rgba(255,248,234,0.22);
+  border-radius: 999px;
+  padding: 10px 12px;
+  backdrop-filter: blur(12px);
 }
 .z-stamp {
   position: absolute; top: 28px; left: 28px;
+  z-index: 2;
   font-family: var(--display-font), serif;
   font-weight: 500;
   font-size: 36px;
   line-height: 0.9;
   letter-spacing: 0;
-  color: var(--warm-coffee);
+  color: #FFF8EA;
+  text-shadow: 0 2px 18px rgba(36,20,8,0.42);
 }
 .z-stamp .tiny {
   font-family: var(--mono);

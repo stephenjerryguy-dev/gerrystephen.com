@@ -310,7 +310,7 @@ function Hero({ y, mouse, intensity }) {
         </div>
 
         <div className="father-note" style={{ opacity: copyOpacity }}>
-          <span>Keep building, son.</span>
+          <span>Craft first. Keep building.</span>
           <small>Eric Guy</small>
         </div>
 
@@ -357,8 +357,8 @@ function Chapter({ num, kicker, title }) {
 // ---------- Timeline ----------
 const TIMELINE = [
 { year: '2021', tag: 'First mint · Sappy Seals', body: 'The rabbit hole opened through community, identity, and the feeling that ownership could become culture.' },
-{ year: '2021', tag: 'Inkfinity Canvas · for Dad', body: 'Eric Guy signed the work by hand. Inkfinity Canvas put that signature somewhere permanent.' },
-{ year: '2022', tag: 'In memoriam · Eric Guy', body: 'After losing my dad, the chain became more than a market. It became a place to preserve a name, a builder, and the standard he set.' },
+{ year: '2021', tag: 'Inkfinity Canvas · family craft', body: 'Eric Guy signed the work by hand. Inkfinity Canvas put that signature somewhere permanent.' },
+{ year: '2022', tag: 'The Guy standard', body: 'My dad ran construction for decades. I spent fifteen years beside him learning how real work gets scoped, built, and carried forward.' },
 { year: '2022', tag: 'Lil Pudgy chapter', body: 'I had a Lil Pudgy early, sold it, and kept circling the ecosystem from the outside.' },
 { year: '2023', tag: 'Community & tools', body: 'Collector energy turned into product instincts: useful tools, useful relationships, and sharper taste.' },
 { year: '2024', tag: 'Builder mode', body: 'AI agents, trading systems, and experiments started becoming less like hobbies and more like infrastructure.' },
@@ -389,7 +389,7 @@ function Timeline() {
 
 // ---------- Projects ----------
 const PROJECTS = [
-{ title: 'Inkfinity Canvas', kind: 'Family archive · 2021', note: 'Eric Guy signed canvases preserved as a permanent collection.', glyph: 'EG', href: 'https://opensea.io/collection/inkfinity-canvas' },
+{ title: 'Inkfinity Canvas', kind: 'Signed work · 2021', note: 'Eric Guy signed canvases, preserved as a permanent collection of craft and authorship.', glyph: 'EG', href: 'https://opensea.io/collection/inkfinity-canvas' },
 { title: 'Sappy Seals', kind: 'First mint', note: 'The community that pulled the first thread and made Web3 feel human.', glyph: 'SS' },
 { title: 'Pudgy Penguins', kind: 'Holder', note: 'The flat-cap penguin energy that shaped the iglu visual language.', glyph: 'PP' },
 { title: 'gerrystephen.eth', kind: 'Identity', note: 'One name for collections, experiments, and public reputation.', glyph: 'Ξ' },
@@ -526,7 +526,7 @@ function NftCarousel() {
     </section>);
 }
 
-// ---------- Inkfinity Canvas (gallery for Dad) ----------
+// ---------- Inkfinity Canvas ----------
 const INKFINITY = [
 { title: 'NFTVisionary', tag: 'Featured', note: 'The piece that started it.', featured: true, variant: 'visionary' },
 { title: 'NuttyProfessor', tag: 'Canvas', note: 'Pen on paper. Signed E. Guy.', variant: 'professor' },
@@ -535,8 +535,8 @@ const INKFINITY = [
 function InkfinityGallery() {
   return (
     <section className="inkfinity" id="inkfinity">
-      <Chapter num="04" kicker="For Dad · Inkfinity Canvas" title="Eric Guy signed canvases." />
-      <p className="lede inkfinity-lede">My late father's hand-signed work, brought on chain in 2021. Each piece is a paper canvas he drew, signed, and dated. They live now where they can't be lost.</p>
+      <Chapter num="04" kicker="Eric Guy · Inkfinity Canvas" title="Signed work, carried forward." />
+      <p className="lede inkfinity-lede">Inkfinity Canvas brings my dad's hand-signed work into the builder story: craft, signature, permanence, and a family standard that still shapes how I move.</p>
       <div className="ink-grid">
         {INKFINITY.map((p, i) =>
         <Reveal key={p.title} delay={i * 100}>
@@ -570,9 +570,9 @@ function Stats() {
   return (
     <section className="stats">
       <div className="stat"><div className="num">5</div><div className="lbl">years on-chain</div></div>
-      <div className="stat"><div className="num">15</div><div className="lbl">years building with dad</div></div>
+      <div className="stat"><div className="num">15</div><div className="lbl">years building beside Eric</div></div>
       <div className="stat"><div className="num">1</div><div className="lbl">penguin in a flat cap</div></div>
-      <div className="stat"><div className="num">40+</div><div className="lbl">years of Eric Guy building</div></div>
+      <div className="stat"><div className="num">40+</div><div className="lbl">years of construction craft</div></div>
     </section>);
 
 }
@@ -620,6 +620,10 @@ function BlueStar({ y, intensity, warm }) {
               <li><span>★</span> Sea-facing balconies</li>
               <li><span>★</span> Local hospitality with digital-native operations</li>
             </ul>
+            <a className="web3-callout" href="https://www.bluestarstay.com/web3" target="_blank" rel="noopener">
+              <span>Web3 stays</span>
+              <strong>Crypto-native booking, NFT perks, and a direct path for digital guests.</strong>
+            </a>
             <div className="venture-actions">
               <a className="btn primary blue" href="https://www.bluestarstay.com/web3" target="_blank" rel="noopener">Book a stay →</a>
               <a className="btn ghost" href="https://www.instagram.com/bluestarstay/" target="_blank" rel="noopener">Instagram</a>
@@ -629,20 +633,7 @@ function BlueStar({ y, intensity, warm }) {
         <Reveal delay={120}>
           <div className="venture-vis">
             <div className="hotel-scene" aria-label="Blue Star hotel visual">
-              <img className="hotel-photo" src="assets/bluestar-building.jpg" alt="Blue Star Apartments and Hotel building" />
-              <div className="hotel-sky" />
-              <div className="hotel-sun" />
-              <div className="hotel-building">
-                <div className="hotel-sign">BLUE STAR</div>
-                <div className="hotel-window a" />
-                <div className="hotel-window b" />
-                <div className="hotel-window c" />
-                <div className="hotel-window d" />
-                <div className="hotel-door" />
-              </div>
-              <div className="hotel-balcony one" />
-              <div className="hotel-balcony two" />
-              <div className="hotel-sea" />
+              <img className="hotel-photo" src="assets/bluestar-property.jpg" alt="Blue Star Apartments and Hotel property and pool" />
             </div>
           </div>
         </Reveal>
@@ -660,21 +651,14 @@ function Zeppole({ y, intensity, warm }) {
       <div className="venture-grid reverse">
         <Reveal>
           <div className="venture-vis">
-            <div className="z-card">
+            <div className="z-card z-photo-card">
+              <img className="z-shop-photo" src="assets/zeppole-shop.jpg" alt="Zeppole Dolci outdoor seating and shopfront" />
               <img className="z-logo" src="assets/zeppole-logo.png" alt="Zeppole Dolci logo" />
               <div className="z-stamp">
                 <div>ZEPPOLE</div>
                 <div>DOLCI</div>
                 <div className="tiny">EST. WARM</div>
               </div>
-              <div className="pastry-tray">
-                <span />
-                <span />
-                <span />
-                <span />
-                <span />
-              </div>
-              <div className="espresso-cup" />
               <div className="z-note">fresh pastry · brunch · coffee</div>
             </div>
           </div>
@@ -722,8 +706,8 @@ function Contact() {
           </Reveal>
         )}
       </div>
-      <div className="signoff">Eric Guy built for forty years.<br />I was lucky to build beside him for fifteen.</div>
-      <div className="dedication">For my dad, Eric Guy. <span>—2022 · in memoriam</span></div>
+      <div className="signoff">Eric Guy built for decades.<br />I carry the standard forward.</div>
+      <div className="dedication">Built from the Guy family standard. <span>Eric Guy · craft first</span></div>
     </section>);
 
 }
