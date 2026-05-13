@@ -689,12 +689,6 @@ const MONAD_TESTNET = {
   blockExplorerUrls: ['https://testnet.monadexplorer.com']
 };
 
-const GAME_PROMPTS = [
-  { type: 'sequence', label: 'Tap the sigils in order', pattern: [0, 4, 8, 5] },
-  { type: 'sequence', label: 'Clear the noise path', pattern: [2, 1, 4, 7] },
-  { type: 'sequence', label: 'Lock the builder route', pattern: [6, 3, 4, 5] }
-];
-
 function shortWallet(account) {
   return account ? `${account.slice(0, 6)}...${account.slice(-4)}` : 'Connect wallet';
 }
@@ -705,20 +699,103 @@ function hexFromText(text) {
     .join('');
 }
 
+const MONAD_TILE_NAMES = {
+  2: 'M',
+  4: 'MON',
+  8: 'NAD',
+  16: 'RUN',
+  32: 'BLD',
+  64: 'SWP',
+  128: 'GAS',
+  256: 'RUSH',
+  512: 'FOCUS',
+  1024: 'FLOW',
+  2048: 'MONAD'
+};
+
+function addRandomTile(board) {
+  const empty = board
+    .map((value, index) => value ? null : index)
+    .filter((index) => index !== null);
+  if (!empty.length) return board;
+  const next = [...board];
+  const index = empty[Math.floor(Math.random() * empty.length)];
+  next[index] = Math.random() < 0.88 ? 2 : 4;
+  return next;
+}
+
+function makeBoard() {
+  return addRandomTile(addRandomTile(Array(16).fill(0)));
+}
+
+function sameBoard(a, b) {
+  return a.every((value, index) => value === b[index]);
+}
+
+function compressLine(line) {
+  const values = line.filter(Boolean);
+  const merged = [];
+  let gained = 0;
+  for (let i = 0; i < values.length; i += 1) {
+    if (values[i] === values[i + 1]) {
+      const nextValue = values[i] * 2;
+      merged.push(nextValue);
+      gained += nextValue;
+      i += 1;
+    } else {
+      merged.push(values[i]);
+    }
+  }
+  while (merged.length < 4) merged.push(0);
+  return { line: merged, gained };
+}
+
+function moveBoard(board, direction) {
+  const next = Array(16).fill(0);
+  let gained = 0;
+
+  for (let lane = 0; lane < 4; lane += 1) {
+    const source = [];
+    for (let offset = 0; offset < 4; offset += 1) {
+      const index = direction === 'left' || direction === 'right'
+        ? lane * 4 + offset
+        : offset * 4 + lane;
+      source.push(board[index]);
+    }
+    const ordered = direction === 'right' || direction === 'down' ? source.reverse() : source;
+    const result = compressLine(ordered);
+    const line = direction === 'right' || direction === 'down' ? result.line.reverse() : result.line;
+    gained += result.gained;
+
+    for (let offset = 0; offset < 4; offset += 1) {
+      const index = direction === 'left' || direction === 'right'
+        ? lane * 4 + offset
+        : offset * 4 + lane;
+      next[index] = line[offset];
+    }
+  }
+
+  return { board: next, gained, moved: !sameBoard(board, next) };
+}
+
+function canMove(board) {
+  if (board.some((value) => !value)) return true;
+  return ['left', 'right', 'up', 'down'].some((direction) => moveBoard(board, direction).moved);
+}
+
 function MonadGame() {
   const [account, setAccount] = useState('');
   const [chainId, setChainId] = useState('');
   const [walletState, setWalletState] = useState('Ready');
-  const [round, setRound] = useState(0);
-  const [step, setStep] = useState(0);
+  const [board, setBoard] = useState(() => makeBoard());
   const [score, setScore] = useState(0);
-  const [streak, setStreak] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(30);
-  const [playing, setPlaying] = useState(false);
+  const [best, setBest] = useState(() => Number(localStorage.getItem('monadMergeBest') || 0));
+  const [moves, setMoves] = useState(0);
+  const [gameOver, setGameOver] = useState(false);
+  const [touchStart, setTouchStart] = useState(null);
   const [txHash, setTxHash] = useState('');
-  const active = GAME_PROMPTS[round % GAME_PROMPTS.length];
-  const currentCell = active.pattern[step];
   const isMonad = chainId?.toLowerCase() === MONAD_TESTNET.chainId;
+  const maxTile = Math.max(...board);
 
   useEffect(() => {
     if (!window.ethereum) return undefined;
@@ -735,14 +812,23 @@ function MonadGame() {
   }, []);
 
   useEffect(() => {
-    if (!playing) return undefined;
-    if (timeLeft <= 0) {
-      setPlaying(false);
-      return undefined;
+    if (score > best) {
+      setBest(score);
+      localStorage.setItem('monadMergeBest', String(score));
     }
-    const timer = window.setTimeout(() => setTimeLeft((value) => value - 1), 1000);
-    return () => window.clearTimeout(timer);
-  }, [playing, timeLeft]);
+  }, [score, best]);
+
+  useEffect(() => {
+    const onKey = (event) => {
+      const map = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
+      const direction = map[event.key];
+      if (!direction) return;
+      event.preventDefault();
+      makeMove(direction);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [board, gameOver]);
 
   async function connectMonad() {
     if (!window.ethereum) {
@@ -775,33 +861,33 @@ function MonadGame() {
     }
   }
 
-  function startRun() {
+  function newGame() {
+    setBoard(makeBoard());
     setScore(0);
-    setStreak(0);
-    setTimeLeft(30);
-    setRound(0);
-    setStep(0);
+    setMoves(0);
+    setGameOver(false);
     setTxHash('');
-    setPlaying(true);
   }
 
-  function tapCell(cell) {
-    if (!playing) return;
-    if (cell === currentCell) {
-      const nextStreak = streak + 1;
-      setScore((value) => value + 100 + nextStreak * 25);
-      setStreak(nextStreak);
-      if (step + 1 >= active.pattern.length) {
-        setRound((value) => value + 1);
-        setStep(0);
-        setTimeLeft((value) => Math.min(45, value + 4));
-      } else {
-        setStep((value) => value + 1);
-      }
-    } else {
-      setStreak(0);
-      setScore((value) => Math.max(0, value - 40));
-    }
+  function makeMove(direction) {
+    if (gameOver) return;
+    const result = moveBoard(board, direction);
+    if (!result.moved) return;
+    const nextBoard = addRandomTile(result.board);
+    setBoard(nextBoard);
+    setScore((value) => value + result.gained);
+    setMoves((value) => value + 1);
+    if (!canMove(nextBoard)) setGameOver(true);
+  }
+
+  function handleTouchEnd(event) {
+    if (!touchStart) return;
+    const touch = event.changedTouches[0];
+    const dx = touch.clientX - touchStart.x;
+    const dy = touch.clientY - touchStart.y;
+    setTouchStart(null);
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 28) return;
+    makeMove(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
   }
 
   async function submitScore() {
@@ -821,7 +907,7 @@ function MonadGame() {
           from: account,
           to: account,
           value: '0x0',
-          data: hexFromText(`gerrystephen.com Monad focus run score=${score}`)
+          data: hexFromText(`gerrystephen.com Monad Merge score=${score} maxTile=${maxTile}`)
         }]
       });
       setTxHash(hash);
@@ -834,11 +920,11 @@ function MonadGame() {
   return (
     <section className="monad-game" id="monad-game">
       <div className="game-copy">
-        <Chapter num="04" kicker="Monad game" title="Brainrot goes in. Focus comes out." />
-        <p className="lede">A fast mini-game for BuildAnything: chain reactions, tiny puzzle paths, and score receipts on Monad Testnet. Built to feel good on desktop and installed mobile.</p>
+        <Chapter num="04" kicker="Monad game" title="Monad Merge." />
+        <p className="lede">A 2048-style focus game for BuildAnything: merge the Monad tiles, chase bigger runs, and post a score receipt on Monad Testnet.</p>
         <div className="game-actions">
           <button type="button" className="btn primary" onClick={connectMonad}>{shortWallet(account)}</button>
-          <button type="button" className="btn ghost" onClick={startRun}>{playing ? 'Restart run' : 'Start run'}</button>
+          <button type="button" className="btn ghost" onClick={newGame}>New run</button>
           <button type="button" className="btn ghost" onClick={submitScore} disabled={!score}>Submit score</button>
         </div>
         <div className="game-status">
@@ -847,27 +933,38 @@ function MonadGame() {
           {txHash && <a href={`https://testnet.monadexplorer.com/tx/${txHash}`} target="_blank" rel="noopener">View score tx</a>}
         </div>
       </div>
-      <div className="game-shell" role="application" aria-label="Monad focus runner game">
+      <div className="game-shell" role="application" aria-label="Monad Merge game">
         <div className="game-hud">
           <div><span>Score</span><strong>{score}</strong></div>
-          <div><span>Time</span><strong>{timeLeft}s</strong></div>
-          <div><span>Streak</span><strong>{streak}</strong></div>
+          <div><span>Best</span><strong>{best}</strong></div>
+          <div><span>Tile</span><strong>{maxTile}</strong></div>
         </div>
-        <div className="game-board">
-          {Array.from({ length: 9 }).map((_, cell) =>
-          <button
+        <div
+          className="game-board merge-board"
+          role="grid"
+          aria-label="Monad Merge board"
+          onTouchStart={(event) => setTouchStart({ x: event.touches[0].clientX, y: event.touches[0].clientY })}
+          onTouchEnd={handleTouchEnd}>
+          {board.map((value, cell) =>
+          <div
             key={cell}
-            type="button"
-            className={`game-cell ${cell === currentCell && playing ? 'hot' : ''} ${active.pattern.includes(cell) ? 'path' : ''}`}
-            onClick={() => tapCell(cell)}
-            aria-label={`Game cell ${cell + 1}`}>
-              <span>{cell === currentCell && playing ? 'MON' : cell % 2 ? 'M' : 'Ξ'}</span>
-            </button>
+            role="gridcell"
+            className={`game-cell merge-cell ${value ? 'filled' : ''} tile-${value}`}
+            aria-label={value ? `${value} tile` : 'Empty tile'}>
+              {value ? <><strong>{value}</strong><span>{MONAD_TILE_NAMES[value] || 'MON'}</span></> : null}
+            </div>
           )}
+          {gameOver && <div className="game-over"><strong>Board locked</strong><button type="button" onClick={newGame}>Run it back</button></div>}
+        </div>
+        <div className="game-controls" aria-label="Move controls">
+          <button type="button" onClick={() => makeMove('up')}>↑</button>
+          <button type="button" onClick={() => makeMove('left')}>←</button>
+          <button type="button" onClick={() => makeMove('down')}>↓</button>
+          <button type="button" onClick={() => makeMove('right')}>→</button>
         </div>
         <div className="game-prompt">
-          <strong>{playing ? active.label : 'Ready when you are'}</strong>
-          <span>{playing ? `Step ${step + 1} of ${active.pattern.length}` : 'Desktop, mobile, and home-screen mode.'}</span>
+          <strong>{gameOver ? 'Score it, or start fresh.' : maxTile >= 2048 ? 'Monad brain unlocked.' : 'Merge matching tiles.'}</strong>
+          <span>{moves} moves · arrow keys, swipe, or tap the controls</span>
         </div>
       </div>
     </section>);
