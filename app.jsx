@@ -358,7 +358,7 @@ function Chapter({ num, kicker, title }) {
 const TIMELINE = [
 { year: '2021', tag: 'First mint · Sappy Seals', body: 'The rabbit hole opened through community, identity, and the feeling that ownership could become culture.' },
 { year: '2021', tag: 'Inkfinity Canvas · family craft', body: 'Eric Guy signed the work by hand. Inkfinity Canvas put that signature somewhere permanent.' },
-{ year: '2022', tag: 'The Guy standard', body: 'My dad ran construction for decades. I spent fifteen years beside him learning how real work gets scoped, built, and carried forward.' },
+{ year: '2022', tag: 'The Guy standard', body: 'My dad ran construction for decades. I spent fifteen years beside him learning how real work gets scoped, built, and carried forward. His legacy now lives on forever.' },
 { year: '2022', tag: 'Lil Pudgy chapter', body: 'I had a Lil Pudgy early, sold it, and kept circling the ecosystem from the outside.' },
 { year: '2023', tag: 'Community & tools', body: 'Collector energy turned into product instincts: useful tools, useful relationships, and sharper taste.' },
 { year: '2024', tag: 'Builder mode', body: 'AI agents, trading systems, and experiments started becoming less like hobbies and more like infrastructure.' },
