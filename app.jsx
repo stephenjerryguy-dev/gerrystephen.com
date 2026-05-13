@@ -518,12 +518,12 @@ const NFT_ECOSYSTEMS = [
 {
   id: 'sappy',
   label: 'Sappy Seals ecosystem',
-  note: 'Seals, Pixl, Omnia, pets, and Pixelverse items.',
-  keywords: ['sappy', 'seal', 'pixl', 'pixel', 'omnia', 'pets', 'pixelverse'],
+  note: 'Seals, Omnia Pets, Omnia items, and PIXL.',
+  keywords: ['sappy', 'pixl', 'omnia', 'pets'],
   fallback: [
   { name: 'Sappy Seals ecosystem', collection: 'Owned-token images only', glyph: 'SS', tokenId: 'pending', contract: 'pending' },
-  { name: 'PIXL', collection: 'Pixlverse ecosystem', glyph: 'PIXL', tokenId: 'asset', amount: 'syncing', chain: 'Ethereum' },
-  { name: 'Pixl and Omnia items', collection: 'Owned-token images only', glyph: 'PX', tokenId: 'pending', contract: 'pending' }]
+  { name: 'PIXL', collection: 'Omnia ecosystem', glyph: 'PIXL', tokenId: 'asset', amount: 'syncing', chain: 'Ethereum' },
+  { name: 'Omnia items', collection: 'Owned-token images only', glyph: 'OM', tokenId: 'pending', contract: 'pending' }]
 },
 {
   id: 'pudgy',
@@ -551,15 +551,14 @@ const NFT_ECOSYSTEMS = [
   note: 'A collection started in 2022, coming into the next build cycle.',
   keywords: ['great terriers'],
   fallback: [
-  { name: 'Great Terriers', collection: 'Coming soon', glyph: 'GT', tokenId: 'soon', contract: 'soon' },
-  { name: '2022 origin', collection: 'Collection in progress', glyph: '22', tokenId: 'soon', contract: 'soon' }]
+  { name: 'Great Terriers', collection: 'Coming soon', image: 'assets/great-terriers-coming-soon.png', tokenId: 'soon', contract: 'soon', comingSoon: true }]
 }];
 
 function ecosystemForNft(nft) {
   if (nft?.ecosystem) return NFT_ECOSYSTEMS.find((ecosystem) => ecosystem.id === nft.ecosystem);
   const haystack = `${nft?.collection || ''} ${nft?.name || ''}`.toLowerCase();
   return NFT_ECOSYSTEMS.find((ecosystem) =>
-    ecosystem.keywords.some((keyword) => haystack.includes(keyword))
+    ecosystem.id === 'inkfinity' && ecosystem.keywords.some((keyword) => haystack.includes(keyword))
   );
 }
 
@@ -595,6 +594,8 @@ function NftCarousel() {
   const [source, setSource] = useState('curated');
   const [index, setIndex] = useState(0);
   const [assetData, setAssetData] = useState([]);
+  const [paused, setPaused] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -647,22 +648,31 @@ function NftCarousel() {
   }, []);
 
   useEffect(() => {
-    if (groups.length <= 1) return undefined;
+    if (groups.length <= 1 || paused || expanded) return undefined;
     const timer = window.setInterval(() => {
       setIndex((i) => (i + 1) % groups.length);
     }, 4800);
     return () => window.clearInterval(timer);
-  }, [groups.length]);
+  }, [groups.length, paused, expanded]);
 
-  const next = () => setIndex((i) => (i + 1) % groups.length);
-  const prev = () => setIndex((i) => (i - 1 + groups.length) % groups.length);
+  const next = () => {
+    setExpanded(false);
+    setPaused(false);
+    setIndex((i) => (i + 1) % groups.length);
+  };
+  const prev = () => {
+    setExpanded(false);
+    setPaused(false);
+    setIndex((i) => (i - 1 + groups.length) % groups.length);
+  };
   const groupsWithAssets = groups.map((group) => ({
     ...group,
     items: [...assetData.filter((asset) => asset.ecosystem === group.id), ...(group.items || [])]
   }));
   const activeGroup = groupsWithAssets[index] || groupsWithAssets[0];
   const visible = activeGroup?.items || [];
-  const smartItems = visible.length < 8 ? [...visible, ...visible].slice(0, Math.max(4, visible.length * 2)) : visible;
+  const shouldLoop = !paused && !expanded && visible.length > 1 && visible.length < 5;
+  const smartItems = shouldLoop ? [...visible, ...visible].slice(0, Math.max(4, visible.length * 2)) : visible;
 
   return (
     <section className="nft-showcase" id="nfts">
@@ -676,10 +686,18 @@ function NftCarousel() {
       <p className="lede nft-lede">
         {source === 'wallet' ? `${activeGroup?.note} Cards open the matching asset, collection, or explorer page.` : `${activeGroup?.note} Waiting on exact metadata for this ecosystem.`}
       </p>
-      <div className={`ecosystem-stage ${activeGroup?.id || ''}`}>
+      <div
+        className={`ecosystem-stage ${activeGroup?.id || ''} ${expanded ? 'is-expanded' : ''}`}
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => !expanded && setPaused(false)}
+        onFocusCapture={() => setPaused(true)}>
         <div className="ecosystem-tabs" aria-label="NFT ecosystem carousel position">
           {groupsWithAssets.map((group, i) =>
-          <button key={group.id} type="button" className={i === index ? 'active' : ''} onClick={() => setIndex(i)}>
+          <button key={group.id} type="button" className={i === index ? 'active' : ''} onClick={() => {
+            setIndex(i);
+            setPaused(true);
+            setExpanded(true);
+          }}>
               <span>{String(i + 1).padStart(2, '0')}</span>
               <strong>{group.label}</strong>
               <i aria-hidden="true" />
@@ -688,11 +706,22 @@ function NftCarousel() {
         </div>
         <div className="ecosystem-focus">
           <span>{activeGroup?.label}</span>
-          <strong>{visible.length} featured items</strong>
+          <div className="ecosystem-status">
+            <strong>{visible.length} featured items {paused || expanded ? '· paused' : ''}</strong>
+            <button type="button" className="mini-link" onClick={() => {
+              if (expanded) {
+                setExpanded(false);
+                setPaused(false);
+              } else {
+                setExpanded(true);
+                setPaused(true);
+              }
+            }}>{expanded ? 'Resume carousel' : 'View all'}</button>
+          </div>
         </div>
-        <div className={`nft-track smart-track ${visible.length < 5 ? 'is-looped' : ''}`}>
+        <div className={`nft-track smart-track ${shouldLoop ? 'is-looped' : ''}`}>
           {smartItems.map((nft, i) =>
-          <a key={`${nft.name}-${nft.tokenId}-${i}`} className={`nft-card ${nft.tokenId === 'pending' || nft.tokenId === 'soon' ? 'disabled' : ''} ${nft.tokenId === 'asset' ? 'asset-card' : ''}`} href={nft.href || '#nfts'} target="_blank" rel="noopener" style={{ '--i': i }}>
+          <a key={`${nft.name}-${nft.tokenId}-${i}`} className={`nft-card ${nft.tokenId === 'pending' || nft.tokenId === 'soon' ? 'disabled' : ''} ${nft.tokenId === 'asset' ? 'asset-card' : ''} ${nft.comingSoon ? 'coming-soon-card' : ''}`} href={nft.href || '#nfts'} target="_blank" rel="noopener" style={{ '--i': i }}>
               <div className="nft-art">
                 {nft.image ? <img src={nft.image} alt={nft.name} loading="lazy" /> : <div className="nft-glyph">{nft.glyph}</div>}
               </div>
@@ -741,15 +770,21 @@ const MONAD_TILE_NAMES = {
   2: 'M',
   4: 'MON',
   8: 'NAD',
-  16: 'RUN',
-  32: 'BLD',
-  64: 'SWP',
-  128: 'GAS',
-  256: 'RUSH',
-  512: 'FOCUS',
-  1024: 'FLOW',
-  2048: 'MONAD'
+  16: 'CHOG',
+  32: 'DAK',
+  64: 'MOUCH',
+  128: 'MOKA',
+  256: 'MOYAKI',
+  512: 'SALMONAD',
+  1024: 'FOCUS',
+  2048: 'HYPER'
 };
+
+const MONAD_CHARACTERS = [
+  { name: 'Molandak', note: 'spiky mascot energy' },
+  { name: 'Chog', note: 'catlike chaos' },
+  { name: 'Salmonad', note: 'timeline spam power' }
+];
 
 function addRandomTile(board) {
   const empty = board
@@ -959,7 +994,12 @@ function MonadGame() {
     <section className="monad-game" id="monad-game">
       <div className="game-copy">
         <Chapter num="04" kicker="Built on Monad" title={`${GAME_NAME}.`} />
-        <p className="lede">A 2048-style focus game for BuildAnything: merge the tiles, chase bigger runs, and post a score receipt on Monad Testnet.</p>
+        <p className="lede">A fast focus game for BuildAnything: merge Monad-coded tiles, climb the monanimal ladder, and post a score receipt on Monad Testnet.</p>
+        <div className="monanimal-strip" aria-label="Monad character inspirations">
+          {MONAD_CHARACTERS.map((character) =>
+          <span key={character.name}><strong>{character.name}</strong>{character.note}</span>
+          )}
+        </div>
         <div className="game-actions">
           <button type="button" className="btn primary" onClick={connectMonad}>{shortWallet(account)}</button>
           <button type="button" className="btn ghost" onClick={newGame}>New run</button>
@@ -1004,7 +1044,7 @@ function MonadGame() {
           <button type="button" onClick={() => makeMove('right')}>→</button>
         </div>
         <div className="game-prompt">
-          <strong>{gameOver ? 'Score it, or start fresh.' : maxTile >= 2048 ? 'Monad brain unlocked.' : 'Merge matching tiles.'}</strong>
+          <strong>{gameOver ? 'Score it, or start fresh.' : maxTile >= 2048 ? 'Hyperfocus unlocked.' : 'Merge matching monanimals.'}</strong>
           <span>{moves} moves · arrow keys, swipe, or tap the controls</span>
         </div>
       </div>
@@ -1064,9 +1104,9 @@ function Stats() {
 
 // ---------- Now Building ----------
 const NOW = [
-{ glyph: 'AI', title: 'AI Agents', note: 'Autonomous workers for off-chain ops in hospitality, content, and the boring glue between them.' },
-{ glyph: '★', title: 'Blue Star Web3', note: 'Live now: Sappy Seals and Pudgy Penguins ecosystem holders get booking benefits for vacation, worcation, and nomadic stays. Inkfinity Canvas holders are the founders-tier collection.' },
-{ title: 'Seal Stay', note: 'Where Web3 meets hospitality. Stay tuned — opening soon.', logo: 'assets/seal-stay-logo.png' }];
+{ title: 'AI Agents', note: 'Autonomous workers for hospitality ops, content systems, and the useful glue between them.', logo: 'assets/iglu-mark.svg', alt: 'Iglu mark' },
+{ title: 'Blue Star Web3', note: 'Live now: ecosystem-holder benefits for vacation, worcation, and nomadic stays.', logo: 'assets/bluestar-logo.svg', alt: 'Blue Star logo' },
+{ title: 'Seal Stay', note: 'Where Web3 meets hospitality. Stay tuned for the next stay layer.', logo: 'assets/seal-stay-logo.png', alt: 'Seal Stay logo' }];
 
 function NowBuilding() {
   return (
@@ -1076,7 +1116,7 @@ function NowBuilding() {
         {NOW.map((n, i) =>
         <Reveal key={n.title} delay={i * 80}>
             <div className="nb-card">
-              {n.logo ? <img className="nb-logo" src={n.logo} alt="Seal Stay logo" /> : <div className="nb-glyph">{n.glyph}</div>}
+              <img className="nb-logo" src={n.logo} alt={n.alt} />
               <div className="nb-title">{n.title}</div>
               <div className="nb-note">{n.note}</div>
             </div>

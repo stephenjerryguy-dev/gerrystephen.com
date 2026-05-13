@@ -1,6 +1,8 @@
 const ABSTRACT_WALLET = '0x382556A543aAd855C07678E7F8e820d0d90429BB';
+const ETH_WALLET = '0xc3ce1Eb539c1Cc031eCd7B95e8C00768BF324403';
 const ETH_RPC = 'https://eth.llamarpc.com';
 const ABSTRACT_RPC = 'https://api.mainnet.abs.xyz';
+const DEXSCREENER_API = 'https://api.dexscreener.com/latest/dex/tokens';
 const BALANCE_OF = '0x70a08231';
 const DECIMALS = '0x313ce567';
 
@@ -16,6 +18,7 @@ const ASSETS = [
     contract: '0x9eBe3A824Ca958e4b3Da772D2065518F009CBa62',
     wallet: ABSTRACT_WALLET,
     href: `https://abscan.org/token/0x9eBe3A824Ca958e4b3Da772D2065518F009CBa62?a=${ABSTRACT_WALLET}`,
+    image: 'https://cdn.dexscreener.com/cms/images/527f3df62eb754a69b5d3dd14b1ee36301b506df9af455374f4e0ffb91367594?width=800&height=800&quality=95&format=auto',
   },
   {
     id: 'pixl',
@@ -26,8 +29,9 @@ const ASSETS = [
     chain: 'Ethereum',
     rpc: ETH_RPC,
     contract: '0x427A03fb96D9A94a6727fBCfbBA143444090dD64',
-    wallet: ABSTRACT_WALLET,
-    href: `https://etherscan.io/token/0x427A03fb96D9A94a6727fBCfbBA143444090dD64?a=${ABSTRACT_WALLET}`,
+    wallet: ETH_WALLET,
+    href: `https://etherscan.io/token/0x427A03fb96D9A94a6727fBCfbBA143444090dD64?a=${ETH_WALLET}`,
+    image: 'https://cdn.dexscreener.com/cms/images/df894589157dc6cba4da1b969b44944defa2c7ac291457d5fccabef0af32e017?width=800&height=800&quality=95&format=auto',
   },
 ];
 
@@ -62,25 +66,36 @@ function formatUnits(hex, decimals) {
   return fracText ? `${wholeText}.${fracText}` : wholeText;
 }
 
+async function fetchTokenImage(contract) {
+  const response = await fetch(`${DEXSCREENER_API}/${contract}`, { headers: { accept: 'application/json' } });
+  if (!response.ok) return undefined;
+  const data = await response.json();
+  return data?.pairs?.find((pair) => pair?.info?.imageUrl)?.info?.imageUrl;
+}
+
 async function withBalance(asset) {
   try {
-    const decimalsHex = await rpcCall(asset.rpc, asset.contract, DECIMALS);
+    const [decimalsHex, tokenImage] = await Promise.all([
+      rpcCall(asset.rpc, asset.contract, DECIMALS),
+      fetchTokenImage(asset.contract).catch(() => undefined),
+    ]);
     const decimals = Number.parseInt(decimalsHex, 16) || 18;
     const balanceHex = await rpcCall(asset.rpc, asset.contract, `${BALANCE_OF}${encodeAddress(asset.wallet)}`);
     return {
       ...asset,
       amount: formatUnits(balanceHex, decimals),
       tokenId: 'asset',
-      image: null,
+      image: tokenImage || asset.image || null,
       glyph: asset.symbol,
       contract: asset.contract,
     };
   } catch (error) {
+    const tokenImage = await fetchTokenImage(asset.contract).catch(() => undefined);
     return {
       ...asset,
       amount: 'syncing',
       tokenId: 'asset',
-      image: null,
+      image: tokenImage || asset.image || null,
       glyph: asset.symbol,
       contract: asset.contract,
     };

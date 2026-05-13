@@ -759,6 +759,11 @@ a { color: inherit; text-decoration: none; }
     linear-gradient(135deg, rgba(255,255,255,0.72), rgba(244,231,212,0.5)),
     radial-gradient(540px 260px at 80% 0%, rgba(92,52,22,0.15), transparent 70%);
 }
+.ecosystem-stage.great-terriers {
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.7), rgba(220,238,247,0.42)),
+    radial-gradient(540px 260px at 76% 6%, rgba(59,122,87,0.18), transparent 70%);
+}
 .ecosystem-tabs {
   position: relative;
   z-index: 1;
@@ -846,6 +851,28 @@ a { color: inherit; text-decoration: none; }
   color: var(--ink-soft);
   white-space: nowrap;
 }
+.ecosystem-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+.mini-link {
+  border: 1px solid rgba(14,31,44,0.14);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.62);
+  color: var(--ink);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  padding: 9px 12px;
+  text-transform: uppercase;
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+.mini-link:hover {
+  background: #fff;
+  transform: translateY(-2px);
+}
 .nft-track {
   position: relative;
   z-index: 1;
@@ -884,6 +911,15 @@ a { color: inherit; text-decoration: none; }
 }
 .smart-track:hover .nft-card {
   animation-play-state: running, paused;
+}
+.ecosystem-stage.is-expanded .nft-track {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  mask-image: none;
+  overflow: visible;
+}
+.ecosystem-stage.is-expanded .nft-card {
+  flex-basis: auto;
 }
 .nft-card:hover {
   transform: translateY(-6px);
@@ -934,6 +970,37 @@ a { color: inherit; text-decoration: none; }
   font-weight: 700;
   letter-spacing: 0.02em;
 }
+.coming-soon-card {
+  flex-basis: clamp(260px, 34vw, 420px);
+}
+.coming-soon-card .nft-art {
+  position: relative;
+  background: #0E1F2C;
+}
+.coming-soon-card .nft-art::after {
+  content: "Coming soon";
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  z-index: 2;
+  border: 1px solid rgba(255,255,255,0.4);
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: rgba(14,31,44,0.48);
+  color: #fff;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  backdrop-filter: blur(10px);
+}
+.coming-soon-card .nft-art img {
+  filter: blur(8px) saturate(0.82) brightness(0.86);
+  scale: 1.08;
+}
+.coming-soon-card:hover .nft-art img {
+  filter: blur(5px) saturate(0.92) brightness(0.9);
+}
 .nft-meta {
   padding: 18px 18px 20px;
   display: flex;
@@ -975,6 +1042,8 @@ a { color: inherit; text-decoration: none; }
   .ecosystem-stage { padding: 16px; }
   .ecosystem-focus { align-items: flex-start; flex-direction: column; }
   .ecosystem-focus strong { white-space: normal; }
+  .ecosystem-status { align-items: flex-start; flex-direction: column; }
+  .ecosystem-stage.is-expanded .nft-track { grid-template-columns: 1fr; }
   .nft-track { mask-image: none; }
   .nft-card { flex-basis: min(82vw, 320px); }
 }
@@ -988,9 +1057,9 @@ a { color: inherit; text-decoration: none; }
   gap: clamp(36px, 6vw, 86px);
   align-items: center;
   background:
-    radial-gradient(760px 480px at 78% 28%, rgba(47,107,79,0.28), transparent 66%),
-    radial-gradient(520px 420px at 20% 76%, rgba(122,168,194,0.3), transparent 70%),
-    linear-gradient(180deg, #0E1F2C 0%, #102A35 62%, #DCEEF7 100%);
+    radial-gradient(760px 480px at 78% 28%, rgba(131,85,255,0.36), transparent 66%),
+    radial-gradient(520px 420px at 20% 76%, rgba(45,191,176,0.3), transparent 70%),
+    linear-gradient(180deg, #120B2E 0%, #20104B 54%, #DCEEF7 100%);
   color: #EEF6FB;
   position: relative;
   overflow: hidden;
@@ -1031,6 +1100,37 @@ a { color: inherit; text-decoration: none; }
   gap: 12px;
   margin-top: 34px;
 }
+.monanimal-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 26px;
+}
+.monanimal-strip span {
+  min-height: 76px;
+  border: 1px solid rgba(238,246,251,0.18);
+  border-radius: 8px;
+  padding: 13px;
+  background:
+    radial-gradient(circle at 85% 16%, rgba(255,255,255,0.2), transparent 32%),
+    rgba(255,255,255,0.07);
+  color: rgba(238,246,251,0.7);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+.monanimal-strip strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #fff;
+  font-family: var(--display-font), serif;
+  font-size: 22px;
+  letter-spacing: 0;
+  line-height: 1;
+  text-transform: none;
+}
 .game-actions .btn {
   min-height: 48px;
 }
@@ -1063,8 +1163,8 @@ a { color: inherit; text-decoration: none; }
   border: 1px solid rgba(238,246,251,0.22);
   border-radius: 8px;
   background:
-    linear-gradient(145deg, rgba(238,246,251,0.16), rgba(238,246,251,0.06)),
-    radial-gradient(460px 260px at 50% 0%, rgba(45,191,176,0.18), transparent 70%);
+    linear-gradient(145deg, rgba(238,246,251,0.18), rgba(238,246,251,0.06)),
+    radial-gradient(460px 260px at 50% 0%, rgba(131,85,255,0.25), transparent 70%);
   box-shadow: 0 34px 90px rgba(0,0,0,0.34);
   backdrop-filter: blur(18px);
 }
@@ -1105,9 +1205,13 @@ a { color: inherit; text-decoration: none; }
   aspect-ratio: 1;
   touch-action: none;
   user-select: none;
+  align-items: stretch;
 }
 .game-cell {
   min-width: 0;
+  min-height: 0;
+  aspect-ratio: 1;
+  contain: layout paint;
   border: 1px solid rgba(238,246,251,0.12);
   border-radius: 8px;
   background:
@@ -1126,13 +1230,14 @@ a { color: inherit; text-decoration: none; }
   align-content: center;
   gap: 4px;
   min-height: 0;
+  overflow: hidden;
   cursor: default;
 }
 .merge-cell.filled {
   color: #0E1F2C;
   background:
     radial-gradient(circle at 38% 24%, rgba(255,255,255,0.82) 0 15%, transparent 34%),
-    linear-gradient(135deg, #BFEDE6, #77C9B8);
+    linear-gradient(135deg, #F2E7FF, #A68BFF);
   border-color: rgba(238,246,251,0.42);
   box-shadow: inset 0 -10px 20px rgba(14,31,44,0.08), 0 10px 26px rgba(0,0,0,0.12);
   animation: tilePop 150ms ease both;
@@ -1142,6 +1247,7 @@ a { color: inherit; text-decoration: none; }
   font-family: var(--display-font), serif;
   font-size: clamp(22px, 4.2vw, 44px);
   line-height: 0.92;
+  font-variant-numeric: tabular-nums;
 }
 .merge-cell span {
   display: block;
@@ -1150,25 +1256,35 @@ a { color: inherit; text-decoration: none; }
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
-.tile-8,
-.tile-16 {
+.tile-2 { background:
+  radial-gradient(circle at 38% 24%, rgba(255,255,255,0.82) 0 15%, transparent 34%),
+  linear-gradient(135deg, #F2E7FF, #C9B8FF); }
+.tile-4 { background:
+  radial-gradient(circle at 38% 24%, rgba(255,255,255,0.82) 0 15%, transparent 34%),
+  linear-gradient(135deg, #DCEEF7, #8FD9FF); }
+.tile-8 {
   background:
     radial-gradient(circle at 38% 24%, rgba(255,255,255,0.75) 0 14%, transparent 34%),
     linear-gradient(135deg, #A8CCE0, #2DBFB0);
+}
+.tile-16 {
+  background:
+    radial-gradient(circle at 38% 24%, rgba(255,255,255,0.72) 0 14%, transparent 34%),
+    linear-gradient(135deg, #C8F27A, #2DBFB0);
 }
 .tile-32,
 .tile-64 {
   color: #EEF6FB;
   background:
     radial-gradient(circle at 38% 24%, rgba(255,255,255,0.3) 0 14%, transparent 34%),
-    linear-gradient(135deg, #3B7A57, #0F8C8A);
+    linear-gradient(135deg, #6847D6, #0F8C8A);
 }
 .tile-128,
 .tile-256 {
   color: #EEF6FB;
   background:
     radial-gradient(circle at 38% 24%, rgba(255,255,255,0.28) 0 14%, transparent 34%),
-    linear-gradient(135deg, #1F4E7A, #3B7A57);
+    linear-gradient(135deg, #1F4E7A, #7C3AED);
 }
 .tile-512,
 .tile-1024,
@@ -1176,8 +1292,8 @@ a { color: inherit; text-decoration: none; }
   color: #0E1F2C;
   background:
     radial-gradient(circle at 38% 24%, #FFFFFF 0 15%, transparent 34%),
-    linear-gradient(135deg, #FFD7B5, #BFEDE6 48%, #FFFFFF);
-  box-shadow: 0 0 0 8px rgba(45,191,176,0.12), 0 18px 46px rgba(45,191,176,0.28);
+    linear-gradient(135deg, #FFE66D, #C9B8FF 48%, #FFFFFF);
+  box-shadow: 0 0 0 8px rgba(131,85,255,0.14), 0 18px 46px rgba(131,85,255,0.3);
 }
 .game-cell:active {
   transform: scale(0.96);
@@ -1264,6 +1380,9 @@ a { color: inherit; text-decoration: none; }
   }
 }
 @media (max-width: 520px) {
+  .monanimal-strip {
+    grid-template-columns: 1fr;
+  }
   .game-actions .btn {
     width: 100%;
     justify-content: center;
@@ -1529,11 +1648,12 @@ a { color: inherit; text-decoration: none; }
   backdrop-filter: blur(10px);
   border: 1px solid rgba(14,31,44,0.08);
   border-radius: 8px;
-  padding: 36px 30px;
-  min-height: 240px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  padding: 34px 30px 32px;
+  min-height: 268px;
+  display: grid;
+  grid-template-rows: 82px auto 1fr;
+  align-items: start;
+  gap: 12px;
   box-shadow: 0 14px 40px rgba(14,31,44,0.06);
   transition: transform 0.25s, box-shadow 0.25s;
 }
@@ -1552,21 +1672,26 @@ a { color: inherit; text-decoration: none; }
   box-shadow: 0 8px 20px rgba(15,140,138,0.3);
 }
 .nb-logo {
-  width: 72px;
-  height: 72px;
+  width: 76px;
+  height: 76px;
   object-fit: contain;
-  margin-bottom: 8px;
+  align-self: center;
   filter: drop-shadow(0 10px 18px rgba(14,31,44,0.16));
 }
 .nb-title {
   font-family: var(--display-font), serif;
   font-weight: 500;
-  font-size: 32px;
+  font-size: clamp(29px, 2.4vw, 34px);
   line-height: 1.05;
   letter-spacing: 0;
   color: var(--ink);
 }
-.nb-note { color: var(--ink-soft); font-size: 15px; }
+.nb-note {
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1.45;
+  max-width: 28ch;
+}
 @media (max-width: 1000px) { .nb-grid { grid-template-columns: 1fr; } }
 @media (max-width: 700px) { .now-building { padding: 100px 24px; } }
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gerry-iglu-v3';
+const CACHE_NAME = 'gerry-iglu-v5';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -9,6 +9,9 @@ const APP_SHELL = [
   '/assets/pudgy-penguin-cutout.png',
   '/assets/bluestar-property.jpg',
   '/assets/zeppole-shop.jpg',
+  '/assets/great-terriers-coming-soon.png',
+  '/assets/iglu-mark.svg',
+  '/assets/bluestar-logo.svg',
   '/assets/seal-stay-logo.png'
 ];
 
