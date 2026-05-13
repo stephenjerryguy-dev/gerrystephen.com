@@ -5,6 +5,7 @@ const WALLETS = [
 ];
 
 const RESERVOIR_API = 'https://api.reservoir.tools';
+const BLOCKSCOUT_API = 'https://eth.blockscout.com/api/v2';
 const ETH_RPC = 'https://eth.llamarpc.com';
 const TOKEN_URI_SELECTOR = '0xc87b56dd';
 const ERC1155_URI_SELECTOR = '0x0e89341c';
@@ -59,6 +60,13 @@ async function fetchTokenMetadataImage(contract, tokenId) {
   return ipfsToHttps(metadata?.image || metadata?.image_url || metadata?.animation_url);
 }
 
+async function fetchMetadataImageFromUri(uri) {
+  const metadataUri = ipfsToHttps(uri?.trim?.());
+  if (!metadataUri) return undefined;
+  const metadata = await fetch(metadataUri).then((res) => res.ok ? res.json() : undefined).catch(() => undefined);
+  return ipfsToHttps(metadata?.image || metadata?.image_url || metadata?.animation_url);
+}
+
 function normalizeToken(item, wallet) {
   const token = item?.token || item || {};
   const collection = token.collection || {};
@@ -78,9 +86,50 @@ function normalizeToken(item, wallet) {
   };
 }
 
+function normalizeBlockscoutNft(item, wallet) {
+  const token = item?.token || {};
+  const contract = token.address_hash;
+  const tokenId = item?.id || item?.token_id;
+  if (!contract || !tokenId) return null;
+
+  const metadataError = item?.metadata?.error;
+  const metadataUri = typeof metadataError === 'string' && metadataError.includes('ipfs://')
+    ? metadataError.slice(metadataError.indexOf('ipfs://')).trim()
+    : undefined;
+
+  return {
+    name: item?.metadata?.name || `${token.name || token.symbol || 'NFT'} #${tokenId}`,
+    collection: token.name || token.symbol || 'Collected NFT',
+    image: ipfsToHttps(item?.image_url || item?.media_url || item?.metadata?.image || item?.metadata?.image_url),
+    metadataUri,
+    href: `https://opensea.io/assets/ethereum/${contract}/${tokenId}`,
+    contract,
+    tokenId,
+    wallet: `${wallet.slice(0, 6)}...${wallet.slice(-4)}`,
+  };
+}
+
+async function fetchBlockscoutNfts(wallet) {
+  const response = await fetch(`${BLOCKSCOUT_API}/addresses/${wallet}/nft`, {
+    headers: { accept: 'application/json' },
+  });
+  if (!response.ok) return [];
+  const data = await response.json();
+  const normalized = (data.items || [])
+    .map((item) => normalizeBlockscoutNft(item, wallet))
+    .filter(Boolean);
+
+  return Promise.all(normalized.map(async (nft) => ({
+    ...nft,
+    image: nft.image
+      || await fetchMetadataImageFromUri(nft.metadataUri)
+      || await fetchTokenMetadataImage(nft.contract, nft.tokenId),
+  })));
+}
+
 export default async function handler(req, res) {
   try {
-    const responses = await Promise.allSettled(
+    const reservoirResponses = await Promise.allSettled(
       WALLETS.map(async (wallet) => {
         const url = `${RESERVOIR_API}/users/${wallet}/tokens/v10?limit=48&sortBy=floorAskPrice&excludeSpam=true&excludeNsfw=true`;
         const response = await fetch(url, { headers: { accept: 'application/json' } });
@@ -96,10 +145,18 @@ export default async function handler(req, res) {
       })
     );
 
-    const nfts = responses
+    let nfts = reservoirResponses
       .flatMap((result) => (result.status === 'fulfilled' ? result.value : []))
       .filter((nft) => nft.image)
       .slice(0, 16);
+
+    if (!nfts.length) {
+      const blockscoutResponses = await Promise.allSettled(WALLETS.map(fetchBlockscoutNfts));
+      nfts = blockscoutResponses
+        .flatMap((result) => (result.status === 'fulfilled' ? result.value : []))
+        .filter((nft) => nft.image)
+        .slice(0, 16);
+    }
 
     res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');
     res.status(200).json({ nfts });
