@@ -13,21 +13,36 @@ const ECOSYSTEMS = [
   {
     id: 'sappy',
     label: 'Sappy Seals ecosystem',
+    contracts: [
+      '0x364c828ee171616a39897688a831c2499ad972ec',
+      '0x4e76c23fe2a4e37b5e07b5625e17098baab86c18',
+      '0xf0ea56402b2e2b27556d7abf4236c7327722fe41',
+    ],
     keywords: ['sappy', 'seal', 'pixl', 'pixel', 'omnia', 'pets', 'pixelverse'],
   },
   {
     id: 'pudgy',
     label: 'Pudgy Penguins ecosystem',
+    contracts: [
+      '0xbd3531da5cf5857e7cfaa92426877b022e612cf8',
+      '0x524cab2ec69124574082676e6f654a18df49a048',
+      '0x062e691c2054de82f28008a8ccc6d7a1c8ce060d',
+    ],
     keywords: ['pudgy', 'penguin', 'lil pudgy', 'rod'],
   },
   {
     id: 'inkfinity',
     label: 'Inkfinity Canvas',
+    contracts: [],
     keywords: ['inkfinity', 'nftvisionary', 'nuttyprofessor', 'thunderofthoughts', 'e. guy'],
   },
 ];
 
 function ecosystemForNft(nft) {
+  const contract = nft?.contract?.toLowerCase?.();
+  const contractMatch = ECOSYSTEMS.find((ecosystem) => ecosystem.contracts.includes(contract));
+  if (contractMatch) return contractMatch;
+
   const haystack = `${nft?.collection || ''} ${nft?.name || ''}`.toLowerCase();
   return ECOSYSTEMS.find((ecosystem) =>
     ecosystem.keywords.some((keyword) => haystack.includes(keyword))
@@ -48,7 +63,14 @@ function curatedEcosystemNfts(nfts) {
       seen.add(key);
       return true;
     })
-    .slice(0, 24);
+    .sort((a, b) => {
+      const aContract = a.contract?.toLowerCase?.();
+      const bContract = b.contract?.toLowerCase?.();
+      const aScore = ecosystemForNft(a)?.contracts.includes(aContract) ? 0 : 1;
+      const bScore = ecosystemForNft(b)?.contracts.includes(bContract) ? 0 : 1;
+      return aScore - bScore;
+    })
+    .slice(0, 36);
 }
 
 function ipfsToHttps(uri) {
@@ -168,31 +190,47 @@ async function fetchBlockscoutNfts(wallet) {
   })));
 }
 
+async function fetchReservoirNfts(wallet, contract) {
+  const params = new URLSearchParams({
+    limit: contract ? '20' : '48',
+    sortBy: 'floorAskPrice',
+    excludeSpam: 'true',
+    excludeNsfw: 'true',
+  });
+  if (contract) params.set('collection', contract);
+
+  const url = `${RESERVOIR_API}/users/${wallet}/tokens/v10?${params.toString()}`;
+  const response = await fetch(url, { headers: { accept: 'application/json' } });
+  if (!response.ok) return [];
+  const data = await response.json();
+  const normalized = (data.tokens || [])
+    .map((item) => normalizeToken(item, wallet))
+    .filter(Boolean);
+  return Promise.all(normalized.map(async (nft) => ({
+    ...nft,
+    image: nft.image || await fetchTokenMetadataImage(nft.contract, nft.tokenId),
+  })));
+}
+
 export default async function handler(req, res) {
   try {
+    const ecosystemContracts = ECOSYSTEMS.flatMap((ecosystem) => ecosystem.contracts);
     const reservoirResponses = await Promise.allSettled(
-      WALLETS.map(async (wallet) => {
-        const url = `${RESERVOIR_API}/users/${wallet}/tokens/v10?limit=48&sortBy=floorAskPrice&excludeSpam=true&excludeNsfw=true`;
-        const response = await fetch(url, { headers: { accept: 'application/json' } });
-        if (!response.ok) return [];
-        const data = await response.json();
-        const normalized = (data.tokens || [])
-          .map((item) => normalizeToken(item, wallet))
-          .filter(Boolean);
-        return Promise.all(normalized.map(async (nft) => ({
-          ...nft,
-          image: nft.image || await fetchTokenMetadataImage(nft.contract, nft.tokenId),
-        })));
-      })
+      WALLETS.flatMap((wallet) => [
+        fetchReservoirNfts(wallet),
+        ...ecosystemContracts.map((contract) => fetchReservoirNfts(wallet, contract)),
+      ])
     );
 
-    let nfts = curatedEcosystemNfts(reservoirResponses
-      .flatMap((result) => (result.status === 'fulfilled' ? result.value : []))
-      .filter((nft) => nft.image)
-    );
+    const blockscoutResponses = await Promise.allSettled(WALLETS.map(fetchBlockscoutNfts));
+    const allNfts = [
+      ...reservoirResponses.flatMap((result) => (result.status === 'fulfilled' ? result.value : [])),
+      ...blockscoutResponses.flatMap((result) => (result.status === 'fulfilled' ? result.value : [])),
+    ];
+
+    let nfts = curatedEcosystemNfts(allNfts.filter((nft) => nft.image));
 
     if (!nfts.length) {
-      const blockscoutResponses = await Promise.allSettled(WALLETS.map(fetchBlockscoutNfts));
       nfts = curatedEcosystemNfts(blockscoutResponses
         .flatMap((result) => (result.status === 'fulfilled' ? result.value : []))
         .filter((nft) => nft.image)

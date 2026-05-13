@@ -202,9 +202,9 @@ function Topbar() {
       </div>
       <nav className="topnav">
         <a href="#journey">Journey</a>
-        <a href="#projects">Web3</a>
-        <a href="#nfts">NFTs</a>
+        <a href="#nfts">Ecosystems</a>
         <a href="#inkfinity">Inkfinity</a>
+        <a href="#monad-game">Monad Game</a>
         <a href="#now">Now</a>
         <a href="#bluestar">Hospitality</a>
         <a href="#zeppole">Cafe</a>
@@ -382,7 +382,7 @@ function Hero({ y, mouse, intensity }) {
           <p className="lede">A one-page home base for the journey: business, Web3, family legacy, and the Pudgy that made the cold internet feel warm.</p>
           <div className="hero-cta">
             <a className="btn primary" href="#journey" onClick={rideParallax}>Scroll to discover →</a>
-            <a className="btn ghost" href="#projects">View Web3 identity</a>
+            <a className="btn ghost" href="#nfts">My community ecosystems</a>
           </div>
         </div>
 
@@ -639,7 +639,7 @@ function NftCarousel() {
   return (
     <section className="nft-showcase" id="nfts">
       <div className="nft-head">
-        <Chapter num="03" kicker="Ecosystems" title={activeGroup?.label || 'NFT ecosystems from the iglu.'} />
+        <Chapter num="02" kicker="My community ecosystems" title="Sappy, Pudgy, and Inkfinity." />
         <div className="nft-actions">
           <button type="button" className="icon-btn" aria-label="Previous NFT" onClick={prev}>‹</button>
           <button type="button" className="icon-btn" aria-label="Next NFT" onClick={next}>›</button>
@@ -648,26 +648,227 @@ function NftCarousel() {
       <p className="lede nft-lede">
         {source === 'wallet' ? `${activeGroup?.note} Exact owned-token cards open the matching OpenSea asset page.` : `${activeGroup?.note} Waiting on exact token metadata for this ecosystem.`}
       </p>
-      <div className="ecosystem-tabs" aria-label="NFT ecosystem carousel position">
-        {groups.map((group, i) =>
-        <button key={group.id} type="button" className={i === index ? 'active' : ''} onClick={() => setIndex(i)}>
-            <span>{String(i + 1).padStart(2, '0')}</span>{group.label}
-          </button>
-        )}
+      <div className={`ecosystem-stage ${activeGroup?.id || ''}`}>
+        <div className="ecosystem-tabs" aria-label="NFT ecosystem carousel position">
+          {groups.map((group, i) =>
+          <button key={group.id} type="button" className={i === index ? 'active' : ''} onClick={() => setIndex(i)}>
+              <span>{String(i + 1).padStart(2, '0')}</span>
+              <strong>{group.label}</strong>
+              <i aria-hidden="true" />
+            </button>
+          )}
+        </div>
+        <div className="ecosystem-focus">
+          <span>{activeGroup?.label}</span>
+          <strong>{visible.length} featured pieces</strong>
+        </div>
+        <div className="nft-track">
+          {visible.map((nft, i) =>
+          <a key={`${nft.name}-${i}`} className={`nft-card ${nft.tokenId === 'pending' ? 'disabled' : ''}`} href={nft.href || '#nfts'} target="_blank" rel="noopener" style={{ '--i': i }}>
+              <div className="nft-art">
+                {nft.image ? <img src={nft.image} alt={nft.name} loading="lazy" /> : <div className="nft-glyph">{nft.glyph}</div>}
+              </div>
+              <div className="nft-meta">
+                <span>{nft.collection}</span>
+                <strong>{nft.name}</strong>
+                <small>{nft.tokenId && nft.tokenId !== 'pending' ? `${nft.contract.slice(0, 6)}...${nft.contract.slice(-4)} / #${nft.tokenId}` : 'Exact token data pending'}</small>
+              </div>
+            </a>
+          )}
+        </div>
       </div>
-      <div className="nft-track">
-        {visible.map((nft, i) =>
-        <a key={`${nft.name}-${i}`} className={`nft-card ${nft.tokenId === 'pending' ? 'disabled' : ''}`} href={nft.href || '#nfts'} target="_blank" rel="noopener">
-            <div className="nft-art">
-              {nft.image ? <img src={nft.image} alt={nft.name} loading="lazy" /> : <div className="nft-glyph">{nft.glyph}</div>}
-            </div>
-            <div className="nft-meta">
-              <span>{nft.collection}</span>
-              <strong>{nft.name}</strong>
-              <small>{nft.tokenId && nft.tokenId !== 'pending' ? `${nft.contract.slice(0, 6)}...${nft.contract.slice(-4)} / #${nft.tokenId}` : 'Exact token data pending'}</small>
-            </div>
-          </a>
-        )}
+    </section>);
+}
+
+// ---------- Monad Game ----------
+const MONAD_TESTNET = {
+  chainId: '0x279f',
+  chainName: 'Monad Testnet',
+  nativeCurrency: { name: 'Monad', symbol: 'MON', decimals: 18 },
+  rpcUrls: ['https://testnet-rpc.monad.xyz'],
+  blockExplorerUrls: ['https://testnet.monadexplorer.com']
+};
+
+const GAME_PROMPTS = [
+  { type: 'sequence', label: 'Tap the sigils in order', pattern: [0, 4, 8, 5] },
+  { type: 'sequence', label: 'Clear the noise path', pattern: [2, 1, 4, 7] },
+  { type: 'sequence', label: 'Lock the builder route', pattern: [6, 3, 4, 5] }
+];
+
+function shortWallet(account) {
+  return account ? `${account.slice(0, 6)}...${account.slice(-4)}` : 'Connect wallet';
+}
+
+function hexFromText(text) {
+  return '0x' + Array.from(new TextEncoder().encode(text))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+function MonadGame() {
+  const [account, setAccount] = useState('');
+  const [chainId, setChainId] = useState('');
+  const [walletState, setWalletState] = useState('Ready');
+  const [round, setRound] = useState(0);
+  const [step, setStep] = useState(0);
+  const [score, setScore] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(30);
+  const [playing, setPlaying] = useState(false);
+  const [txHash, setTxHash] = useState('');
+  const active = GAME_PROMPTS[round % GAME_PROMPTS.length];
+  const currentCell = active.pattern[step];
+  const isMonad = chainId?.toLowerCase() === MONAD_TESTNET.chainId;
+
+  useEffect(() => {
+    if (!window.ethereum) return undefined;
+    const syncAccounts = (accounts) => setAccount(accounts?.[0] || '');
+    const syncChain = (id) => setChainId(id || '');
+    window.ethereum.request({ method: 'eth_accounts' }).then(syncAccounts).catch(() => {});
+    window.ethereum.request({ method: 'eth_chainId' }).then(syncChain).catch(() => {});
+    window.ethereum.on?.('accountsChanged', syncAccounts);
+    window.ethereum.on?.('chainChanged', syncChain);
+    return () => {
+      window.ethereum.removeListener?.('accountsChanged', syncAccounts);
+      window.ethereum.removeListener?.('chainChanged', syncChain);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!playing) return undefined;
+    if (timeLeft <= 0) {
+      setPlaying(false);
+      return undefined;
+    }
+    const timer = window.setTimeout(() => setTimeLeft((value) => value - 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [playing, timeLeft]);
+
+  async function connectMonad() {
+    if (!window.ethereum) {
+      setWalletState('Install a mobile or desktop wallet to connect.');
+      return;
+    }
+    try {
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      setAccount(accounts?.[0] || '');
+      try {
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: MONAD_TESTNET.chainId }]
+        });
+      } catch (switchError) {
+        if (switchError?.code === 4902) {
+          await window.ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [MONAD_TESTNET]
+          });
+        } else {
+          throw switchError;
+        }
+      }
+      const nextChain = await window.ethereum.request({ method: 'eth_chainId' });
+      setChainId(nextChain);
+      setWalletState('Monad ready');
+    } catch (error) {
+      setWalletState(error?.message || 'Wallet connection cancelled.');
+    }
+  }
+
+  function startRun() {
+    setScore(0);
+    setStreak(0);
+    setTimeLeft(30);
+    setRound(0);
+    setStep(0);
+    setTxHash('');
+    setPlaying(true);
+  }
+
+  function tapCell(cell) {
+    if (!playing) return;
+    if (cell === currentCell) {
+      const nextStreak = streak + 1;
+      setScore((value) => value + 100 + nextStreak * 25);
+      setStreak(nextStreak);
+      if (step + 1 >= active.pattern.length) {
+        setRound((value) => value + 1);
+        setStep(0);
+        setTimeLeft((value) => Math.min(45, value + 4));
+      } else {
+        setStep((value) => value + 1);
+      }
+    } else {
+      setStreak(0);
+      setScore((value) => Math.max(0, value - 40));
+    }
+  }
+
+  async function submitScore() {
+    if (!account) {
+      await connectMonad();
+      return;
+    }
+    if (!isMonad) {
+      await connectMonad();
+      return;
+    }
+    try {
+      setWalletState('Awaiting score signature');
+      const hash = await window.ethereum.request({
+        method: 'eth_sendTransaction',
+        params: [{
+          from: account,
+          to: account,
+          value: '0x0',
+          data: hexFromText(`gerrystephen.com Monad focus run score=${score}`)
+        }]
+      });
+      setTxHash(hash);
+      setWalletState('Score posted');
+    } catch (error) {
+      setWalletState(error?.message || 'Score not posted.');
+    }
+  }
+
+  return (
+    <section className="monad-game" id="monad-game">
+      <div className="game-copy">
+        <Chapter num="04" kicker="Monad game" title="Brainrot goes in. Focus comes out." />
+        <p className="lede">A fast mini-game for BuildAnything: chain reactions, tiny puzzle paths, and score receipts on Monad Testnet. Built to feel good on desktop and installed mobile.</p>
+        <div className="game-actions">
+          <button type="button" className="btn primary" onClick={connectMonad}>{shortWallet(account)}</button>
+          <button type="button" className="btn ghost" onClick={startRun}>{playing ? 'Restart run' : 'Start run'}</button>
+          <button type="button" className="btn ghost" onClick={submitScore} disabled={!score}>Submit score</button>
+        </div>
+        <div className="game-status">
+          <span>{walletState}</span>
+          <span>{isMonad ? 'Monad Testnet' : 'Wrong network'}</span>
+          {txHash && <a href={`https://testnet.monadexplorer.com/tx/${txHash}`} target="_blank" rel="noopener">View score tx</a>}
+        </div>
+      </div>
+      <div className="game-shell" role="application" aria-label="Monad focus runner game">
+        <div className="game-hud">
+          <div><span>Score</span><strong>{score}</strong></div>
+          <div><span>Time</span><strong>{timeLeft}s</strong></div>
+          <div><span>Streak</span><strong>{streak}</strong></div>
+        </div>
+        <div className="game-board">
+          {Array.from({ length: 9 }).map((_, cell) =>
+          <button
+            key={cell}
+            type="button"
+            className={`game-cell ${cell === currentCell && playing ? 'hot' : ''} ${active.pattern.includes(cell) ? 'path' : ''}`}
+            onClick={() => tapCell(cell)}
+            aria-label={`Game cell ${cell + 1}`}>
+              <span>{cell === currentCell && playing ? 'MON' : cell % 2 ? 'M' : 'Ξ'}</span>
+            </button>
+          )}
+        </div>
+        <div className="game-prompt">
+          <strong>{playing ? active.label : 'Ready when you are'}</strong>
+          <span>{playing ? `Step ${step + 1} of ${active.pattern.length}` : 'Desktop, mobile, and home-screen mode.'}</span>
+        </div>
       </div>
     </section>);
 }
@@ -681,7 +882,7 @@ const INKFINITY = [
 function InkfinityGallery() {
   return (
     <section className="inkfinity" id="inkfinity">
-      <Chapter num="04" kicker="Eric Guy · Inkfinity Canvas" title="Signed work, carried forward." />
+      <Chapter num="03" kicker="Eric Guy · Inkfinity Canvas" title="Signed work, carried forward." />
       <p className="lede inkfinity-lede">Inkfinity Canvas brings my dad's hand-signed work into the builder story: craft, signature, permanence, and a family standard that still shapes how I move.</p>
       <div className="ink-grid">
         {INKFINITY.map((p, i) =>
@@ -852,7 +1053,7 @@ function Contact() {
           </Reveal>
         )}
       </div>
-      <div className="signoff">My father, a visionary successfully built for decades.<br />I carry the standard forward.</div>
+      <div className="signoff">My father, a visionary, successfully built for decades.<br />I carry the standard forward.</div>
       <div className="dedication">Built from the Guy family standard. <span>Eric Guy · strength before beauty</span></div>
     </section>);
 
@@ -877,9 +1078,9 @@ function App() {
       {tweaks.snowfall && <Snowfall count={60} intensity={tweaks.parallaxIntensity / 100} />}
       <Marquee items={['gerrystephen.eth', 'inkfinity canvas', 'great terriers', 'sappy seals', 'pudgy penguins', 'web3 since 2021', 'building IRL', 'hot weather, iced lattes']} />
       <Timeline />
-      <Projects />
       <NftCarousel />
       <InkfinityGallery />
+      <MonadGame />
       <Stats />
       <NowBuilding />
       <BlueStar y={y} intensity={tweaks.parallaxIntensity} warm={tweaks.warmChapters} />

@@ -724,15 +724,51 @@ a { color: inherit; text-decoration: none; }
   z-index: 1;
   margin-bottom: 36px;
 }
+.ecosystem-stage {
+  position: relative;
+  z-index: 1;
+  padding: clamp(18px, 3vw, 30px);
+  border: 1px solid rgba(14,31,44,0.1);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.72), rgba(255,255,255,0.38)),
+    radial-gradient(500px 240px at 20% 0%, rgba(47,107,79,0.18), transparent 70%);
+  box-shadow: 0 30px 80px rgba(14,31,44,0.12);
+  overflow: hidden;
+  backdrop-filter: blur(16px);
+}
+.ecosystem-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,0.34) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255,255,255,0.26) 1px, transparent 1px);
+  background-size: 52px 52px;
+  mask-image: linear-gradient(180deg, rgba(0,0,0,0.65), transparent 68%);
+  pointer-events: none;
+}
+.ecosystem-stage.pudgy {
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.76), rgba(226,244,250,0.44)),
+    radial-gradient(540px 260px at 82% 10%, rgba(31,78,122,0.2), transparent 70%);
+}
+.ecosystem-stage.inkfinity {
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.72), rgba(244,231,212,0.5)),
+    radial-gradient(540px 260px at 80% 0%, rgba(92,52,22,0.15), transparent 70%);
+}
 .ecosystem-tabs {
   position: relative;
   z-index: 1;
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin: -12px 0 28px;
+  margin: 0 0 20px;
 }
 .ecosystem-tabs button {
+  position: relative;
+  overflow: hidden;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -750,14 +786,64 @@ a { color: inherit; text-decoration: none; }
   backdrop-filter: blur(10px);
   transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease;
 }
+.ecosystem-tabs button strong {
+  position: relative;
+  z-index: 1;
+  font-weight: 600;
+}
+.ecosystem-tabs button i {
+  position: absolute;
+  left: 0;
+  right: auto;
+  bottom: 0;
+  width: 0%;
+  height: 3px;
+  background: linear-gradient(90deg, var(--green), var(--ice-deep));
+}
 .ecosystem-tabs button:hover,
 .ecosystem-tabs button.active {
   transform: translateY(-2px);
   background: #fff;
   color: var(--ink);
 }
+.ecosystem-tabs button.active i {
+  animation: tabFill 4.8s linear both;
+}
 .ecosystem-tabs span {
+  position: relative;
+  z-index: 1;
   color: var(--ice-deep);
+}
+@keyframes tabFill {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+.ecosystem-focus {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin: 0 0 18px;
+  padding: 14px 0;
+  border-top: 1px solid rgba(14,31,44,0.1);
+  border-bottom: 1px solid rgba(14,31,44,0.1);
+}
+.ecosystem-focus span {
+  font-family: var(--display-font), serif;
+  font-size: clamp(28px, 4vw, 54px);
+  line-height: 1;
+  font-weight: 600;
+  color: var(--ink);
+}
+.ecosystem-focus strong {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  white-space: nowrap;
 }
 .nft-track {
   position: relative;
@@ -775,6 +861,8 @@ a { color: inherit; text-decoration: none; }
   box-shadow: 0 18px 44px rgba(14,31,44,0.1);
   transition: transform 0.22s ease, box-shadow 0.22s ease;
   backdrop-filter: blur(12px);
+  animation: cardRise 420ms ease both;
+  animation-delay: calc(var(--i, 0) * 55ms);
 }
 .nft-card:hover {
   transform: translateY(-6px);
@@ -826,6 +914,10 @@ a { color: inherit; text-decoration: none; }
   color: var(--ink-soft);
   letter-spacing: 0.08em;
 }
+@keyframes cardRise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 @media (max-width: 1000px) {
   .nft-track { grid-template-columns: repeat(2, 1fr); }
 }
@@ -833,7 +925,211 @@ a { color: inherit; text-decoration: none; }
   .nft-showcase { padding: 100px 24px; }
   .nft-head { flex-direction: column; }
   .nft-actions { padding-top: 0; }
+  .ecosystem-stage { padding: 16px; }
+  .ecosystem-focus { align-items: flex-start; flex-direction: column; }
+  .ecosystem-focus strong { white-space: normal; }
   .nft-track { grid-template-columns: 1fr; }
+}
+
+/* ---------- Monad Game ---------- */
+.monad-game {
+  min-height: 100svh;
+  padding: 130px 80px;
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(360px, 1.1fr);
+  gap: clamp(36px, 6vw, 86px);
+  align-items: center;
+  background:
+    radial-gradient(760px 480px at 78% 28%, rgba(47,107,79,0.28), transparent 66%),
+    radial-gradient(520px 420px at 20% 76%, rgba(122,168,194,0.3), transparent 70%),
+    linear-gradient(180deg, #0E1F2C 0%, #102A35 62%, #DCEEF7 100%);
+  color: #EEF6FB;
+  position: relative;
+  overflow: hidden;
+}
+.monad-game::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: linear-gradient(180deg, rgba(0,0,0,0.86), transparent 82%);
+  pointer-events: none;
+}
+.game-copy,
+.game-shell {
+  position: relative;
+  z-index: 1;
+}
+.monad-game .chapter-title,
+.monad-game .lede {
+  color: #EEF6FB;
+}
+.monad-game .lede {
+  color: rgba(238,246,251,0.78);
+}
+.monad-game .chapter-meta {
+  color: rgba(238,246,251,0.68);
+}
+.monad-game .chapter-num {
+  color: #EEF6FB;
+  border-color: rgba(238,246,251,0.24);
+}
+.game-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 34px;
+}
+.game-actions .btn {
+  min-height: 48px;
+}
+.game-actions .btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.game-status {
+  margin-top: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.game-status span,
+.game-status a {
+  border: 1px solid rgba(238,246,251,0.16);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(238,246,251,0.78);
+  background: rgba(255,255,255,0.06);
+}
+.game-shell {
+  width: min(100%, 560px);
+  justify-self: end;
+  padding: clamp(18px, 3vw, 28px);
+  border: 1px solid rgba(238,246,251,0.22);
+  border-radius: 8px;
+  background:
+    linear-gradient(145deg, rgba(238,246,251,0.16), rgba(238,246,251,0.06)),
+    radial-gradient(460px 260px at 50% 0%, rgba(45,191,176,0.18), transparent 70%);
+  box-shadow: 0 34px 90px rgba(0,0,0,0.34);
+  backdrop-filter: blur(18px);
+}
+.game-hud {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.game-hud div {
+  min-height: 68px;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+.game-hud span,
+.game-prompt span {
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(238,246,251,0.62);
+}
+.game-hud strong {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--display-font), serif;
+  font-size: clamp(24px, 3.6vw, 42px);
+  line-height: 1;
+}
+.game-board {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  aspect-ratio: 1;
+}
+.game-cell {
+  border: 1px solid rgba(238,246,251,0.12);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 35% 28%, rgba(255,255,255,0.18), transparent 36%),
+    rgba(255,255,255,0.08);
+  color: rgba(238,246,251,0.64);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: clamp(15px, 3vw, 28px);
+  transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease, color 0.12s ease;
+}
+.game-cell.path {
+  border-color: rgba(45,191,176,0.32);
+}
+.game-cell.hot {
+  color: #0E1F2C;
+  background:
+    radial-gradient(circle at 38% 28%, #FFFFFF 0 14%, transparent 34%),
+    linear-gradient(135deg, #BFEDE6, #3B7A57);
+  box-shadow: 0 0 0 8px rgba(45,191,176,0.12), 0 18px 46px rgba(45,191,176,0.28);
+  transform: translateY(-3px) scale(1.02);
+}
+.game-cell:active {
+  transform: scale(0.96);
+}
+.game-prompt {
+  margin-top: 16px;
+  min-height: 76px;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(238,246,251,0.14);
+  background: rgba(255,255,255,0.08);
+}
+.game-prompt strong {
+  display: block;
+  font-size: clamp(22px, 3vw, 34px);
+  line-height: 1.05;
+  margin-bottom: 8px;
+}
+@media (display-mode: standalone) {
+  .topbar,
+  .tweaks-panel {
+    display: none !important;
+  }
+  .monad-game {
+    padding-top: max(32px, env(safe-area-inset-top));
+  }
+}
+@media (max-width: 900px) {
+  .monad-game {
+    grid-template-columns: 1fr;
+    padding: 100px 24px;
+  }
+  .game-shell {
+    justify-self: stretch;
+    width: 100%;
+  }
+}
+@media (max-width: 520px) {
+  .game-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .game-board {
+    gap: 8px;
+  }
+  .game-hud {
+    gap: 8px;
+  }
+  .game-hud div {
+    min-height: 58px;
+    padding: 10px;
+  }
 }
 
 /* ---------- Stats ---------- */

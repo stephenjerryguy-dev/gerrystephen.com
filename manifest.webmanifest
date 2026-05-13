@@ -1,0 +1,19 @@
+{
+  "name": "Gerry Stephen Iglu",
+  "short_name": "Gerry Iglu",
+  "description": "Gerry Stephen's parallax Web3 home base and Monad mini-game.",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#DCEEF7",
+  "theme_color": "#0E1F2C",
+  "icons": [
+    {
+      "src": "assets/pudgy-penguin-cutout.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
