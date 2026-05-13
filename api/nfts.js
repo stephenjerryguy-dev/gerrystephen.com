@@ -9,6 +9,47 @@ const BLOCKSCOUT_API = 'https://eth.blockscout.com/api/v2';
 const ETH_RPC = 'https://eth.llamarpc.com';
 const TOKEN_URI_SELECTOR = '0xc87b56dd';
 const ERC1155_URI_SELECTOR = '0x0e89341c';
+const ECOSYSTEMS = [
+  {
+    id: 'sappy',
+    label: 'Sappy Seals ecosystem',
+    keywords: ['sappy', 'seal', 'pixl', 'pixel', 'omnia', 'pets', 'pixelverse'],
+  },
+  {
+    id: 'pudgy',
+    label: 'Pudgy Penguins ecosystem',
+    keywords: ['pudgy', 'penguin', 'lil pudgy', 'rod'],
+  },
+  {
+    id: 'inkfinity',
+    label: 'Inkfinity Canvas',
+    keywords: ['inkfinity', 'nftvisionary', 'nuttyprofessor', 'thunderofthoughts', 'e. guy'],
+  },
+];
+
+function ecosystemForNft(nft) {
+  const haystack = `${nft?.collection || ''} ${nft?.name || ''}`.toLowerCase();
+  return ECOSYSTEMS.find((ecosystem) =>
+    ecosystem.keywords.some((keyword) => haystack.includes(keyword))
+  );
+}
+
+function curatedEcosystemNfts(nfts) {
+  const seen = new Set();
+  return nfts
+    .map((nft) => {
+      const ecosystem = ecosystemForNft(nft);
+      return ecosystem ? { ...nft, ecosystem: ecosystem.id, ecosystemLabel: ecosystem.label } : null;
+    })
+    .filter(Boolean)
+    .filter((nft) => {
+      const key = `${nft.contract}:${nft.tokenId}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 24);
+}
 
 function ipfsToHttps(uri) {
   if (!uri || typeof uri !== 'string') return undefined;
@@ -145,17 +186,17 @@ export default async function handler(req, res) {
       })
     );
 
-    let nfts = reservoirResponses
+    let nfts = curatedEcosystemNfts(reservoirResponses
       .flatMap((result) => (result.status === 'fulfilled' ? result.value : []))
       .filter((nft) => nft.image)
-      .slice(0, 16);
+    );
 
     if (!nfts.length) {
       const blockscoutResponses = await Promise.allSettled(WALLETS.map(fetchBlockscoutNfts));
-      nfts = blockscoutResponses
+      nfts = curatedEcosystemNfts(blockscoutResponses
         .flatMap((result) => (result.status === 'fulfilled' ? result.value : []))
         .filter((nft) => nft.image)
-        .slice(0, 16);
+      );
     }
 
     res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');

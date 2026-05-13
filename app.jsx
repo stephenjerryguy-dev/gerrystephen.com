@@ -310,7 +310,7 @@ function Hero({ y, mouse, intensity }) {
         </div>
 
         <div className="father-note" style={{ opacity: copyOpacity }}>
-          <span>Strength over beauty.</span>
+          <span>Strength before beauty</span>
           <small>Eric Guy</small>
         </div>
 
@@ -356,7 +356,7 @@ function Chapter({ num, kicker, title }) {
 
 // ---------- Timeline ----------
 const TIMELINE = [
-{ year: '2021', tag: 'First mint · Sappy Seals', body: 'The rabbit hole opened through community, identity, and the feeling that ownership could become culture.' },
+{ year: '2021', tag: 'First NFT purchase · Sappy Seals', body: 'The rabbit hole opened through community, identity, and the feeling that ownership could become culture.' },
 { year: '2021', tag: 'Inkfinity Canvas · family craft', body: 'Eric Guy signed the work by hand. Inkfinity Canvas put that signature somewhere permanent.' },
 { year: '2022', tag: 'The Guy standard', body: 'My dad ran construction for decades. I spent fifteen years beside him learning how real work gets scoped, built, and carried forward. His legacy now lives on forever.' },
 { year: '2022', tag: 'Lil Pudgy chapter', body: 'I had a Lil Pudgy early, sold it, and kept circling the ecosystem from the outside.' },
@@ -390,7 +390,7 @@ function Timeline() {
 // ---------- Projects ----------
 const PROJECTS = [
 { title: 'Inkfinity Canvas', kind: 'Signed work · 2021', note: 'Eric Guy signed canvases, preserved as a permanent collection of craft and authorship.', glyph: 'EG', href: 'https://opensea.io/collection/inkfinity-canvas' },
-{ title: 'Sappy Seals', kind: 'First mint', note: 'The community that pulled the first thread and made Web3 feel human.', glyph: 'SS' },
+{ title: 'Sappy Seals', kind: 'First NFT purchase', note: 'The community that pulled the first thread and made Web3 feel human.', glyph: 'SS' },
 { title: 'Pudgy Penguins', kind: 'Holder', note: 'The flat-cap penguin energy that shaped the iglu visual language.', glyph: 'PP' },
 { title: 'gerrystephen.eth', kind: 'Identity', note: 'One name for collections, experiments, and public reputation.', glyph: 'Ξ' },
 { title: 'OpenSea', kind: 'Collection', note: 'The public gallery for penguins, seals, Inkfinity, and ephemera.', glyph: 'OS', href: 'https://opensea.io/profile/gerrystephen' }];
@@ -426,11 +426,52 @@ const NFT_WALLETS = [
 '0x382556a543aad855c07678e7f8e820d0d90429bb',
 '0xc3ce1eb539c1cc031ecd7b95e8c00768bf324403'];
 
-const NFT_FALLBACKS = [
-{ name: 'Exact NFT metadata loading', collection: 'Contract + token ID', image: 'assets/pudgy-penguin.webp', tokenId: 'pending', contract: 'pending' },
-{ name: 'Pudgy ecosystem', collection: 'Owned-token images only', glyph: 'PP', tokenId: 'pending', contract: 'pending' },
-{ name: 'Sappy ecosystem', collection: 'Owned-token images only', glyph: 'SS', tokenId: 'pending', contract: 'pending' },
-{ name: 'Inkfinity Canvas', collection: 'Owned-token images only', glyph: 'E.G.', tokenId: 'pending', contract: 'pending' }];
+const NFT_ECOSYSTEMS = [
+{
+  id: 'sappy',
+  label: 'Sappy Seals ecosystem',
+  note: 'Seals, Pixl, Omnia, pets, and Pixelverse items.',
+  keywords: ['sappy', 'seal', 'pixl', 'pixel', 'omnia', 'pets', 'pixelverse'],
+  fallback: [
+  { name: 'Sappy Seals ecosystem', collection: 'Owned-token images only', glyph: 'SS', tokenId: 'pending', contract: 'pending' },
+  { name: 'Pixl and Omnia items', collection: 'Owned-token images only', glyph: 'PX', tokenId: 'pending', contract: 'pending' }]
+},
+{
+  id: 'pudgy',
+  label: 'Pudgy Penguins ecosystem',
+  note: 'The penguin, Lil Pudgy, and Pudgy Rods.',
+  keywords: ['pudgy', 'penguin', 'lil pudgy', 'rod'],
+  fallback: [
+  { name: 'Pudgy Penguin', collection: 'Pudgy Penguins ecosystem', image: 'assets/pudgy-penguin.webp', tokenId: 'pending', contract: 'pending' },
+  { name: 'Lil Pudgy and Rods', collection: 'Owned-token images only', glyph: 'PP', tokenId: 'pending', contract: 'pending' }]
+},
+{
+  id: 'inkfinity',
+  label: 'Inkfinity Canvas',
+  note: 'Eric Guy signed canvases and the permanent collection around them.',
+  keywords: ['inkfinity', 'nftvisionary', 'nuttyprofessor', 'thunderofthoughts', 'e. guy'],
+  fallback: [
+  { name: 'Inkfinity Canvas', collection: 'Signed work', glyph: 'E.G.', tokenId: 'pending', contract: 'pending' }]
+}];
+
+function ecosystemForNft(nft) {
+  if (nft?.ecosystem) return NFT_ECOSYSTEMS.find((ecosystem) => ecosystem.id === nft.ecosystem);
+  const haystack = `${nft?.collection || ''} ${nft?.name || ''}`.toLowerCase();
+  return NFT_ECOSYSTEMS.find((ecosystem) =>
+    ecosystem.keywords.some((keyword) => haystack.includes(keyword))
+  );
+}
+
+function buildEcosystemSlides(items) {
+  const slides = NFT_ECOSYSTEMS.map((ecosystem) => {
+    const ecosystemItems = items.filter((nft) => ecosystemForNft(nft)?.id === ecosystem.id);
+    return {
+      ...ecosystem,
+      items: (ecosystemItems.length ? ecosystemItems : ecosystem.fallback).slice(0, 4)
+    };
+  });
+  return slides;
+}
 
 function normalizeNft(item, wallet) {
   const token = item?.token || item;
@@ -449,7 +490,7 @@ function normalizeNft(item, wallet) {
 }
 
 function NftCarousel() {
-  const [items, setItems] = useState(NFT_FALLBACKS);
+  const [groups, setGroups] = useState(() => buildEcosystemSlides([]));
   const [source, setSource] = useState('curated');
   const [index, setIndex] = useState(0);
 
@@ -462,7 +503,7 @@ function NftCarousel() {
           const apiData = await apiResponse.json();
           const apiItems = (apiData?.nfts || []).filter((nft) => nft.href?.includes('/assets/'));
           if (apiItems.length) {
-            setItems(apiItems);
+            setGroups(buildEcosystemSlides(apiItems));
             setSource('wallet');
             setIndex(0);
             return;
@@ -479,36 +520,53 @@ function NftCarousel() {
         const loaded = (await Promise.allSettled(requests))
         .flatMap((result) => result.status === 'fulfilled' ? result.value : [])
         .filter((nft) => nft.name && nft.image && nft.href?.includes('/assets/'))
-        .slice(0, 12);
+        .filter((nft) => ecosystemForNft(nft))
+        .slice(0, 24);
         if (loaded.length) {
-          setItems(loaded);
+          setGroups(buildEcosystemSlides(loaded));
           setSource('wallet');
           setIndex(0);
         }
       } catch (e) {
-        setItems(NFT_FALLBACKS);
+        setGroups(buildEcosystemSlides([]));
       }
     }
     loadNfts();
     return () => controller.abort();
   }, []);
 
-  const next = () => setIndex((i) => (i + 1) % items.length);
-  const prev = () => setIndex((i) => (i - 1 + items.length) % items.length);
-  const visible = items.map((_, i) => items[(index + i) % items.length]).slice(0, Math.min(4, items.length));
+  useEffect(() => {
+    if (groups.length <= 1) return undefined;
+    const timer = window.setInterval(() => {
+      setIndex((i) => (i + 1) % groups.length);
+    }, 4800);
+    return () => window.clearInterval(timer);
+  }, [groups.length]);
+
+  const next = () => setIndex((i) => (i + 1) % groups.length);
+  const prev = () => setIndex((i) => (i - 1 + groups.length) % groups.length);
+  const activeGroup = groups[index] || groups[0];
+  const visible = activeGroup?.items || [];
 
   return (
     <section className="nft-showcase" id="nfts">
       <div className="nft-head">
-        <Chapter num="03" kicker="OpenSea" title="Pudgy, Seal, and Inkfinity from the iglu." />
+        <Chapter num="03" kicker="Ecosystems" title={activeGroup?.label || 'NFT ecosystems from the iglu.'} />
         <div className="nft-actions">
           <button type="button" className="icon-btn" aria-label="Previous NFT" onClick={prev}>‹</button>
           <button type="button" className="icon-btn" aria-label="Next NFT" onClick={next}>›</button>
         </div>
       </div>
       <p className="lede nft-lede">
-        {source === 'wallet' ? 'Pulled from exact contract addresses and token IDs. Each card opens the matching OpenSea asset page.' : 'Waiting on live token metadata. The live site replaces these with exact owned NFTs when the API returns images.'}
+        {source === 'wallet' ? `${activeGroup?.note} Exact owned-token cards open the matching OpenSea asset page.` : `${activeGroup?.note} Waiting on exact token metadata for this ecosystem.`}
       </p>
+      <div className="ecosystem-tabs" aria-label="NFT ecosystem carousel position">
+        {groups.map((group, i) =>
+        <button key={group.id} type="button" className={i === index ? 'active' : ''} onClick={() => setIndex(i)}>
+            <span>{String(i + 1).padStart(2, '0')}</span>{group.label}
+          </button>
+        )}
+      </div>
       <div className="nft-track">
         {visible.map((nft, i) =>
         <a key={`${nft.name}-${i}`} className={`nft-card ${nft.tokenId === 'pending' ? 'disabled' : ''}`} href={nft.href || '#nfts'} target="_blank" rel="noopener">
@@ -728,7 +786,7 @@ function App() {
       <Topbar />
       <Hero y={y} mouse={mouse} intensity={tweaks.parallaxIntensity} />
       {tweaks.snowfall && <Snowfall count={60} intensity={tweaks.parallaxIntensity / 100} />}
-      <Marquee items={['gerrystephen.eth', 'inkfinity canvas ✎', 'eric guy', 'sappy seals', 'pudgy holder', 'web3 since 2021', 'building IRL', 'hot weather, iced lattes', 'opensea / gerrystephen']} />
+      <Marquee items={['gerrystephen.eth', 'inkfinity canvas', 'great terriers', 'sappy seals', 'pudgy penguins', 'web3 since 2021', 'building IRL', 'hot weather, iced lattes']} />
       <Timeline />
       <Projects />
       <NftCarousel />
