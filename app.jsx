@@ -360,9 +360,9 @@ const TIMELINE = [
 { year: '2021', tag: 'Inkfinity Canvas · family craft', body: 'Eric Guy signed the work by hand. Inkfinity Canvas put that signature somewhere permanent.' },
 { year: '2022', tag: 'The Guy standard', body: 'My dad ran construction for decades. I spent fifteen years beside him learning how real work gets scoped, built, and carried forward. His legacy now lives on forever.' },
 { year: '2022', tag: 'Lil Pudgy chapter', body: 'I had a Lil Pudgy early, sold it, and kept circling the ecosystem from the outside.' },
-{ year: '2023', tag: 'Community & tools', body: 'Collector energy turned into product instincts: useful tools, useful relationships, and sharper taste.' },
-{ year: '2024', tag: 'Builder mode', body: 'AI agents, trading systems, and experiments started becoming less like hobbies and more like infrastructure.' },
-{ year: '2025', tag: 'IRL bridge', body: 'Fifteen years building beside my dad turned into a new chapter: hospitality, food, local operations, and community.' },
+{ year: '2023', tag: 'Community & tools', body: 'I kept showing up for Sappy Seals: constant memes, Twitter and Instagram timeline energy, and support for the whole ecosystem. I still do.' },
+{ year: '2024', tag: 'IRL bridge', body: 'Fifteen years building beside my dad turned into a new chapter: hospitality, food, local operations, and community.' },
+{ year: '2025', tag: 'AI expansion', body: 'The huge uptick in AI capability changed what I could build: operations, memes, trades, and Great Terriers, a collection I started in 2022.' },
 { year: '2026', tag: 'Actual Pudgy era', body: 'This is when I became an actual Pudgy Penguin holder. The iglu finally had its mascot.' }];
 
 
