@@ -461,7 +461,7 @@ function Timeline() {
       <div className="rail">
         <div className="rail-line" />
         {TIMELINE.map((t, i) =>
-        <Reveal key={t.year} delay={i * 60} className={`rail-item ${i % 2 ? 'right' : 'left'}`}>
+        <Reveal key={`${t.year}-${t.tag}`} delay={i * 60} className={`rail-item ${i % 2 ? 'right' : 'left'}`}>
             <div className="rail-card">
               <div className="rc-year">{t.year}</div>
               <div className="rc-tag">{t.tag}</div>
