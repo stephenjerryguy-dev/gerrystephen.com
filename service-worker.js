@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gerry-iglu-v7';
+const CACHE_NAME = 'gerry-iglu-v8';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -33,6 +33,28 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  const url = new URL(event.request.url);
+  const isAppFile = ['/', '/index.html', '/app.jsx', '/styles.css', '/service-worker.js'].includes(url.pathname);
+  const isApi = url.pathname.startsWith('/api/');
+
+  if (isApi) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  if (isAppFile) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          return response;
+        })
+        .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/index.html')))
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((cached) => (
       cached || fetch(event.request).catch(() => caches.match('/index.html'))

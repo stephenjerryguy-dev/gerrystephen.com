@@ -602,7 +602,10 @@ function NftCarousel() {
     const controller = new AbortController();
     async function loadNfts() {
       try {
-        const apiResponse = await fetch('/api/nfts', { signal: controller.signal });
+        const apiResponse = await fetch('/api/nfts?v=ecosystems-app-5', {
+          signal: controller.signal,
+          cache: 'no-store'
+        });
         if (apiResponse.ok) {
           const apiData = await apiResponse.json();
           const apiItems = (apiData?.nfts || []).filter((nft) => nft.href?.includes('/assets/'));
@@ -641,7 +644,10 @@ function NftCarousel() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch('/api/ecosystem-assets', { signal: controller.signal })
+    fetch('/api/ecosystem-assets?v=ecosystems-app-5', {
+      signal: controller.signal,
+      cache: 'no-store'
+    })
       .then((res) => res.ok ? res.json() : Promise.reject(new Error('asset api unavailable')))
       .then((data) => setAssetData(data?.assets || []))
       .catch(() => setAssetData([]));
