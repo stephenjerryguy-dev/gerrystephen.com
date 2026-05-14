@@ -577,7 +577,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-48`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-50`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
@@ -956,6 +956,7 @@ const MONAD_NETWORK = {
   rpcUrls: ['https://rpc.monad.xyz'],
   blockExplorerUrls: ['https://monadscan.com']
 };
+const DYNAMIC_ENV_ID = 'b62527ee-ec89-4502-86b3-37987b5720d4';
 
 const GAME_NAME = 'Monerge';
 const LAVA_DIRECTIONS = ['left', 'up', 'right', 'down'];
@@ -1195,7 +1196,7 @@ function MonadGame() {
 
   async function connectMonad() {
     if (!window.ethereum) {
-      setWalletState('Install a mobile or desktop wallet to connect.');
+      setWalletState(`Dynamic ready: ${DYNAMIC_ENV_ID.slice(0, 8)}. SDK wiring next.`);
       return;
     }
     try {
@@ -1366,10 +1367,15 @@ function MonadGame() {
       <div className="game-shell" role="application" aria-label={`${GAME_NAME} game`}>
         <div className="game-shell-head">
           <div>
-            <span>Playable embed</span>
+            <span>{isGameApp ? 'Mobile app' : 'Playable embed'}</span>
             <strong className="monerge-wordmark">Monerge</strong>
           </div>
           <a href="/?app=monerge#monad-game" target="_blank" rel="noopener">Open app</a>
+        </div>
+        <div className="game-shell-actions" aria-label="Wallet and run controls">
+          <button type="button" onClick={connectMonad}>{account ? shortWallet(account) : 'Connect'}</button>
+          <button type="button" onClick={newGame}>New</button>
+          <button type="button" onClick={submitScore} disabled={!score}>Submit</button>
         </div>
         <div className="game-hud">
           <div><span>Hidden score</span><strong>{scoreReveal ? score : '???'}</strong></div>

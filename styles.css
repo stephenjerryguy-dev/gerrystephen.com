@@ -1587,6 +1587,9 @@ a { color: inherit; text-decoration: none; }
 .game-shell-head {
   display: none;
 }
+.game-shell-actions {
+  display: none;
+}
 .monad-game:not(.app-mode) .game-shell {
   align-self: start;
   width: min(100%, 500px);
@@ -1637,6 +1640,31 @@ a { color: inherit; text-decoration: none; }
   letter-spacing: 0.1em;
   text-transform: uppercase;
   background: rgba(255,255,255,0.08);
+}
+.monad-game:not(.app-mode) .game-shell-actions {
+  display: none;
+}
+.game-shell-actions {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 10px;
+}
+.game-shell-actions button {
+  min-height: 38px;
+  border: 1px solid rgba(238,246,251,0.16);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.1);
+  color: #EEF6FB;
+  font: 800 10px/1 var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.game-shell-actions button:first-child {
+  background: linear-gradient(135deg, rgba(159,124,255,0.82), rgba(45,191,176,0.62));
+  border-color: rgba(238,246,251,0.22);
+}
+.game-shell-actions button:disabled {
+  opacity: 0.42;
 }
 .monad-game:not(.app-mode) .game-hud div {
   min-height: 50px;
@@ -2406,6 +2434,12 @@ a { color: inherit; text-decoration: none; }
     margin-bottom: 10px;
     padding-bottom: 10px;
   }
+  .monad-game.app-mode .game-shell-head a {
+    display: none;
+  }
+  .monad-game.app-mode .game-shell-actions {
+    display: grid;
+  }
 }
 @media (max-width: 520px) {
   .monanimal-strip {
@@ -2461,15 +2495,15 @@ a { color: inherit; text-decoration: none; }
     padding-right: 8px;
   }
   .monad-game.app-mode .game-shell {
-    padding: 9px;
+    padding: 8px;
   }
   .monad-game.app-mode .game-hud {
-    gap: 6px;
-    margin-bottom: 8px;
+    gap: 5px;
+    margin-bottom: 7px;
   }
   .monad-game.app-mode .game-hud div {
-    min-height: 48px;
-    padding: 8px;
+    min-height: 42px;
+    padding: 7px;
   }
   .monad-game.app-mode .game-hud span {
     font-size: 8px;
@@ -2479,39 +2513,39 @@ a { color: inherit; text-decoration: none; }
     font-size: clamp(20px, 6.2vw, 26px);
   }
   .monad-game.app-mode .game-board {
-    gap: 7px;
+    gap: 6px;
     width: 100%;
-    max-width: min(100%, calc(100dvh - 292px));
+    max-width: min(100%, calc(100dvh - 282px));
     min-width: 0;
     margin-inline: auto;
   }
   .monad-game.app-mode .merge-cell.has-character {
-    padding: clamp(34px, 11vw, 42px) 5px 6px;
+    padding: clamp(28px, 9.6vw, 38px) 5px 5px;
   }
   .monad-game.app-mode .tile-character {
-    width: clamp(52px, 17vw, 72px);
-    height: clamp(42px, 14vw, 60px);
+    width: clamp(46px, 15.5vw, 66px);
+    height: clamp(36px, 12vw, 54px);
   }
   .monad-game.app-mode .game-controls {
-    gap: 7px;
-    margin-top: 10px;
-  }
-  .monad-game.app-mode .game-controls button {
-    min-height: 40px;
-  }
-  .monad-game.app-mode .hazard-legend {
-    grid-template-columns: 1fr;
     gap: 6px;
     margin-top: 8px;
   }
+  .monad-game.app-mode .game-controls button {
+    min-height: 38px;
+  }
+  .monad-game.app-mode .hazard-legend {
+    grid-template-columns: 1fr;
+    gap: 5px;
+    margin-top: 7px;
+  }
   .monad-game.app-mode .hazard-legend span {
-    min-height: 30px;
+    min-height: 28px;
     font-size: 8px;
     letter-spacing: 0.08em;
   }
   .monad-game.app-mode .game-prompt {
-    margin-top: 10px;
-    padding: 12px;
+    margin-top: 8px;
+    padding: 10px;
     min-height: auto;
   }
   .monad-game.app-mode .game-prompt strong {
