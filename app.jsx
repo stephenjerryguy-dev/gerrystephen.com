@@ -413,6 +413,11 @@ function Hero({ y, mouse, intensity }) {
           <div className="bt-kicker">welcome to</div>
           <div className="bt-title">THE IGLU</div>
           <div className="bt-sub">a small home on the internet · gerrystephen.eth</div>
+          <a className="abstract-veteran-card" href="https://abscan.org/address/0x382556A543aAd855C07678E7F8e820d0d90429BB" target="_blank" rel="noopener" aria-label="Abstract Gold tier 1 veteran wallet">
+            <img src="assets/abstract-gold-veteran.png" alt="Abstract wallet gold tier 1" />
+            <span>Abstract veteran</span>
+            <strong>Gold tier 1</strong>
+          </a>
         </div>
 
         <div className="scroll-hint"><span>scroll</span><div className="scroll-line" /></div>
@@ -529,7 +534,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-31`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-32`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
@@ -790,8 +795,6 @@ function NftCarousel() {
       </p>
       <div
         className={`ecosystem-stage ${activeGroup?.id || ''} ${expanded ? 'is-expanded' : ''}`}
-        onMouseEnter={() => setPaused(true)}
-        onMouseLeave={() => !expanded && setPaused(false)}
         onFocusCapture={() => setPaused(true)}>
         <div className="nft-actions stage-nav" aria-label="NFT carousel controls">
           <button type="button" className="icon-btn" aria-label="Previous NFT" onClick={prev}>‹</button>
@@ -820,7 +823,13 @@ function NftCarousel() {
             }}>View all</button>
           </div>
         </div>
-        <div ref={trackRef} className={`nft-track smart-track ${shouldLoop ? 'is-looped' : ''}`}>
+        <div
+          ref={trackRef}
+          className={`nft-track smart-track ${shouldLoop ? 'is-looped' : ''}`}
+          onMouseEnter={() => setPaused(true)}
+          onMouseLeave={() => !expanded && setPaused(false)}
+          onTouchStart={() => setPaused(true)}
+          onTouchEnd={() => !expanded && setPaused(false)}>
           {smartItems.map((nft, i) =>
           <a key={`${nft.name}-${nft.tokenId}-${i}`} className={`nft-card ${nft.tokenId === 'pending' || nft.tokenId === 'soon' ? 'disabled' : ''} ${nft.tokenId === 'asset' ? 'asset-card' : ''} ${nft.comingSoon ? 'coming-soon-card' : ''}`} href={nft.href || '#nfts'} target="_blank" rel="noopener" style={{ '--i': i }}>
               <div className="nft-art">
@@ -889,12 +898,12 @@ function NftCarousel() {
 }
 
 // ---------- Monad Game ----------
-const MONAD_TESTNET = {
-  chainId: '0x279f',
-  chainName: 'Monad Testnet',
+const MONAD_NETWORK = {
+  chainId: '0x8f',
+  chainName: 'Monad Mainnet',
   nativeCurrency: { name: 'Monad', symbol: 'MON', decimals: 18 },
-  rpcUrls: ['https://testnet-rpc.monad.xyz'],
-  blockExplorerUrls: ['https://testnet.monadexplorer.com']
+  rpcUrls: ['https://rpc.monad.xyz'],
+  blockExplorerUrls: ['https://monadscan.com']
 };
 
 const GAME_NAME = 'Iglu Merge';
@@ -1067,7 +1076,7 @@ function MonadGame() {
   const [scoreGuess, setScoreGuess] = useState('');
   const [scoreReveal, setScoreReveal] = useState(null);
   const [gameMessage, setGameMessage] = useState('Score is hidden. Track the merges in your head.');
-  const isMonad = chainId?.toLowerCase() === MONAD_TESTNET.chainId;
+  const isMonad = chainId?.toLowerCase() === MONAD_NETWORK.chainId;
   const maxTile = Math.max(...board);
   const isGameApp = new URLSearchParams(window.location.search).get('app') === 'iglu-merge';
   const finalScore = scoreReveal?.final ?? null;
@@ -1115,13 +1124,13 @@ function MonadGame() {
       try {
         await window.ethereum.request({
           method: 'wallet_switchEthereumChain',
-          params: [{ chainId: MONAD_TESTNET.chainId }]
+          params: [{ chainId: MONAD_NETWORK.chainId }]
         });
       } catch (switchError) {
         if (switchError?.code === 4902) {
           await window.ethereum.request({
             method: 'wallet_addEthereumChain',
-            params: [MONAD_TESTNET]
+            params: [MONAD_NETWORK]
           });
         } else {
           throw switchError;
@@ -1231,7 +1240,7 @@ function MonadGame() {
     <section className={`monad-game ${isGameApp ? 'app-mode' : ''}`} id="monad-game">
       <div className="game-copy">
         <Chapter num="04" kicker="Built on Monad" title={`${GAME_NAME}.`} />
-        <p className="lede">A blind-score focus game for BuildAnything: merge Monad-coded tiles, dodge lava walls, remember your points, then guess your score before posting on Monad Testnet.</p>
+        <p className="lede">A blind-score focus game for BuildAnything: merge Monad-coded tiles, dodge lava walls, remember your points, then guess your score before posting on Monad mainnet.</p>
         <div className="monanimal-strip" aria-label="Monad character inspirations">
           {MONAD_CHARACTERS.map((character) =>
           <span key={character.name} className={`monanimal-chip tile-${character.value}`}>
@@ -1247,9 +1256,9 @@ function MonadGame() {
         </div>
         <div className="game-status">
           <span>{walletState}</span>
-          <span>{isMonad ? 'Monad Testnet' : 'Wrong network'}</span>
+          <span>{isMonad ? 'Monad mainnet' : 'Wrong network'}</span>
           <span>PWA ready</span>
-          {txHash && <a href={`https://testnet.monadexplorer.com/tx/${txHash}`} target="_blank" rel="noopener">View score tx</a>}
+          {txHash && <a href={`https://monadscan.com/tx/${txHash}`} target="_blank" rel="noopener">View score tx</a>}
         </div>
       </div>
       <div className="game-shell" role="application" aria-label={`${GAME_NAME} game`}>
@@ -1365,7 +1374,6 @@ function Stats() {
 const NOW = [
 { title: 'AI Agents', note: 'Autonomous workers for hospitality ops, content systems, and the useful glue between them.', logo: 'assets/pudgy-penguin-cutout.png', alt: 'Gerry Stephen Pudgy Penguin', className: 'pudgy-agent-logo' },
 { title: 'Blue Star Web3', note: 'Live now: ecosystem-holder benefits for vacation, worcation, and nomadic stays.', logo: 'assets/bluestar-logo.png', alt: 'Blue Star Apartments & Hotel logo', className: 'blue-star-logo' },
-{ title: 'Abstract Gold', note: 'Gold tier 1 on Abstract. Public identity card for the 0x3825...29BB Abstract address.', logo: 'assets/abstract-gold-card.jpg', alt: 'Abstract wallet gold tier 1 card', href: 'https://abscan.org/address/0x382556A543aAd855C07678E7F8e820d0d90429BB', className: 'abstract-gold-card' },
 { title: 'Seal Stay', note: 'Where Web3 meets hospitality. Stay tuned for the next stay layer.', logo: 'assets/seal-stay-logo.png', alt: 'Seal Stay logo' },
 { title: 'Great Terriers', note: 'Coming soon: the AI-native collection that started as a 2022 idea and keeps moving forward.', logo: 'assets/great-terriers-coming-soon.png', alt: 'Great Terriers coming soon artwork', className: 'great-terriers-logo' }];
 

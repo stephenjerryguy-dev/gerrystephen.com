@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gerry-iglu-v33';
+const CACHE_NAME = 'gerry-iglu-v34';
 const IMAGE_CACHE_NAME = 'gerry-iglu-images-v1';
 
 self.addEventListener('install', (event) => {
