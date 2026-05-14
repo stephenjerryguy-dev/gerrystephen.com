@@ -470,6 +470,8 @@ const TIMELINE = [
 function Timeline({ y = 0, intensity = 60 }) {
   const sectionRef = useRef(null);
   const railRef = useRef(null);
+  const targetScrollRef = useRef(0);
+  const railFrameRef = useRef(0);
   const depth = intensity / 100;
   useEffect(() => {
     const section = sectionRef.current;
@@ -478,9 +480,26 @@ function Timeline({ y = 0, intensity = 60 }) {
     const rect = section.getBoundingClientRect();
     const viewport = window.innerHeight || 800;
     const max = Math.max(0, rail.scrollWidth - rail.clientWidth);
-    const progress = clamp((viewport * 0.82 - rect.top) / (rect.height + viewport * 0.12), 0, 1);
-    rail.scrollLeft = max * progress;
+    const raw = (viewport * 0.34 - rect.top) / Math.max(rect.height * 1.05, viewport * 0.92);
+    const progress = clamp(raw, 0, 1);
+    const eased = progress * progress * (3 - 2 * progress);
+    targetScrollRef.current = max * eased;
+
+    if (!railFrameRef.current) {
+      const glide = () => {
+        const current = rail.scrollLeft;
+        const next = current + (targetScrollRef.current - current) * 0.11;
+        rail.scrollLeft = Math.abs(targetScrollRef.current - next) < 0.35 ? targetScrollRef.current : next;
+        if (Math.abs(targetScrollRef.current - rail.scrollLeft) > 0.4) {
+          railFrameRef.current = requestAnimationFrame(glide);
+        } else {
+          railFrameRef.current = 0;
+        }
+      };
+      railFrameRef.current = requestAnimationFrame(glide);
+    }
   }, [y]);
+  useEffect(() => () => railFrameRef.current && cancelAnimationFrame(railFrameRef.current), []);
   return (
     <section ref={sectionRef} className="timeline" id="journey" style={{ '--scroll': y, '--timeline-depth': depth }}>
       <Chapter num="01" kicker="On-chain" title="The road from collector to operator." />
@@ -548,7 +567,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-35`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-38`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
@@ -768,11 +787,13 @@ function NftCarousel() {
   const next = () => {
     setExpanded(false);
     setPaused(false);
+    setTrackPaused(false);
     setIndex((i) => (i + 1) % groups.length);
   };
   const prev = () => {
     setExpanded(false);
     setPaused(false);
+    setTrackPaused(false);
     setIndex((i) => (i - 1 + groups.length) % groups.length);
   };
   const groupsWithAssets = groups.map((group) => ({
@@ -821,8 +842,9 @@ function NftCarousel() {
           {groupsWithAssets.map((group, i) =>
           <button key={group.id} type="button" className={i === index ? 'active' : ''} onClick={() => {
             setIndex(i);
-            setPaused(true);
-            setExpanded(true);
+            setPaused(false);
+            setTrackPaused(false);
+            setExpanded(false);
           }}>
               <span>{String(i + 1).padStart(2, '0')}</span>
               <strong>{group.label}</strong>
@@ -1558,7 +1580,7 @@ function Ventures({ y, intensity, warm }) {
             <div className="venture-mini-copy">
               <span>Hospitality · Web3 live</span>
               <h3>Blue Star Apartments & Hotel</h3>
-              <p>Family-built stays in Grenada with Web3 booking benefits for Sappy Seals and Pudgy ecosystem holders. Inkfinity Canvas holders sit in the founders tier.</p>
+              <p>Family-built Grenada stays with Web3 booking benefits for Sappy Seals, Pudgy ecosystem, and Inkfinity Canvas holders.</p>
               <div className="venture-actions">
                 <a className="btn primary blue" href="https://www.bluestarstay.com/web3" target="_blank" rel="noopener">Book a stay →</a>
                 <a className="btn ghost" href="https://www.instagram.com/bluestarstay/" target="_blank" rel="noopener">Instagram</a>
@@ -1575,7 +1597,7 @@ function Ventures({ y, intensity, warm }) {
             <div className="venture-mini-copy">
               <span>Cafe · eatery · bakery</span>
               <h3>Zeppole Dolci</h3>
-              <p>Fresh pastries, American/Italian brunch, coffee, catering, and events. A warm IRL counterpoint to the colder iglu energy.</p>
+              <p>Fresh pastries, American/Italian brunch, coffee, catering, and events with a warm IRL counterpoint to the colder iglu energy.</p>
               <div className="venture-actions">
                 <a className="btn primary warm" href="https://zeppoledolci.com/" target="_blank" rel="noopener">ZeppoleDolci.com →</a>
                 <a className="btn ghost warm" href="https://www.instagram.com/zeppoledolci/" target="_blank" rel="noopener">Instagram</a>

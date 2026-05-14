@@ -8,12 +8,12 @@
 <meta name="apple-mobile-web-app-title" content="Gerry Iglu" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <title>Gerry Stephen · Business, Web3, and the Iglu</title>
-<link rel="manifest" href="manifest.webmanifest?v=ecosystems-app-35" />
+<link rel="manifest" href="manifest.webmanifest?v=ecosystems-app-38" />
 <link rel="apple-touch-icon" href="assets/pudgy-penguin-cutout.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Inter+Tight:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Fraunces:ital,wght@0,400;0,600;1,400&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="styles.css?v=ecosystems-app-35" />
+<link rel="stylesheet" href="styles.css?v=ecosystems-app-38" />
 </head>
 <body>
 <div id="root">
@@ -28,7 +28,7 @@
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 <script type="text/babel" src="tweaks-panel.jsx"></script>
-<script type="text/babel" src="app.jsx?v=ecosystems-app-35"></script>
+<script type="text/babel" src="app.jsx?v=ecosystems-app-38"></script>
 <script>
 if ('serviceWorker' in navigator) {
   let refreshing = false;
@@ -38,7 +38,7 @@ if ('serviceWorker' in navigator) {
     window.location.reload();
   });
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js?v=ecosystems-app-35')
+    navigator.serviceWorker.register('/service-worker.js?v=ecosystems-app-38')
       .then((registration) => {
         registration.update();
         if (registration.waiting) registration.waiting.postMessage({ type: 'SKIP_WAITING' });

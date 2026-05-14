@@ -661,7 +661,8 @@ a { color: inherit; text-decoration: none; }
 
 /* ---------- Timeline ---------- */
 .timeline {
-  padding: 96px 80px 104px;
+  min-height: 96vh;
+  padding: 118px 80px 132px;
   background:
     radial-gradient(circle at 18% 22%, rgba(255,255,255,0.9), transparent 26%),
     linear-gradient(180deg, var(--sky-soft), #f5fbfd 62%, #eaf7fb);
@@ -694,6 +695,7 @@ a { color: inherit; text-decoration: none; }
   scrollbar-width: thin;
   scrollbar-color: rgba(14,31,44,0.28) transparent;
   scroll-behavior: auto;
+  will-change: scroll-position;
 }
 .rail::-webkit-scrollbar { height: 8px; }
 .rail::-webkit-scrollbar-thumb { background: rgba(14,31,44,0.24); border-radius: 999px; }
@@ -1070,8 +1072,10 @@ a { color: inherit; text-decoration: none; }
   animation-delay: calc(var(--i, 0) * 55ms);
 }
 .smart-track.is-looped {
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   scrollbar-width: none;
+  scroll-snap-type: none;
 }
 .smart-track.is-looped::-webkit-scrollbar {
   display: none;
@@ -3047,15 +3051,18 @@ a { color: inherit; text-decoration: none; }
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(360px, 1fr));
   gap: 22px;
   max-width: 1320px;
   margin: 44px auto 0;
+  align-items: stretch;
 }
 .venture-mini {
   display: grid;
-  grid-template-columns: minmax(190px, 0.82fr) minmax(0, 1fr);
-  min-height: 370px;
+  grid-template-columns: minmax(220px, 0.92fr) minmax(0, 1fr);
+  min-height: 390px;
+  height: 100%;
+  min-width: 0;
   overflow: hidden;
   border-radius: 8px;
   background: rgba(255,255,255,0.72);
@@ -3067,6 +3074,7 @@ a { color: inherit; text-decoration: none; }
 .venture-mini-photo {
   position: relative;
   min-height: 100%;
+  min-width: 0;
   overflow: hidden;
 }
 .venture-mini-photo img:first-child {
@@ -3098,7 +3106,8 @@ a { color: inherit; text-decoration: none; }
   flex-direction: column;
   justify-content: center;
   gap: 18px;
-  padding: clamp(24px, 3vw, 42px);
+  min-width: 0;
+  padding: clamp(22px, 2.6vw, 38px);
 }
 .venture-mini-copy > span {
   font-family: var(--mono);
@@ -3108,17 +3117,30 @@ a { color: inherit; text-decoration: none; }
   opacity: 0.72;
 }
 .venture-mini-copy h3 {
-  font-size: clamp(34px, 4vw, 58px);
+  font-size: clamp(32px, 3.5vw, 50px);
   line-height: 0.95;
   letter-spacing: 0;
   margin: 0;
+  overflow-wrap: anywhere;
 }
 .venture-mini-copy p {
   color: inherit;
   opacity: 0.78;
-  font-size: clamp(15px, 1.2vw, 18px);
+  font-size: clamp(15px, 1.05vw, 17px);
   line-height: 1.48;
   margin: 0;
+}
+.venture-mini .venture-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.venture-mini .btn {
+  width: 100%;
+  min-width: 0;
+  justify-content: center;
+  white-space: nowrap;
+  padding-inline: 16px;
 }
 @media (max-width: 1120px) {
   .ventures-panel { grid-template-columns: 1fr; }
@@ -3132,6 +3154,7 @@ a { color: inherit; text-decoration: none; }
   .bluestar-photo-logo { width: 92px; padding: 8px; }
   .zeppole-mini .venture-mini-photo img:first-child { object-position: center center; }
   .venture-mini-copy h3 { font-size: 36px; }
+  .venture-mini .venture-actions { grid-template-columns: 1fr; }
 }
 
 /* ---------- Contact ---------- */
