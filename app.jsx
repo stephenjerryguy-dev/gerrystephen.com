@@ -390,6 +390,12 @@ function Hero({ y, mouse, intensity }) {
         <div className="hero-copy" style={{ opacity: copyOpacity, transform: `translate3d(0, ${copyY}px, 0)` }}>
           <h1 className="display">Welcome to<br />Gerry's<br /><em>iglu.</em></h1>
           <p className="lede">A one-page home base for the journey: business, Web3, family legacy, and the Pudgy that made the cold internet feel warm.</p>
+          <div className="hero-values" aria-label="Personal values">
+            <span>God first</span>
+            <span>Husband</span>
+            <span>Father</span>
+            <span>Builder</span>
+          </div>
           <div className="hero-cta">
             <a className="btn primary" href="#journey" onClick={rideParallax}>Scroll to discover →</a>
             <a className="btn ghost" href="#nfts">My community ecosystems</a>
@@ -577,7 +583,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-50`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-51`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
@@ -1142,6 +1148,7 @@ function MonadGame() {
   const [scoreGuess, setScoreGuess] = useState('');
   const [scoreReveal, setScoreReveal] = useState(null);
   const [gameMessage, setGameMessage] = useState('Score is hidden. Track the merges in your head.');
+  const [gameStarted, setGameStarted] = useState(false);
   const isMonad = chainId?.toLowerCase() === MONAD_NETWORK.chainId;
   const maxTile = Math.max(...board);
   const appMode = new URLSearchParams(window.location.search).get('app');
@@ -1226,6 +1233,7 @@ function MonadGame() {
   }
 
   function newGame() {
+    setGameStarted(true);
     setBoard(makeBoard());
     setScore(0);
     setMoves(0);
@@ -1340,7 +1348,7 @@ function MonadGame() {
   }
 
   return (
-    <section className={`monad-game ${isGameApp ? 'app-mode' : ''}`} id="monad-game">
+    <section className={`monad-game ${isGameApp ? 'app-mode' : ''} ${isGameApp && !gameStarted ? 'start-mode' : ''}`} id="monad-game">
       <div className="game-copy">
         <Chapter num="04" kicker="Built on Monad" title={<span className="monerge-logo">Monerge.</span>} />
         <p className="lede">A blind-score focus game for BuildAnything: merge Monad-coded tiles, read the random hazard walls, remember your points, then guess your score before posting on Monad mainnet.</p>
@@ -1365,6 +1373,23 @@ function MonadGame() {
         </div>
       </div>
       <div className="game-shell" role="application" aria-label={`${GAME_NAME} game`}>
+        {isGameApp && !gameStarted && <div className="game-start-screen">
+          <div className="start-orbit" aria-hidden="true">
+            <span className="tile-2">2</span>
+            <span className="tile-4">4</span>
+            <span className="tile-8">8</span>
+          </div>
+          <div className="start-brand">
+            <span>Built on Monad</span>
+            <strong className="monerge-wordmark">Monerge</strong>
+          </div>
+          <p>Merge the tiles, dodge lava, survive freeze turns, then guess your hidden score.</p>
+          <div className="start-actions">
+            <button type="button" onClick={newGame}>Play</button>
+            <button type="button" onClick={connectMonad}>Connect</button>
+          </div>
+          <small>{account ? shortWallet(account) : 'Dynamic-ready wallet connect'}</small>
+        </div>}
         <div className="game-shell-head">
           <div>
             <span>{isGameApp ? 'Mobile app' : 'Playable embed'}</span>
