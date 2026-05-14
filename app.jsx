@@ -468,22 +468,49 @@ const TIMELINE = [
 
 
 function Timeline({ y = 0, intensity = 60 }) {
+  const sectionRef = useRef(null);
+  const railRef = useRef(null);
+  const [railTravel, setRailTravel] = useState(0);
   const depth = intensity / 100;
+  useEffect(() => {
+    const updateTravel = () => {
+      const rail = railRef.current;
+      if (!rail) return;
+      const viewportWidth = Math.min(window.innerWidth - 48, 1120);
+      setRailTravel(Math.max(0, rail.scrollWidth - viewportWidth));
+    };
+    updateTravel();
+    window.addEventListener('resize', updateTravel);
+    return () => window.removeEventListener('resize', updateTravel);
+  }, []);
+  const section = sectionRef.current;
+  const viewport = typeof window !== 'undefined' ? window.innerHeight || 800 : 800;
+  const start = section ? section.offsetTop + viewport * 0.18 : 0;
+  const distance = section ? Math.max(1, section.offsetHeight - viewport * 1.18) : 1;
+  const rawProgress = section ? clamp((y - start) / distance, 0, 1) : 0;
+  const easedProgress = rawProgress * rawProgress * (3 - 2 * rawProgress);
   return (
-    <section className="timeline" id="journey" style={{ '--scroll': y, '--timeline-depth': depth }}>
-      <Chapter num="01" kicker="On-chain" title="The road from collector to operator." />
-      <div className="rail">
-        <div className="rail-line" />
-        {TIMELINE.map((t, i) =>
-        <Reveal key={`${t.year}-${t.tag}`} delay={i * 60} className="rail-item" style={{ '--rail-i': i }}>
-            <div className="rail-pin"><div /></div>
-            <div className="rail-card">
-              <div className="rc-year">{t.year}</div>
-              <div className="rc-tag">{t.tag}</div>
-              <p>{t.body}</p>
-            </div>
-          </Reveal>
-        )}
+    <section ref={sectionRef} className="timeline" id="journey" style={{ '--scroll': y, '--timeline-depth': depth, '--timeline-progress': easedProgress }}>
+      <div className="timeline-sticky">
+        <Chapter num="01" kicker="On-chain" title="The road from collector to operator." />
+        <div className="rail-viewport">
+          <div
+            ref={railRef}
+            className="rail"
+            style={{ transform: `translate3d(${-railTravel * easedProgress}px, 0, 0)` }}>
+            <div className="rail-line" />
+            {TIMELINE.map((t, i) =>
+            <Reveal key={`${t.year}-${t.tag}`} delay={i * 60} className="rail-item" style={{ '--rail-i': i }}>
+                <div className="rail-pin"><div /></div>
+                <div className="rail-card">
+                  <div className="rc-year">{t.year}</div>
+                  <div className="rc-tag">{t.tag}</div>
+                  <p>{t.body}</p>
+                </div>
+              </Reveal>
+            )}
+          </div>
+        </div>
       </div>
     </section>);
 
@@ -536,7 +563,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-40`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-41`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
