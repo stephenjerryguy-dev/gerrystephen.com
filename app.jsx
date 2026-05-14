@@ -1,5 +1,6 @@
 /* global React, ReactDOM */
 const { useState, useEffect, useRef, useMemo } = React;
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "parallaxIntensity": 60,
@@ -149,17 +150,17 @@ function slowScrollTo(targetY, duration = 2600) {
   requestAnimationFrame(frame);
 }
 
-function Reveal({ children, delay = 0, className = '' }) {
+function Reveal({ children, delay = 0, className = '', style }) {
   const ref = useRef(null);
   const seen = useInView(ref);
   return (
-    <div ref={ref} className={`reveal ${seen ? 'in' : ''} ${className}`} style={{ transitionDelay: delay + 'ms' }}>
+    <div ref={ref} className={`reveal ${seen ? 'in' : ''} ${className}`} style={{ ...style, transitionDelay: delay + 'ms' }}>
       {children}
     </div>);
 
 }
 
-function Snowfall({ count = 50, intensity = 1 }) {
+function Snowfall({ count = 50, intensity = 1, scrollY = 0 }) {
   const flakes = useMemo(() => Array.from({ length: count }).map((_, i) => ({
     id: i,
     left: Math.random() * 100,
@@ -169,8 +170,10 @@ function Snowfall({ count = 50, intensity = 1 }) {
     drift: (Math.random() - 0.5) * 50,
     op: 0.4 + Math.random() * 0.5
   })), [count]);
+  const viewport = typeof window !== 'undefined' ? window.innerHeight || 800 : 800;
+  const coldFade = clamp((scrollY - viewport * 1.08) / (viewport * 1.25), 0, 1);
   return (
-    <div className="snowfall" aria-hidden="true">
+    <div className="snowfall" aria-hidden="true" style={{ opacity: coldFade }}>
       {flakes.map((f) =>
       <span key={f.id} style={{
         left: f.left + '%', width: f.size, height: f.size,
@@ -415,8 +418,6 @@ function Hero({ y, mouse, intensity }) {
           <div className="bt-sub">a small home on the internet · gerrystephen.eth</div>
           <a className="abstract-veteran-card" href="https://abscan.org/address/0x382556A543aAd855C07678E7F8e820d0d90429BB" target="_blank" rel="noopener" aria-label="Abstract Gold tier 1 veteran wallet">
             <img src="assets/abstract-gold-veteran.png" alt="Abstract wallet gold tier 1" />
-            <span>Abstract veteran</span>
-            <strong>Gold tier 1</strong>
           </a>
         </div>
 
@@ -466,14 +467,27 @@ const TIMELINE = [
 { year: '2026', tag: 'Actual Pudgy era', body: 'This is when I became an actual Pudgy Penguin holder. The iglu finally had its mascot.' }];
 
 
-function Timeline() {
+function Timeline({ y = 0, intensity = 60 }) {
+  const sectionRef = useRef(null);
+  const railRef = useRef(null);
+  const depth = intensity / 100;
+  useEffect(() => {
+    const section = sectionRef.current;
+    const rail = railRef.current;
+    if (!section || !rail) return;
+    const rect = section.getBoundingClientRect();
+    const viewport = window.innerHeight || 800;
+    const max = Math.max(0, rail.scrollWidth - rail.clientWidth);
+    const progress = clamp((viewport * 0.82 - rect.top) / (rect.height + viewport * 0.12), 0, 1);
+    rail.scrollLeft = max * progress;
+  }, [y]);
   return (
-    <section className="timeline" id="journey">
+    <section ref={sectionRef} className="timeline" id="journey" style={{ '--scroll': y, '--timeline-depth': depth }}>
       <Chapter num="01" kicker="On-chain" title="The road from collector to operator." />
-      <div className="rail">
+      <div ref={railRef} className="rail">
         <div className="rail-line" />
         {TIMELINE.map((t, i) =>
-        <Reveal key={`${t.year}-${t.tag}`} delay={i * 60} className="rail-item">
+        <Reveal key={`${t.year}-${t.tag}`} delay={i * 60} className="rail-item" style={{ '--rail-i': i }}>
             <div className="rail-pin"><div /></div>
             <div className="rail-card">
               <div className="rc-year">{t.year}</div>
@@ -534,7 +548,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-32`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-35`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
@@ -555,9 +569,11 @@ const NFT_ECOSYSTEMS = [
     fallback: [
   { name: 'Sappy Seals ecosystem', collection: 'Owned-token images only', glyph: 'SS', tokenId: 'pending', contract: 'pending' },
   { name: '$PIXL', collection: 'Omnia ecosystem', glyph: '$PIXL', tokenId: 'asset', amount: '103,278.52', chain: 'Ethereum' },
-  { name: 'Pixseal #3013', collection: 'Pixseals by Sappy Seals', image: 'https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/3013.png', href: 'https://opensea.io/assets/matic/0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b/3013', tokenId: '3013', contract: '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b' },
-  { name: 'Pixseals on Polygon', collection: 'Pixseals by Sappy Seals', glyph: 'PIX', href: 'https://opensea.io/assets/matic/0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b', tokenId: 'collection', contract: '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b' },
-  { name: 'Digital Artifact Ordinal', collection: 'Bitcoin Ordinals wallet', glyph: '₿', href: 'https://ordinals.com/address/bc1p6hqlam8sdnpldr2v8hgx0sncenw4pqu852fsps3jw6q7rheyhylsuzk5jx', tokenId: 'ordinal', contract: 'bc1p6hqlam8sdnpldr2v8hgx0sncenw4pqu852fsps3jw6q7rheyhylsuzk5jx' },
+  { name: 'Pixseal #525', collection: 'Pixseals by Sappy Seals', image: 'https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/525.png', href: 'https://opensea.io/item/polygon/0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b/525', tokenId: '525', contract: '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b' },
+  { name: 'Pixseal #3600', collection: 'Pixseals by Sappy Seals', image: 'https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/3600.png', href: 'https://opensea.io/item/polygon/0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b/3600', tokenId: '3600', contract: '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b' },
+  { name: 'Pixseal #9690', collection: 'Pixseals by Sappy Seals', image: 'https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/9690.png', href: 'https://opensea.io/item/polygon/0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b/9690', tokenId: '9690', contract: '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b' },
+  { name: 'Pixseal #9815', collection: 'Pixseals by Sappy Seals', image: 'https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/9815.png', href: 'https://opensea.io/item/polygon/0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b/9815', tokenId: '9815', contract: '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b' },
+  { name: 'Digital Artifact #93', collection: 'Digital Artifact', glyph: 'DA', href: 'https://opensea.io/item/ethereum/0xb1cdf2bfab043ea1d81d0a73b3b849efaac1d31a/93', tokenId: '93', contract: '0xb1cdf2bfab043ea1d81d0a73b3b849efaac1d31a' },
   { name: 'Omnia items', collection: 'Pixlverse item metadata accepted', glyph: 'OM', tokenId: 'pending', contract: 'pending' },
   { name: 'Pixseals and Sappy Keys', collection: 'Owned-token images only', glyph: 'KEY', tokenId: 'pending', contract: 'pending' }]
 },
@@ -679,6 +695,7 @@ function NftCarousel() {
   const [index, setIndex] = useState(0);
   const [assetData, setAssetData] = useState([]);
   const [paused, setPaused] = useState(false);
+  const [trackPaused, setTrackPaused] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [isMobileCarousel, setIsMobileCarousel] = useState(() => window.matchMedia?.('(max-width: 700px)').matches || false);
   const trackRef = useRef(null);
@@ -764,26 +781,26 @@ function NftCarousel() {
   }));
   const activeGroup = groupsWithAssets[index] || groupsWithAssets[0];
   const visible = activeGroup?.items || [];
-  const shouldLoop = !isMobileCarousel && !paused && !expanded && visible.length > 1;
+  const shouldLoop = !isMobileCarousel && !expanded && visible.length > 1;
   const smartItems = shouldLoop ? [...visible, ...visible].slice(0, Math.max(4, visible.length * 2)) : visible;
 
   useEffect(() => {
     const track = trackRef.current;
-    if (!shouldLoop || !track) return undefined;
+    if (!shouldLoop || trackPaused || !track) return undefined;
     let frame = 0;
     let last = 0;
     const step = (now) => {
       if (!last) last = now;
       const delta = now - last;
       last = now;
-      track.scrollLeft += 0.58 * (delta / 16.67);
+      track.scrollLeft += 1.36 * (delta / 16.67);
       const midpoint = track.scrollWidth / 2;
       if (midpoint > 0 && track.scrollLeft >= midpoint) track.scrollLeft -= midpoint;
       frame = requestAnimationFrame(step);
     };
     frame = requestAnimationFrame(step);
     return () => cancelAnimationFrame(frame);
-  }, [shouldLoop, activeGroup?.id, visible.length]);
+  }, [shouldLoop, trackPaused, activeGroup?.id, visible.length]);
 
   return (
     <section className="nft-showcase" id="nfts">
@@ -826,10 +843,12 @@ function NftCarousel() {
         <div
           ref={trackRef}
           className={`nft-track smart-track ${shouldLoop ? 'is-looped' : ''}`}
-          onMouseEnter={() => setPaused(true)}
-          onMouseLeave={() => !expanded && setPaused(false)}
-          onTouchStart={() => setPaused(true)}
-          onTouchEnd={() => !expanded && setPaused(false)}>
+          onTouchStart={() => {
+            setTrackPaused(true);
+          }}
+          onTouchEnd={() => {
+            setTrackPaused(false);
+          }}>
           {smartItems.map((nft, i) =>
           <a key={`${nft.name}-${nft.tokenId}-${i}`} className={`nft-card ${nft.tokenId === 'pending' || nft.tokenId === 'soon' ? 'disabled' : ''} ${nft.tokenId === 'asset' ? 'asset-card' : ''} ${nft.comingSoon ? 'coming-soon-card' : ''}`} href={nft.href || '#nfts'} target="_blank" rel="noopener" style={{ '--i': i }}>
               <div className="nft-art">
@@ -906,7 +925,7 @@ const MONAD_NETWORK = {
   blockExplorerUrls: ['https://monadscan.com']
 };
 
-const GAME_NAME = 'Iglu Merge';
+const GAME_NAME = 'Monerge';
 const LAVA_DIRECTIONS = ['left', 'up', 'right', 'down'];
 const DIRECTION_LABELS = {
   left: 'Left wall',
@@ -914,6 +933,10 @@ const DIRECTION_LABELS = {
   up: 'Ceiling',
   down: 'Floor'
 };
+function randomDirection(except) {
+  const choices = LAVA_DIRECTIONS.filter((direction) => direction !== except);
+  return choices[Math.floor(Math.random() * choices.length)];
+}
 
 function shortWallet(account) {
   return account ? `${account.slice(0, 6)}...${account.slice(-4)}` : 'Connect wallet';
@@ -1067,18 +1090,22 @@ function MonadGame() {
   const [walletState, setWalletState] = useState('Ready');
   const [board, setBoard] = useState(() => makeBoard());
   const [score, setScore] = useState(0);
-  const [best, setBest] = useState(() => Number(localStorage.getItem('igluMergeBlindBest') || 0));
+  const [best, setBest] = useState(() => Number(localStorage.getItem('monergeBlindBest') || localStorage.getItem('igluMergeBlindBest') || 0));
   const [moves, setMoves] = useState(0);
   const [gameOver, setGameOver] = useState(false);
   const [touchStart, setTouchStart] = useState(null);
   const [txHash, setTxHash] = useState('');
   const [lavaDirection, setLavaDirection] = useState(() => LAVA_DIRECTIONS[Math.floor(Math.random() * LAVA_DIRECTIONS.length)]);
+  const [freezeDirection, setFreezeDirection] = useState(() => randomDirection(lavaDirection));
+  const [frozenTurns, setFrozenTurns] = useState(0);
+  const [hazardHit, setHazardHit] = useState('');
   const [scoreGuess, setScoreGuess] = useState('');
   const [scoreReveal, setScoreReveal] = useState(null);
   const [gameMessage, setGameMessage] = useState('Score is hidden. Track the merges in your head.');
   const isMonad = chainId?.toLowerCase() === MONAD_NETWORK.chainId;
   const maxTile = Math.max(...board);
-  const isGameApp = new URLSearchParams(window.location.search).get('app') === 'iglu-merge';
+  const appMode = new URLSearchParams(window.location.search).get('app');
+  const isGameApp = appMode === 'monerge' || appMode === 'iglu-merge';
   const finalScore = scoreReveal?.final ?? null;
 
   useEffect(() => {
@@ -1105,11 +1132,24 @@ function MonadGame() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [board, gameOver, lavaDirection]);
+  }, [board, gameOver, lavaDirection, freezeDirection, frozenTurns]);
+
+  function rotateHazards(moveCount = moves + 1) {
+    const next = LAVA_DIRECTIONS[Math.floor(Math.random() * LAVA_DIRECTIONS.length)];
+    const nextFreeze = moveCount % 2 === 0 ? randomDirection(next) : '';
+    setLavaDirection(next);
+    setFreezeDirection(nextFreeze);
+    setHazardHit('');
+    return { lava: next, freeze: nextFreeze };
+  }
+
+  function hitHazard(kind) {
+    setHazardHit(kind);
+    window.setTimeout(() => setHazardHit(''), 420);
+  }
 
   function rotateLava(moveCount = moves + 1) {
-    const next = LAVA_DIRECTIONS[(moveCount + Math.floor(maxTile / 16)) % LAVA_DIRECTIONS.length];
-    setLavaDirection(next);
+    const next = rotateHazards(moveCount).lava;
     return next;
   }
 
@@ -1152,18 +1192,39 @@ function MonadGame() {
     setTxHash('');
     setScoreGuess('');
     setScoreReveal(null);
-    setLavaDirection(LAVA_DIRECTIONS[Math.floor(Math.random() * LAVA_DIRECTIONS.length)]);
-    setGameMessage('Score is hidden. Track the merges in your head.');
+    setFrozenTurns(0);
+    const firstLava = LAVA_DIRECTIONS[Math.floor(Math.random() * LAVA_DIRECTIONS.length)];
+    setLavaDirection(firstLava);
+    setFreezeDirection(randomDirection(firstLava));
+    setHazardHit('');
+    setGameMessage('Score is hidden. Track the merges and dodge the hazards.');
   }
 
   function makeMove(direction) {
     if (gameOver) return;
+    if (frozenTurns > 0) {
+      setFrozenTurns((value) => Math.max(0, value - 1));
+      const nextHazards = rotateHazards(moves + 1);
+      setMoves((value) => value + 1);
+      hitHazard('freeze');
+      setGameMessage(`Frozen turn skipped. New lava: ${DIRECTION_LABELS[nextHazards.lava]}.`);
+      return;
+    }
     if (direction === lavaDirection) {
       const penalty = Math.max(12, Math.min(96, Math.round((maxTile || 2) / 2)));
       setScore((value) => Math.max(0, value - penalty));
-      const nextLava = rotateLava(moves + 1);
+      const nextHazards = rotateHazards(moves + 1);
       setMoves((value) => value + 1);
-      setGameMessage(`${DIRECTION_LABELS[direction]} is lava. -${penalty}. New lava: ${DIRECTION_LABELS[nextLava]}.`);
+      hitHazard('lava');
+      setGameMessage(`${DIRECTION_LABELS[direction]} is lava. -${penalty}. New lava: ${DIRECTION_LABELS[nextHazards.lava]}.`);
+      return;
+    }
+    if (direction === freezeDirection) {
+      const nextHazards = rotateHazards(moves + 1);
+      setFrozenTurns(1);
+      setMoves((value) => value + 1);
+      hitHazard('freeze');
+      setGameMessage(`${DIRECTION_LABELS[direction]} froze the iglu. Next move gets skipped. New lava: ${DIRECTION_LABELS[nextHazards.lava]}.`);
       return;
     }
     const result = moveBoard(board, direction);
@@ -1174,10 +1235,10 @@ function MonadGame() {
     setBoard(nextBoard);
     setScore((value) => value + result.gained + streakBonus);
     setMoves(nextMoves);
-    const nextLava = nextMoves % 3 === 0 ? rotateLava(nextMoves) : lavaDirection;
+    const nextHazards = nextMoves % 2 === 0 ? rotateHazards(nextMoves) : { lava: lavaDirection, freeze: freezeDirection };
     setGameMessage(result.gained
-      ? `Merge landed${streakBonus ? ` +${streakBonus} streak bonus` : ''}. Avoid ${DIRECTION_LABELS[nextLava]}.`
-      : `Clean slide. Avoid ${DIRECTION_LABELS[nextLava]}.`);
+      ? `Merge landed${streakBonus ? ` +${streakBonus} streak bonus` : ''}. Avoid ${DIRECTION_LABELS[nextHazards.lava]}${nextHazards.freeze ? ` and frozen ${DIRECTION_LABELS[nextHazards.freeze]}` : ''}.`
+      : `Clean slide. Avoid ${DIRECTION_LABELS[nextHazards.lava]}${nextHazards.freeze ? ` and frozen ${DIRECTION_LABELS[nextHazards.freeze]}` : ''}.`);
     if (!canMove(nextBoard)) setGameOver(true);
   }
 
@@ -1194,7 +1255,7 @@ function MonadGame() {
     setScoreReveal(reveal);
     if (final > best) {
       setBest(final);
-      localStorage.setItem('igluMergeBlindBest', String(final));
+      localStorage.setItem('monergeBlindBest', String(final));
     }
     setGameMessage(`Actual ${score}. You missed by ${miss}. Final score ${final}.`);
   }
@@ -1239,8 +1300,8 @@ function MonadGame() {
   return (
     <section className={`monad-game ${isGameApp ? 'app-mode' : ''}`} id="monad-game">
       <div className="game-copy">
-        <Chapter num="04" kicker="Built on Monad" title={`${GAME_NAME}.`} />
-        <p className="lede">A blind-score focus game for BuildAnything: merge Monad-coded tiles, dodge lava walls, remember your points, then guess your score before posting on Monad mainnet.</p>
+        <Chapter num="04" kicker="Built on Monad" title={<span className="monerge-logo">Monerge.</span>} />
+        <p className="lede">A blind-score focus game for BuildAnything: merge Monad-coded tiles, dodge random lava and freeze walls, remember your points, then guess your score before posting on Monad mainnet.</p>
         <div className="monanimal-strip" aria-label="Monad character inspirations">
           {MONAD_CHARACTERS.map((character) =>
           <span key={character.name} className={`monanimal-chip tile-${character.value}`}>
@@ -1265,14 +1326,15 @@ function MonadGame() {
         <div className="game-shell-head">
           <div>
             <span>Playable embed</span>
-            <strong>{GAME_NAME}</strong>
+            <strong className="monerge-wordmark">Monerge</strong>
           </div>
-          <a href="/?app=iglu-merge#monad-game" target="_blank" rel="noopener">Open app</a>
+          <a href="/?app=monerge#monad-game" target="_blank" rel="noopener">Open app</a>
         </div>
         <div className="game-hud">
           <div><span>Hidden score</span><strong>{scoreReveal ? score : '???'}</strong></div>
           <div><span>Best</span><strong>{best}</strong></div>
           <div><span>Lava</span><strong>{DIRECTION_LABELS[lavaDirection]}</strong></div>
+          <div><span>Freeze</span><strong>{freezeDirection ? DIRECTION_LABELS[freezeDirection] : 'Clear'}</strong></div>
         </div>
         <div className="tile-ladder" aria-label="Monad tile progression">
           {MONAD_TILE_LADDER.map((tile) =>
@@ -1285,7 +1347,7 @@ function MonadGame() {
           )}
         </div>
         <div
-          className={`game-board merge-board lava-${lavaDirection}`}
+          className={`game-board merge-board lava-${lavaDirection} ${freezeDirection ? `freeze-${freezeDirection}` : ''} ${hazardHit ? `hit-${hazardHit}` : ''}`}
           role="grid"
           aria-label={`${GAME_NAME} board`}
           onTouchStart={(event) => setTouchStart({ x: event.touches[0].clientX, y: event.touches[0].clientY })}
@@ -1311,14 +1373,14 @@ function MonadGame() {
           </form>}
         </div>
         <div className="game-controls" aria-label="Move controls">
-          <button type="button" className={lavaDirection === 'up' ? 'is-lava' : ''} onClick={() => makeMove('up')}>↑</button>
-          <button type="button" className={lavaDirection === 'left' ? 'is-lava' : ''} onClick={() => makeMove('left')}>←</button>
-          <button type="button" className={lavaDirection === 'down' ? 'is-lava' : ''} onClick={() => makeMove('down')}>↓</button>
-          <button type="button" className={lavaDirection === 'right' ? 'is-lava' : ''} onClick={() => makeMove('right')}>→</button>
+          <button type="button" className={`${lavaDirection === 'up' ? 'is-lava' : ''} ${freezeDirection === 'up' ? 'is-freeze' : ''}`} onClick={() => makeMove('up')}>↑</button>
+          <button type="button" className={`${lavaDirection === 'left' ? 'is-lava' : ''} ${freezeDirection === 'left' ? 'is-freeze' : ''}`} onClick={() => makeMove('left')}>←</button>
+          <button type="button" className={`${lavaDirection === 'down' ? 'is-lava' : ''} ${freezeDirection === 'down' ? 'is-freeze' : ''}`} onClick={() => makeMove('down')}>↓</button>
+          <button type="button" className={`${lavaDirection === 'right' ? 'is-lava' : ''} ${freezeDirection === 'right' ? 'is-freeze' : ''}`} onClick={() => makeMove('right')}>→</button>
         </div>
         <div className="game-prompt">
           <strong>{scoreReveal ? `Final ${scoreReveal.final}` : gameOver ? 'Board locked. Guess before you reveal.' : maxTile >= 2048 ? 'Emonad unlocked.' : gameMessage}</strong>
-          <span>{moves} moves · max tile {maxTile} · lava changes every few moves</span>
+          <span>{moves} moves · max tile {maxTile} · random lava and freeze walls</span>
         </div>
       </div>
     </section>);
@@ -1560,7 +1622,8 @@ function App() {
   const [tweaks, setTweaks] = useTweaks(TWEAK_DEFAULTS);
   const y = useScrollY();
   const mouse = useMouse();
-  const isGameApp = new URLSearchParams(window.location.search).get('app') === 'iglu-merge';
+  const appMode = new URLSearchParams(window.location.search).get('app');
+  const isGameApp = appMode === 'monerge' || appMode === 'iglu-merge';
   useAmbientScrollSound(y);
 
   useEffect(() => {
@@ -1591,9 +1654,9 @@ function App() {
     <div className={`page ${isGameApp ? 'game-app-page' : ''}`} data-warm={tweaks.warmChapters}>
       <Topbar />
       <Hero y={y} mouse={mouse} intensity={tweaks.parallaxIntensity} />
-      {tweaks.snowfall && <Snowfall count={60} intensity={tweaks.parallaxIntensity / 100} />}
-      <Marquee items={['gerrystephen.eth', 'inkfinity canvas', 'great terriers', 'sappy seals', 'pudgy penguins', 'web3 since 2021', 'building IRL', 'hot weather, iced lattes']} />
-      <Timeline />
+      {tweaks.snowfall && <Snowfall count={60} intensity={tweaks.parallaxIntensity / 100} scrollY={y} />}
+      <Marquee items={['gerrystephen.eth', 'inkfinity canvas', 'great terriers', 'sappy seals', 'pudgy penguins', 'web3 since 2021', 'building IRL', 'hot weather, iced coffee']} />
+      <Timeline y={y} intensity={tweaks.parallaxIntensity} />
       <NftCarousel />
       <InkfinityGallery />
       <MonadGame />

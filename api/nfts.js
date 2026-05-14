@@ -22,12 +22,39 @@ const LOCAL_INKFINITY_IMAGES = {
 const FORCE_METADATA_REFRESH = new Set([OMNIA_PETS_CONTRACT, OMNIA_ITEMS_CONTRACT, INKFINITY_CONTRACT]);
 const STATIC_PREVIEW_NFTS = [
   {
-    name: 'Pixseal #3013',
+    name: 'Pixseal #525',
     collection: 'Pixseals by Sappy Seals',
-    image: 'https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/3013.png',
-    href: `https://opensea.io/assets/matic/${PIXSEALS_CONTRACT}/3013`,
+    image: 'https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/525.png',
+    href: `https://opensea.io/item/polygon/${PIXSEALS_CONTRACT}/525`,
     contract: PIXSEALS_CONTRACT,
-    tokenId: '3013',
+    tokenId: '525',
+    wallet: 'collection',
+  },
+  {
+    name: 'Pixseal #3600',
+    collection: 'Pixseals by Sappy Seals',
+    image: 'https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/3600.png',
+    href: `https://opensea.io/item/polygon/${PIXSEALS_CONTRACT}/3600`,
+    contract: PIXSEALS_CONTRACT,
+    tokenId: '3600',
+    wallet: 'collection',
+  },
+  {
+    name: 'Pixseal #9690',
+    collection: 'Pixseals by Sappy Seals',
+    image: 'https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/9690.png',
+    href: `https://opensea.io/item/polygon/${PIXSEALS_CONTRACT}/9690`,
+    contract: PIXSEALS_CONTRACT,
+    tokenId: '9690',
+    wallet: 'collection',
+  },
+  {
+    name: 'Pixseal #9815',
+    collection: 'Pixseals by Sappy Seals',
+    image: 'https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/9815.png',
+    href: `https://opensea.io/item/polygon/${PIXSEALS_CONTRACT}/9815`,
+    contract: PIXSEALS_CONTRACT,
+    tokenId: '9815',
     wallet: 'collection',
   },
 ];
