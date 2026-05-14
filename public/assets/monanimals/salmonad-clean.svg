@@ -1,0 +1,18 @@
+<svg width="320" height="240" viewBox="0 0 320 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <filter id="shadow" x="-20%" y="-30%" width="140%" height="160%">
+    <feDropShadow dx="0" dy="12" stdDeviation="9" flood-color="#160B33" flood-opacity=".32"/>
+  </filter>
+  <g filter="url(#shadow)" stroke="#160B2E" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M37 131C73 64 184 43 284 88C249 168 143 190 37 131Z" fill="#824BDB"/>
+    <path d="M270 88L300 48C317 78 309 111 283 133" fill="#C57B48"/>
+    <path d="M63 128C106 150 186 151 251 118" stroke="#9F73E8" stroke-width="6"/>
+    <path d="M34 131C17 126 10 112 15 98C29 102 40 112 45 126" fill="#824BDB"/>
+  </g>
+  <ellipse cx="177" cy="95" rx="28" ry="22" fill="#F9FAFF" stroke="#160B2E" stroke-width="6"/>
+  <ellipse cx="226" cy="99" rx="28" ry="22" fill="#F9FAFF" stroke="#160B2E" stroke-width="6"/>
+  <circle cx="178" cy="96" r="10" fill="#160B2E"/>
+  <circle cx="226" cy="100" r="10" fill="#160B2E"/>
+  <circle cx="182" cy="92" r="3" fill="#fff"/>
+  <circle cx="230" cy="96" r="3" fill="#fff"/>
+  <path d="M150 139C194 153 236 148 271 129" stroke="#C27C46" stroke-width="14" stroke-linecap="round"/>
+</svg>

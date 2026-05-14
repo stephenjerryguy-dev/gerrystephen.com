@@ -3473,15 +3473,18 @@ a { color: inherit; text-decoration: none; }
 }
 .venture-mini .venture-actions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(150px, 1.15fr) minmax(112px, 0.85fr);
   gap: 10px;
 }
 .venture-mini .btn {
   width: 100%;
   min-width: 0;
   justify-content: center;
-  white-space: nowrap;
-  padding-inline: 16px;
+  white-space: normal;
+  min-height: 54px;
+  padding: 0 18px;
+  text-align: center;
+  line-height: 1.12;
 }
 @media (max-width: 1120px) {
   .ventures-panel { grid-template-columns: 1fr; }
@@ -3564,52 +3567,43 @@ a { color: inherit; text-decoration: none; }
 .social-strip {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  max-width: 1120px;
+  justify-content: center;
+  gap: 10px;
+  max-width: 520px;
   margin: 28px auto 0;
-  padding: 16px 18px;
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 8px;
-  background: rgba(255,255,255,0.04);
-}
-.social-strip span {
-  color: #fff;
-  font-family: var(--display-font), serif;
-  font-size: 28px;
-  line-height: 1;
-}
-.social-strip div {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
+  padding: 0;
 }
 .social-strip a {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
   border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 999px;
-  padding: 8px 10px;
-  color: rgba(220,238,247,0.78);
+  border-radius: 50%;
+  background: rgba(255,255,255,0.04);
+  color: rgba(220,238,247,0.86);
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 13px;
   font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  transition: background 0.16s ease, color 0.16s ease, transform 0.16s ease;
+  letter-spacing: 0;
+  line-height: 1;
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.16s ease;
+}
+.social-strip a span {
+  display: block;
+  transform: translateY(-0.02em);
 }
 .social-strip a:hover {
   transform: translateY(-2px);
   background: rgba(255,255,255,0.09);
+  border-color: rgba(127,210,231,0.34);
   color: #fff;
 }
 @media (max-width: 900px) { .contact { padding: 80px 24px 56px; } }
 @media (max-width: 700px) {
   .social-strip {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-  .social-strip div {
-    justify-content: flex-start;
+    flex-wrap: wrap;
+    max-width: 280px;
   }
 }
 

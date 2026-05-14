@@ -1,6 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build",
   "cleanUrls": true,
+  "outputDirectory": "dist",
   "headers": [
     {
       "source": "/(.*)",
@@ -9,7 +11,7 @@
       ]
     },
     {
-      "source": "/(index.html|app.jsx|styles.css|service-worker.js)",
+      "source": "/(index.html|service-worker.js|manifest.webmanifest)",
       "headers": [
         { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
       ]

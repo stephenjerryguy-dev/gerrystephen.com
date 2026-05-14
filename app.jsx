@@ -1,5 +1,17 @@
-/* global React, ReactDOM */
-const { useState, useEffect, useRef, useMemo } = React;
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createRoot } from 'react-dom/client';
+import { DynamicContextProvider, DynamicWidget, useDynamicContext, mergeNetworks } from '@dynamic-labs/sdk-react-core';
+import { EthereumWalletConnectors } from '@dynamic-labs/ethereum';
+import {
+  useTweaks,
+  TweaksPanel,
+  TweakSection,
+  TweakSlider,
+  TweakToggle,
+  TweakSelect,
+} from './tweaks-panel.jsx';
+import './styles.css';
+
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -582,7 +594,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-52`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-54`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
@@ -962,6 +974,25 @@ const MONAD_NETWORK = {
   blockExplorerUrls: ['https://monadscan.com']
 };
 const DYNAMIC_ENV_ID = 'b62527ee-ec89-4502-86b3-37987b5720d4';
+const MONAD_DYNAMIC_NETWORK = {
+  blockExplorerUrls: MONAD_NETWORK.blockExplorerUrls,
+  chainId: 143,
+  chainName: MONAD_NETWORK.chainName,
+  iconUrls: [],
+  name: MONAD_NETWORK.chainName,
+  nativeCurrency: MONAD_NETWORK.nativeCurrency,
+  networkId: 143,
+  rpcUrls: MONAD_NETWORK.rpcUrls,
+  vanityName: 'Monad'
+};
+const DYNAMIC_SETTINGS = {
+  environmentId: DYNAMIC_ENV_ID,
+  walletConnectors: [EthereumWalletConnectors],
+  walletConnectPreferredChains: ['eip155:143'],
+  overrides: {
+    evmNetworks: (networks) => mergeNetworks([MONAD_DYNAMIC_NETWORK], networks)
+  }
+};
 
 const GAME_NAME = 'Monerge';
 const LAVA_DIRECTIONS = ['left', 'up', 'right', 'down'];
@@ -1129,6 +1160,7 @@ function canMove(board) {
 }
 
 function MonadGame() {
+  const { primaryWallet, setShowAuthFlow } = useDynamicContext();
   const [account, setAccount] = useState('');
   const [chainId, setChainId] = useState('');
   const [walletState, setWalletState] = useState('Ready');
@@ -1153,6 +1185,17 @@ function MonadGame() {
   const appMode = new URLSearchParams(window.location.search).get('app');
   const isGameApp = appMode === 'monerge' || appMode === 'iglu-merge';
   const finalScore = scoreReveal?.final ?? null;
+
+  useEffect(() => {
+    if (!primaryWallet?.address) return;
+    setAccount(primaryWallet.address);
+    setWalletState('Dynamic wallet connected');
+    primaryWallet.getNetwork?.()
+      .then((network) => {
+        if (network) setChainId(`0x${Number(network).toString(16)}`);
+      })
+      .catch(() => {});
+  }, [primaryWallet]);
 
   useEffect(() => {
     if (!window.ethereum) return undefined;
@@ -1201,8 +1244,22 @@ function MonadGame() {
   }
 
   async function connectMonad() {
+    if (primaryWallet) {
+      try {
+        await primaryWallet.switchNetwork?.(143);
+        const network = await primaryWallet.getNetwork?.();
+        if (network) setChainId(`0x${Number(network).toString(16)}`);
+        setAccount(primaryWallet.address || account);
+        setWalletState('Dynamic wallet on Monad');
+      } catch (error) {
+        setWalletState(error?.message || 'Open Dynamic to finish wallet setup.');
+        setShowAuthFlow?.(true);
+      }
+      return;
+    }
     if (!window.ethereum) {
-      setWalletState(`Dynamic ready: ${DYNAMIC_ENV_ID.slice(0, 8)}. SDK wiring next.`);
+      setWalletState('Opening Dynamic wallet connect.');
+      setShowAuthFlow?.(true);
       return;
     }
     try {
@@ -1330,6 +1387,18 @@ function MonadGame() {
     }
     try {
       setWalletState('Awaiting score signature');
+      if (primaryWallet && !window.ethereum) {
+        const signer = await primaryWallet.connector?.getSigner?.();
+        if (!signer?.sendTransaction) throw new Error('Dynamic signer unavailable.');
+        const tx = await signer.sendTransaction({
+          to: primaryWallet.address,
+          value: 0n,
+          data: hexFromText(`gerrystephen.com ${GAME_NAME} final=${finalScore ?? score} actual=${score} maxTile=${maxTile}`)
+        });
+        setTxHash(tx?.hash || tx);
+        setWalletState('Score posted');
+        return;
+      }
       const hash = await window.ethereum.request({
         method: 'eth_sendTransaction',
         params: [{
@@ -1360,7 +1429,7 @@ function MonadGame() {
           )}
         </div>
         <div className="game-actions">
-          <button type="button" className="btn primary" onClick={connectMonad}>{shortWallet(account)}</button>
+          <div className="dynamic-widget-wrap"><DynamicWidget /></div>
           <button type="button" className="btn ghost" onClick={newGame}>New run</button>
           <button type="button" className="btn ghost" onClick={submitScore} disabled={!score}>Submit score</button>
         </div>
@@ -1397,7 +1466,7 @@ function MonadGame() {
           <a href="/?app=monerge#monad-game" target="_blank" rel="noopener">Open app</a>
         </div>
         <div className="game-shell-actions" aria-label="Wallet and run controls">
-          <button type="button" onClick={connectMonad}>{account ? shortWallet(account) : 'Connect'}</button>
+          <div className="dynamic-widget-wrap"><DynamicWidget /></div>
           <button type="button" onClick={newGame}>New</button>
           <button type="button" onClick={submitScore} disabled={!score}>Submit</button>
         </div>
@@ -1669,13 +1738,13 @@ function Ventures({ y, intensity, warm }) {
 // ---------- Contact ----------
 function Contact() {
   const socials = [
-  { name: 'X', href: 'https://x.com/gerrydoteth' },
-  { name: 'Instagram', href: 'https://www.instagram.com/gerrydoteth/' },
-  { name: 'TikTok', href: 'https://www.tiktok.com/@gerrydoteth' },
-  { name: 'Farcaster', href: 'https://warpcast.com/gerrydoteth' },
-  { name: 'LinkedIn', href: 'https://www.linkedin.com/in/gerrydoteth/' },
-  { name: 'Telegram', href: 'https://t.me/gerrydoteth' },
-  { name: 'Twitch', href: 'https://www.twitch.tv/gerrydoteth' }];
+  { name: 'X', href: 'https://x.com/gerrydoteth', mark: 'X' },
+  { name: 'Instagram', href: 'https://www.instagram.com/gerrydoteth/', mark: '◎' },
+  { name: 'TikTok', href: 'https://www.tiktok.com/@gerrydoteth', mark: '♪' },
+  { name: 'Farcaster', href: 'https://warpcast.com/gerrydoteth', mark: 'F' },
+  { name: 'LinkedIn', href: 'https://www.linkedin.com/in/gerrydoteth/', mark: 'in' },
+  { name: 'Telegram', href: 'https://t.me/gerrydoteth', mark: '↗' },
+  { name: 'Twitch', href: 'https://www.twitch.tv/gerrydoteth', mark: 'Tw' }];
   const cards = [
   { kind: '@ x', handle: 'gerrydoteth', note: 'Builder notes, collector signal, and the occasional market thought.', href: 'https://x.com/gerrydoteth', label: 'Follow' },
   { kind: '◈ opensea', handle: 'gerrystephen', note: 'Penguins, seals, Inkfinity, and the public collector trail.', href: 'https://opensea.io/profile/gerrystephen', label: 'Browse' },
@@ -1700,12 +1769,11 @@ function Contact() {
       <div className="signoff">My father, a visionary, successfully built for decades.<br />I carry the standard forward.</div>
       <div className="dedication">Built from the Guy family standard. <span>Eric Guy · strength before beauty</span></div>
       <div className="social-strip" aria-label="Gerry Stephen socials">
-        <span>@gerrydoteth</span>
-        <div>
-          {socials.map((social) =>
-          <a key={social.name} href={social.href} target="_blank" rel="noopener">{social.name}</a>
-          )}
-        </div>
+        {socials.map((social) =>
+          <a key={social.name} href={social.href} target="_blank" rel="noopener" aria-label={`Gerry Stephen on ${social.name}`}>
+            <span aria-hidden="true">{social.mark}</span>
+          </a>
+        )}
       </div>
     </section>);
 
@@ -1759,7 +1827,7 @@ function App() {
       <Ventures y={y} intensity={tweaks.parallaxIntensity} warm={tweaks.warmChapters} />
       <Contact />
       <footer className="foot">
-        <span>© {new Date().getFullYear()} gerrystephen.eth · the iglu</span>
+        <span>© {new Date().getFullYear()} gerrystephen.eth · @gerrydoteth · the iglu</span>
         <span>MADE WITH COOL HANDS & WARM INTENTIONS</span>
       </footer>
       <TweaksUI tweaks={tweaks} setTweak={setTweaks} />
@@ -1790,4 +1858,8 @@ function TweaksUI({ tweaks, setTweak }) {
 
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+createRoot(document.getElementById('root')).render(
+  <DynamicContextProvider settings={DYNAMIC_SETTINGS}>
+    <App />
+  </DynamicContextProvider>
+);
