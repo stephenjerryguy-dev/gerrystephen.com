@@ -418,6 +418,7 @@ function Hero({ y, mouse, intensity }) {
           <div className="bt-sub">a small home on the internet · gerrystephen.eth</div>
           <a className="abstract-veteran-card" href="https://abscan.org/address/0x382556A543aAd855C07678E7F8e820d0d90429BB" target="_blank" rel="noopener" aria-label="Abstract Gold tier 1 veteran wallet">
             <img src="assets/abstract-gold-veteran.png" alt="Abstract wallet gold tier 1" />
+            <span className="abstract-tier-label">Gold Tier I</span>
           </a>
         </div>
 
@@ -563,7 +564,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-41`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-43`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
@@ -588,7 +589,7 @@ const NFT_ECOSYSTEMS = [
   { name: 'Pixseal #3600', collection: 'Pixseals by Sappy Seals', image: 'https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/3600.png', href: 'https://opensea.io/item/polygon/0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b/3600', tokenId: '3600', contract: '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b' },
   { name: 'Pixseal #9690', collection: 'Pixseals by Sappy Seals', image: 'https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/9690.png', href: 'https://opensea.io/item/polygon/0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b/9690', tokenId: '9690', contract: '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b' },
   { name: 'Pixseal #9815', collection: 'Pixseals by Sappy Seals', image: 'https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/9815.png', href: 'https://opensea.io/item/polygon/0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b/9815', tokenId: '9815', contract: '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b' },
-  { name: 'Digital Artifact #93', collection: 'Digital Artifact', glyph: 'DA', href: 'https://opensea.io/item/ethereum/0xb1cdf2bfab043ea1d81d0a73b3b849efaac1d31a/93', tokenId: '93', contract: '0xb1cdf2bfab043ea1d81d0a73b3b849efaac1d31a' },
+  { name: 'Digital Artifact #93', collection: 'Digital Artifact', image: 'assets/digital-artifact-93.jpg', href: 'https://opensea.io/item/ethereum/0xb1cdf2bfab043ea1d81d0a73b3b849efaac1d31a/93', tokenId: '93', contract: '0xb1cdf2bfab043ea1d81d0a73b3b849efaac1d31a' },
   { name: 'Omnia items', collection: 'Pixlverse item metadata accepted', glyph: 'OM', tokenId: 'pending', contract: 'pending' },
   { name: 'Pixseals and Sappy Keys', collection: 'Owned-token images only', glyph: 'KEY', tokenId: 'pending', contract: 'pending' }]
 },
@@ -955,6 +956,12 @@ function randomDirection(except) {
   const choices = LAVA_DIRECTIONS.filter((direction) => direction !== except);
   return choices[Math.floor(Math.random() * choices.length)];
 }
+function randomHazards(previousLava, forceFreeze = false) {
+  const lavaChoices = LAVA_DIRECTIONS.filter((direction) => direction !== previousLava);
+  const lava = lavaChoices[Math.floor(Math.random() * lavaChoices.length)] || randomDirection();
+  const freeze = forceFreeze || Math.random() < 0.74 ? randomDirection(lava) : '';
+  return { lava, freeze };
+}
 
 function shortWallet(account) {
   return account ? `${account.slice(0, 6)}...${account.slice(-4)}` : 'Connect wallet';
@@ -1117,6 +1124,7 @@ function MonadGame() {
   const [freezeDirection, setFreezeDirection] = useState(() => randomDirection(lavaDirection));
   const [frozenTurns, setFrozenTurns] = useState(0);
   const [hazardHit, setHazardHit] = useState('');
+  const [hazardPulse, setHazardPulse] = useState(0);
   const [scoreGuess, setScoreGuess] = useState('');
   const [scoreReveal, setScoreReveal] = useState(null);
   const [gameMessage, setGameMessage] = useState('Score is hidden. Track the merges in your head.');
@@ -1152,17 +1160,18 @@ function MonadGame() {
     return () => window.removeEventListener('keydown', onKey);
   }, [board, gameOver, lavaDirection, freezeDirection, frozenTurns]);
 
-  function rotateHazards(moveCount = moves + 1) {
-    const next = LAVA_DIRECTIONS[Math.floor(Math.random() * LAVA_DIRECTIONS.length)];
-    const nextFreeze = moveCount % 2 === 0 ? randomDirection(next) : '';
-    setLavaDirection(next);
-    setFreezeDirection(nextFreeze);
+  function rotateHazards(moveCount = moves + 1, options = {}) {
+    const nextHazards = randomHazards(lavaDirection, options.forceFreeze || moveCount % 3 === 0);
+    setLavaDirection(nextHazards.lava);
+    setFreezeDirection(nextHazards.freeze);
+    setHazardPulse((value) => value + 1);
     setHazardHit('');
-    return { lava: next, freeze: nextFreeze };
+    return nextHazards;
   }
 
   function hitHazard(kind) {
-    setHazardHit(kind);
+    setHazardHit('');
+    window.setTimeout(() => setHazardHit(kind), 20);
     window.setTimeout(() => setHazardHit(''), 420);
   }
 
@@ -1211,9 +1220,10 @@ function MonadGame() {
     setScoreGuess('');
     setScoreReveal(null);
     setFrozenTurns(0);
-    const firstLava = LAVA_DIRECTIONS[Math.floor(Math.random() * LAVA_DIRECTIONS.length)];
-    setLavaDirection(firstLava);
-    setFreezeDirection(randomDirection(firstLava));
+    const firstHazards = randomHazards(undefined, true);
+    setLavaDirection(firstHazards.lava);
+    setFreezeDirection(firstHazards.freeze);
+    setHazardPulse((value) => value + 1);
     setHazardHit('');
     setGameMessage('Score is hidden. Track the merges and dodge the hazards.');
   }
@@ -1222,7 +1232,7 @@ function MonadGame() {
     if (gameOver) return;
     if (frozenTurns > 0) {
       setFrozenTurns((value) => Math.max(0, value - 1));
-      const nextHazards = rotateHazards(moves + 1);
+      const nextHazards = rotateHazards(moves + 1, { forceFreeze: true });
       setMoves((value) => value + 1);
       hitHazard('freeze');
       setGameMessage(`Frozen turn skipped. New lava: ${DIRECTION_LABELS[nextHazards.lava]}.`);
@@ -1238,7 +1248,7 @@ function MonadGame() {
       return;
     }
     if (direction === freezeDirection) {
-      const nextHazards = rotateHazards(moves + 1);
+      const nextHazards = rotateHazards(moves + 1, { forceFreeze: true });
       setFrozenTurns(1);
       setMoves((value) => value + 1);
       hitHazard('freeze');
@@ -1253,7 +1263,7 @@ function MonadGame() {
     setBoard(nextBoard);
     setScore((value) => value + result.gained + streakBonus);
     setMoves(nextMoves);
-    const nextHazards = nextMoves % 2 === 0 ? rotateHazards(nextMoves) : { lava: lavaDirection, freeze: freezeDirection };
+    const nextHazards = rotateHazards(nextMoves);
     setGameMessage(result.gained
       ? `Merge landed${streakBonus ? ` +${streakBonus} streak bonus` : ''}. Avoid ${DIRECTION_LABELS[nextHazards.lava]}${nextHazards.freeze ? ` and frozen ${DIRECTION_LABELS[nextHazards.freeze]}` : ''}.`
       : `Clean slide. Avoid ${DIRECTION_LABELS[nextHazards.lava]}${nextHazards.freeze ? ` and frozen ${DIRECTION_LABELS[nextHazards.freeze]}` : ''}.`);
@@ -1319,7 +1329,7 @@ function MonadGame() {
     <section className={`monad-game ${isGameApp ? 'app-mode' : ''}`} id="monad-game">
       <div className="game-copy">
         <Chapter num="04" kicker="Built on Monad" title={<span className="monerge-logo">Monerge.</span>} />
-        <p className="lede">A blind-score focus game for BuildAnything: merge Monad-coded tiles, dodge random lava and freeze walls, remember your points, then guess your score before posting on Monad mainnet.</p>
+        <p className="lede">A blind-score focus game for BuildAnything: merge Monad-coded tiles, read the random hazard walls, remember your points, then guess your score before posting on Monad mainnet.</p>
         <div className="monanimal-strip" aria-label="Monad character inspirations">
           {MONAD_CHARACTERS.map((character) =>
           <span key={character.name} className={`monanimal-chip tile-${character.value}`}>
@@ -1366,10 +1376,13 @@ function MonadGame() {
         </div>
         <div
           className={`game-board merge-board lava-${lavaDirection} ${freezeDirection ? `freeze-${freezeDirection}` : ''} ${hazardHit ? `hit-${hazardHit}` : ''}`}
+          style={{ '--hazard-pulse': hazardPulse }}
           role="grid"
           aria-label={`${GAME_NAME} board`}
           onTouchStart={(event) => setTouchStart({ x: event.touches[0].clientX, y: event.touches[0].clientY })}
           onTouchEnd={handleTouchEnd}>
+          <div className={`freeze-wall ${freezeDirection ? `show freeze-${freezeDirection}` : ''}`} aria-hidden="true" />
+          <div className={`hazard-burst ${hazardHit ? `show ${hazardHit}` : ''}`} aria-hidden="true" />
           {board.map((value, cell) =>
           <div
             key={cell}
@@ -1390,6 +1403,10 @@ function MonadGame() {
             </div>
           </form>}
         </div>
+        <div className="hazard-legend" aria-label="Current hazard rules">
+          <span className="lava-dot">Lava blocks {DIRECTION_LABELS[lavaDirection]}</span>
+          <span className="freeze-dot">{freezeDirection ? `Freeze skips after ${DIRECTION_LABELS[freezeDirection]}` : 'Freeze is clear'}</span>
+        </div>
         <div className="game-controls" aria-label="Move controls">
           <button type="button" className={`${lavaDirection === 'up' ? 'is-lava' : ''} ${freezeDirection === 'up' ? 'is-freeze' : ''}`} onClick={() => makeMove('up')}>↑</button>
           <button type="button" className={`${lavaDirection === 'left' ? 'is-lava' : ''} ${freezeDirection === 'left' ? 'is-freeze' : ''}`} onClick={() => makeMove('left')}>←</button>
@@ -1398,7 +1415,7 @@ function MonadGame() {
         </div>
         <div className="game-prompt">
           <strong>{scoreReveal ? `Final ${scoreReveal.final}` : gameOver ? 'Board locked. Guess before you reveal.' : maxTile >= 2048 ? 'Emonad unlocked.' : gameMessage}</strong>
-          <span>{moves} moves · max tile {maxTile} · random lava and freeze walls</span>
+          <span>{moves} moves · max tile {maxTile} · hazards reroll after every action</span>
         </div>
       </div>
     </section>);
