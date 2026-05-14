@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gerry-iglu-v31';
+const CACHE_NAME = 'gerry-iglu-v32';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting());

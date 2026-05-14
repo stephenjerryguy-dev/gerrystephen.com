@@ -529,7 +529,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-28`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-29`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
@@ -888,6 +888,13 @@ const MONAD_TESTNET = {
 };
 
 const GAME_NAME = 'Iglu Merge';
+const LAVA_DIRECTIONS = ['left', 'up', 'right', 'down'];
+const DIRECTION_LABELS = {
+  left: 'Left wall',
+  right: 'Right wall',
+  up: 'Ceiling',
+  down: 'Floor'
+};
 
 function shortWallet(account) {
   return account ? `${account.slice(0, 6)}...${account.slice(-4)}` : 'Connect wallet';
@@ -1041,14 +1048,19 @@ function MonadGame() {
   const [walletState, setWalletState] = useState('Ready');
   const [board, setBoard] = useState(() => makeBoard());
   const [score, setScore] = useState(0);
-  const [best, setBest] = useState(() => Number(localStorage.getItem('monadMergeBest') || 0));
+  const [best, setBest] = useState(() => Number(localStorage.getItem('igluMergeBlindBest') || 0));
   const [moves, setMoves] = useState(0);
   const [gameOver, setGameOver] = useState(false);
   const [touchStart, setTouchStart] = useState(null);
   const [txHash, setTxHash] = useState('');
+  const [lavaDirection, setLavaDirection] = useState(() => LAVA_DIRECTIONS[Math.floor(Math.random() * LAVA_DIRECTIONS.length)]);
+  const [scoreGuess, setScoreGuess] = useState('');
+  const [scoreReveal, setScoreReveal] = useState(null);
+  const [gameMessage, setGameMessage] = useState('Score is hidden. Track the merges in your head.');
   const isMonad = chainId?.toLowerCase() === MONAD_TESTNET.chainId;
   const maxTile = Math.max(...board);
   const isGameApp = new URLSearchParams(window.location.search).get('app') === 'iglu-merge';
+  const finalScore = scoreReveal?.final ?? null;
 
   useEffect(() => {
     if (!window.ethereum) return undefined;
@@ -1065,13 +1077,6 @@ function MonadGame() {
   }, []);
 
   useEffect(() => {
-    if (score > best) {
-      setBest(score);
-      localStorage.setItem('monadMergeBest', String(score));
-    }
-  }, [score, best]);
-
-  useEffect(() => {
     const onKey = (event) => {
       const map = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
       const direction = map[event.key];
@@ -1081,7 +1086,13 @@ function MonadGame() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [board, gameOver]);
+  }, [board, gameOver, lavaDirection]);
+
+  function rotateLava(moveCount = moves + 1) {
+    const next = LAVA_DIRECTIONS[(moveCount + Math.floor(maxTile / 16)) % LAVA_DIRECTIONS.length];
+    setLavaDirection(next);
+    return next;
+  }
 
   async function connectMonad() {
     if (!window.ethereum) {
@@ -1120,17 +1131,53 @@ function MonadGame() {
     setMoves(0);
     setGameOver(false);
     setTxHash('');
+    setScoreGuess('');
+    setScoreReveal(null);
+    setLavaDirection(LAVA_DIRECTIONS[Math.floor(Math.random() * LAVA_DIRECTIONS.length)]);
+    setGameMessage('Score is hidden. Track the merges in your head.');
   }
 
   function makeMove(direction) {
     if (gameOver) return;
+    if (direction === lavaDirection) {
+      const penalty = Math.max(12, Math.min(96, Math.round((maxTile || 2) / 2)));
+      setScore((value) => Math.max(0, value - penalty));
+      const nextLava = rotateLava(moves + 1);
+      setMoves((value) => value + 1);
+      setGameMessage(`${DIRECTION_LABELS[direction]} is lava. -${penalty}. New lava: ${DIRECTION_LABELS[nextLava]}.`);
+      return;
+    }
     const result = moveBoard(board, direction);
     if (!result.moved) return;
     const nextBoard = addRandomTile(result.board);
+    const nextMoves = moves + 1;
+    const streakBonus = result.gained && nextMoves % 4 === 0 ? Math.max(8, maxTile / 4) : 0;
     setBoard(nextBoard);
-    setScore((value) => value + result.gained);
-    setMoves((value) => value + 1);
+    setScore((value) => value + result.gained + streakBonus);
+    setMoves(nextMoves);
+    const nextLava = nextMoves % 3 === 0 ? rotateLava(nextMoves) : lavaDirection;
+    setGameMessage(result.gained
+      ? `Merge landed${streakBonus ? ` +${streakBonus} streak bonus` : ''}. Avoid ${DIRECTION_LABELS[nextLava]}.`
+      : `Clean slide. Avoid ${DIRECTION_LABELS[nextLava]}.`);
     if (!canMove(nextBoard)) setGameOver(true);
+  }
+
+  function revealBlindScore(event) {
+    event?.preventDefault?.();
+    const guess = Number.parseInt(scoreGuess, 10);
+    if (!Number.isFinite(guess)) {
+      setGameMessage('Make a score guess first.');
+      return;
+    }
+    const miss = Math.abs(score - guess);
+    const final = Math.max(0, score - miss);
+    const reveal = { actual: score, guess, miss, final };
+    setScoreReveal(reveal);
+    if (final > best) {
+      setBest(final);
+      localStorage.setItem('igluMergeBlindBest', String(final));
+    }
+    setGameMessage(`Actual ${score}. You missed by ${miss}. Final score ${final}.`);
   }
 
   function handleTouchEnd(event) {
@@ -1160,7 +1207,7 @@ function MonadGame() {
           from: account,
           to: account,
           value: '0x0',
-          data: hexFromText(`gerrystephen.com ${GAME_NAME} score=${score} maxTile=${maxTile}`)
+          data: hexFromText(`gerrystephen.com ${GAME_NAME} final=${finalScore ?? score} actual=${score} maxTile=${maxTile}`)
         }]
       });
       setTxHash(hash);
@@ -1174,7 +1221,7 @@ function MonadGame() {
     <section className={`monad-game ${isGameApp ? 'app-mode' : ''}`} id="monad-game">
       <div className="game-copy">
         <Chapter num="04" kicker="Built on Monad" title={`${GAME_NAME}.`} />
-        <p className="lede">A fast focus game for BuildAnything: merge Monad-coded tiles, climb the monanimal ladder, and post a score receipt on Monad Testnet.</p>
+        <p className="lede">A blind-score focus game for BuildAnything: merge Monad-coded tiles, dodge lava walls, remember your points, then guess your score before posting on Monad Testnet.</p>
         <div className="monanimal-strip" aria-label="Monad character inspirations">
           {MONAD_CHARACTERS.map((character) =>
           <span key={character.name} className={`monanimal-chip tile-${character.value}`}>
@@ -1204,9 +1251,9 @@ function MonadGame() {
           <a href="/?app=iglu-merge#monad-game" target="_blank" rel="noopener">Open app</a>
         </div>
         <div className="game-hud">
-          <div><span>Score</span><strong>{score}</strong></div>
+          <div><span>Hidden score</span><strong>{scoreReveal ? score : '???'}</strong></div>
           <div><span>Best</span><strong>{best}</strong></div>
-          <div><span>Tile</span><strong>{maxTile}</strong></div>
+          <div><span>Lava</span><strong>{DIRECTION_LABELS[lavaDirection]}</strong></div>
         </div>
         <div className="tile-ladder" aria-label="Monad tile progression">
           {MONAD_TILE_LADDER.map((tile) =>
@@ -1219,7 +1266,7 @@ function MonadGame() {
           )}
         </div>
         <div
-          className="game-board merge-board"
+          className={`game-board merge-board lava-${lavaDirection}`}
           role="grid"
           aria-label={`${GAME_NAME} board`}
           onTouchStart={(event) => setTouchStart({ x: event.touches[0].clientX, y: event.touches[0].clientY })}
@@ -1233,17 +1280,26 @@ function MonadGame() {
               {value ? <>{MONAD_TILE_CHARACTERS[value] && MONAD_CHARACTER_IMAGES[MONAD_TILE_CHARACTERS[value]] ? <img className={`tile-character character-${MONAD_TILE_CHARACTERS[value].toLowerCase()}`} src={MONAD_CHARACTER_IMAGES[MONAD_TILE_CHARACTERS[value]]} alt="" aria-hidden="true" /> : null}<strong>{value}</strong><span>{MONAD_TILE_NAMES[value] || 'MON'}</span>{MONAD_TILE_CHARACTERS[value] && <em>{MONAD_TILE_CHARACTERS[value]}</em>}</> : null}
             </div>
           )}
-          {gameOver && <div className="game-over"><strong>Board locked</strong><button type="button" onClick={newGame}>Run it back</button></div>}
+          {gameOver && <form className="game-over" onSubmit={revealBlindScore}>
+            <strong>{scoreReveal ? 'Score revealed' : 'Guess your score'}</strong>
+            {scoreReveal
+              ? <span>Actual {scoreReveal.actual} · off by {scoreReveal.miss} · final {scoreReveal.final}</span>
+              : <input inputMode="numeric" pattern="[0-9]*" value={scoreGuess} onChange={(event) => setScoreGuess(event.target.value)} placeholder="Your score guess" aria-label="Score guess" />}
+            <div className="game-over-actions">
+              {!scoreReveal && <button type="submit">Reveal</button>}
+              <button type="button" onClick={newGame}>Run it back</button>
+            </div>
+          </form>}
         </div>
         <div className="game-controls" aria-label="Move controls">
-          <button type="button" onClick={() => makeMove('up')}>↑</button>
-          <button type="button" onClick={() => makeMove('left')}>←</button>
-          <button type="button" onClick={() => makeMove('down')}>↓</button>
-          <button type="button" onClick={() => makeMove('right')}>→</button>
+          <button type="button" className={lavaDirection === 'up' ? 'is-lava' : ''} onClick={() => makeMove('up')}>↑</button>
+          <button type="button" className={lavaDirection === 'left' ? 'is-lava' : ''} onClick={() => makeMove('left')}>←</button>
+          <button type="button" className={lavaDirection === 'down' ? 'is-lava' : ''} onClick={() => makeMove('down')}>↓</button>
+          <button type="button" className={lavaDirection === 'right' ? 'is-lava' : ''} onClick={() => makeMove('right')}>→</button>
         </div>
         <div className="game-prompt">
-          <strong>{gameOver ? 'Score it, or start fresh.' : maxTile >= 2048 ? 'Emonad unlocked.' : 'Merge matching monanimals.'}</strong>
-          <span>{moves} moves · arrow keys, swipe, or tap the controls</span>
+          <strong>{scoreReveal ? `Final ${scoreReveal.final}` : gameOver ? 'Board locked. Guess before you reveal.' : maxTile >= 2048 ? 'Emonad unlocked.' : gameMessage}</strong>
+          <span>{moves} moves · max tile {maxTile} · lava changes every few moves</span>
         </div>
       </div>
     </section>);
