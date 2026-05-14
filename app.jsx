@@ -206,12 +206,11 @@ function Topbar() {
       </div>
       <nav className="topnav">
         <a href="#journey">Journey</a>
-        <a href="#nfts">Ecosystems</a>
+        <a href="#nfts">Communities</a>
         <a href="#inkfinity">Inkfinity</a>
-        <a href="#monad-game">Monad Game</a>
+        <a href="#monad-game">Monerge</a>
         <a href="#now">Now</a>
         <a href="#bluestar">Hospitality</a>
-        <a href="#zeppole">Cafe</a>
         <a href="#contact">Contact</a>
       </nav>
       <div className="top-actions">
@@ -583,7 +582,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-51`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-52`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
@@ -1669,6 +1668,14 @@ function Ventures({ y, intensity, warm }) {
 
 // ---------- Contact ----------
 function Contact() {
+  const socials = [
+  { name: 'X', href: 'https://x.com/gerrydoteth' },
+  { name: 'Instagram', href: 'https://www.instagram.com/gerrydoteth/' },
+  { name: 'TikTok', href: 'https://www.tiktok.com/@gerrydoteth' },
+  { name: 'Farcaster', href: 'https://warpcast.com/gerrydoteth' },
+  { name: 'LinkedIn', href: 'https://www.linkedin.com/in/gerrydoteth/' },
+  { name: 'Telegram', href: 'https://t.me/gerrydoteth' },
+  { name: 'Twitch', href: 'https://www.twitch.tv/gerrydoteth' }];
   const cards = [
   { kind: '@ x', handle: 'gerrydoteth', note: 'Builder notes, collector signal, and the occasional market thought.', href: 'https://x.com/gerrydoteth', label: 'Follow' },
   { kind: '◈ opensea', handle: 'gerrystephen', note: 'Penguins, seals, Inkfinity, and the public collector trail.', href: 'https://opensea.io/profile/gerrystephen', label: 'Browse' },
@@ -1692,6 +1699,14 @@ function Contact() {
       </div>
       <div className="signoff">My father, a visionary, successfully built for decades.<br />I carry the standard forward.</div>
       <div className="dedication">Built from the Guy family standard. <span>Eric Guy · strength before beauty</span></div>
+      <div className="social-strip" aria-label="Gerry Stephen socials">
+        <span>@gerrydoteth</span>
+        <div>
+          {socials.map((social) =>
+          <a key={social.name} href={social.href} target="_blank" rel="noopener">{social.name}</a>
+          )}
+        </div>
+      </div>
     </section>);
 
 }
