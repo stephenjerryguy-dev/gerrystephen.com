@@ -468,42 +468,11 @@ const TIMELINE = [
 
 
 function Timeline({ y = 0, intensity = 60 }) {
-  const sectionRef = useRef(null);
-  const railRef = useRef(null);
-  const targetScrollRef = useRef(0);
-  const railFrameRef = useRef(0);
   const depth = intensity / 100;
-  useEffect(() => {
-    const section = sectionRef.current;
-    const rail = railRef.current;
-    if (!section || !rail) return;
-    const rect = section.getBoundingClientRect();
-    const viewport = window.innerHeight || 800;
-    const max = Math.max(0, rail.scrollWidth - rail.clientWidth);
-    const raw = (viewport * 0.34 - rect.top) / Math.max(rect.height * 1.05, viewport * 0.92);
-    const progress = clamp(raw, 0, 1);
-    const eased = progress * progress * (3 - 2 * progress);
-    targetScrollRef.current = max * eased;
-
-    if (!railFrameRef.current) {
-      const glide = () => {
-        const current = rail.scrollLeft;
-        const next = current + (targetScrollRef.current - current) * 0.11;
-        rail.scrollLeft = Math.abs(targetScrollRef.current - next) < 0.35 ? targetScrollRef.current : next;
-        if (Math.abs(targetScrollRef.current - rail.scrollLeft) > 0.4) {
-          railFrameRef.current = requestAnimationFrame(glide);
-        } else {
-          railFrameRef.current = 0;
-        }
-      };
-      railFrameRef.current = requestAnimationFrame(glide);
-    }
-  }, [y]);
-  useEffect(() => () => railFrameRef.current && cancelAnimationFrame(railFrameRef.current), []);
   return (
-    <section ref={sectionRef} className="timeline" id="journey" style={{ '--scroll': y, '--timeline-depth': depth }}>
+    <section className="timeline" id="journey" style={{ '--scroll': y, '--timeline-depth': depth }}>
       <Chapter num="01" kicker="On-chain" title="The road from collector to operator." />
-      <div ref={railRef} className="rail">
+      <div className="rail">
         <div className="rail-line" />
         {TIMELINE.map((t, i) =>
         <Reveal key={`${t.year}-${t.tag}`} delay={i * 60} className="rail-item" style={{ '--rail-i': i }}>
@@ -567,7 +536,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-39`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-40`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
