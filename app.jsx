@@ -474,25 +474,33 @@ function Timeline({ y = 0, intensity = 60 }) {
   const [railTravel, setRailTravel] = useState(0);
   const depth = intensity / 100;
   useEffect(() => {
+    let frame = 0;
     const updateTravel = () => {
       const rail = railRef.current;
       if (!rail) return;
-      const viewportWidth = Math.min(window.innerWidth - 48, 1120);
+      const viewportWidth = rail.parentElement?.getBoundingClientRect().width || Math.min(window.innerWidth - 48, 1120);
       setRailTravel(Math.max(0, rail.scrollWidth - viewportWidth));
     };
-    updateTravel();
+    frame = requestAnimationFrame(updateTravel);
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateTravel) : null;
+    if (observer && railRef.current) {
+      observer.observe(railRef.current);
+      if (railRef.current.parentElement) observer.observe(railRef.current.parentElement);
+    }
     window.addEventListener('resize', updateTravel);
-    return () => window.removeEventListener('resize', updateTravel);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer?.disconnect();
+      window.removeEventListener('resize', updateTravel);
+    };
   }, []);
   const section = sectionRef.current;
   const viewport = typeof window !== 'undefined' ? window.innerHeight || 800 : 800;
-  const startHold = Math.min(260, viewport * 0.28);
-  const endHold = Math.min(72, viewport * 0.08);
-  const scrollDistance = Math.max(viewport * 1.35, railTravel * 1.08);
-  const timelineHeight = viewport + startHold + scrollDistance + endHold;
-  const start = section ? section.offsetTop + startHold : 0;
-  const distance = Math.max(1, scrollDistance);
-  const rawProgress = section ? clamp((y - start) / distance, 0, 1) : 0;
+  const readHold = 0.14;
+  const scrollDistance = Math.max(viewport * 1.65, (railTravel * 1.18) / (1 - readHold));
+  const timelineHeight = viewport + scrollDistance;
+  const pinProgress = section ? clamp((y - section.offsetTop) / scrollDistance, 0, 1) : 0;
+  const rawProgress = clamp((pinProgress - readHold) / (1 - readHold), 0, 1);
   const easedProgress = rawProgress * rawProgress * (3 - 2 * rawProgress);
   return (
     <section ref={sectionRef} className="timeline" id="journey" style={{ '--scroll': y, '--timeline-depth': depth, '--timeline-progress': easedProgress, '--timeline-height': `${timelineHeight}px` }}>
@@ -568,7 +576,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-46`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-47`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
