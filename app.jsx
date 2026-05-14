@@ -529,7 +529,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-29`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-31`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
@@ -675,6 +675,7 @@ function NftCarousel() {
   const [assetData, setAssetData] = useState([]);
   const [paused, setPaused] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [isMobileCarousel, setIsMobileCarousel] = useState(() => window.matchMedia?.('(max-width: 700px)').matches || false);
   const trackRef = useRef(null);
 
   useEffect(() => {
@@ -718,6 +719,15 @@ function NftCarousel() {
   }, []);
 
   useEffect(() => {
+    const query = window.matchMedia?.('(max-width: 700px)');
+    if (!query) return undefined;
+    const sync = () => setIsMobileCarousel(query.matches);
+    sync();
+    query.addEventListener?.('change', sync);
+    return () => query.removeEventListener?.('change', sync);
+  }, []);
+
+  useEffect(() => {
     const controller = new AbortController();
     fetchAppJson('/api/ecosystem-assets', controller.signal)
       .then((data) => setAssetData(data?.assets || []))
@@ -749,7 +759,7 @@ function NftCarousel() {
   }));
   const activeGroup = groupsWithAssets[index] || groupsWithAssets[0];
   const visible = activeGroup?.items || [];
-  const shouldLoop = !paused && !expanded && visible.length > 1;
+  const shouldLoop = !isMobileCarousel && !paused && !expanded && visible.length > 1;
   const smartItems = shouldLoop ? [...visible, ...visible].slice(0, Math.max(4, visible.length * 2)) : visible;
 
   useEffect(() => {
@@ -1355,7 +1365,7 @@ function Stats() {
 const NOW = [
 { title: 'AI Agents', note: 'Autonomous workers for hospitality ops, content systems, and the useful glue between them.', logo: 'assets/pudgy-penguin-cutout.png', alt: 'Gerry Stephen Pudgy Penguin', className: 'pudgy-agent-logo' },
 { title: 'Blue Star Web3', note: 'Live now: ecosystem-holder benefits for vacation, worcation, and nomadic stays.', logo: 'assets/bluestar-logo.png', alt: 'Blue Star Apartments & Hotel logo', className: 'blue-star-logo' },
-{ title: 'Abstract Gold', note: 'Gold tier 1 on Abstract. Public identity card for the 0x3825...29BB Abstract address.', glyph: 'AG', href: 'https://abscan.org/address/0x382556A543aAd855C07678E7F8e820d0d90429BB', className: 'abstract-gold-card' },
+{ title: 'Abstract Gold', note: 'Gold tier 1 on Abstract. Public identity card for the 0x3825...29BB Abstract address.', logo: 'assets/abstract-gold-card.jpg', alt: 'Abstract wallet gold tier 1 card', href: 'https://abscan.org/address/0x382556A543aAd855C07678E7F8e820d0d90429BB', className: 'abstract-gold-card' },
 { title: 'Seal Stay', note: 'Where Web3 meets hospitality. Stay tuned for the next stay layer.', logo: 'assets/seal-stay-logo.png', alt: 'Seal Stay logo' },
 { title: 'Great Terriers', note: 'Coming soon: the AI-native collection that started as a 2022 idea and keeps moving forward.', logo: 'assets/great-terriers-coming-soon.png', alt: 'Great Terriers coming soon artwork', className: 'great-terriers-logo' }];
 
@@ -1542,6 +1552,7 @@ function App() {
   const [tweaks, setTweaks] = useTweaks(TWEAK_DEFAULTS);
   const y = useScrollY();
   const mouse = useMouse();
+  const isGameApp = new URLSearchParams(window.location.search).get('app') === 'iglu-merge';
   useAmbientScrollSound(y);
 
   useEffect(() => {
@@ -1560,8 +1571,16 @@ function App() {
     return () => cancelAnimationFrame(frame);
   }, []);
 
+  if (isGameApp) {
+    return (
+      <div className="page game-app-page" data-warm={tweaks.warmChapters}>
+        <MonadGame />
+      </div>
+    );
+  }
+
   return (
-    <div className="page" data-warm={tweaks.warmChapters}>
+    <div className={`page ${isGameApp ? 'game-app-page' : ''}`} data-warm={tweaks.warmChapters}>
       <Topbar />
       <Hero y={y} mouse={mouse} intensity={tweaks.parallaxIntensity} />
       {tweaks.snowfall && <Snowfall count={60} intensity={tweaks.parallaxIntensity / 100} />}

@@ -1,4 +1,5 @@
-const CACHE_NAME = 'gerry-iglu-v32';
+const CACHE_NAME = 'gerry-iglu-v33';
+const IMAGE_CACHE_NAME = 'gerry-iglu-images-v1';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting());
@@ -7,7 +8,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(keys.filter((key) => ![CACHE_NAME, IMAGE_CACHE_NAME].includes(key)).map((key) => caches.delete(key))))
       .then(() => self.clients.claim())
   );
 });
@@ -21,6 +22,20 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
   const isSameOrigin = url.origin === self.location.origin;
+
+  if (event.request.destination === 'image') {
+    event.respondWith(
+      caches.open(IMAGE_CACHE_NAME).then(async (cache) => {
+        const cached = await cache.match(event.request);
+        if (cached) return cached;
+        const response = await fetch(event.request, { cache: 'force-cache' });
+        if (response.ok || response.type === 'opaque') cache.put(event.request, response.clone());
+        return response;
+      }).catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
   if (!isSameOrigin) return;
 
   event.respondWith(

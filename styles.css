@@ -1234,7 +1234,17 @@ a { color: inherit; text-decoration: none; }
   .ecosystem-focus { align-items: flex-start; flex-direction: column; }
   .ecosystem-focus strong { white-space: normal; }
   .ecosystem-status { align-items: flex-start; flex-direction: column; }
-  .nft-track { mask-image: none; }
+  .nft-track {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    mask-image: none;
+    padding-right: 48px;
+  }
+  .smart-track.is-looped {
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
   .nft-card { flex-basis: min(82vw, 320px); }
   .nft-modal { padding: 12px; align-items: end; }
   .nft-modal-panel {
@@ -2069,6 +2079,55 @@ a { color: inherit; text-decoration: none; }
     justify-self: stretch;
     width: 100%;
   }
+  .page.game-app-page .topbar {
+    display: none;
+  }
+  .monad-game.app-mode {
+    min-height: 100dvh;
+    grid-template-columns: 1fr;
+    padding: max(12px, env(safe-area-inset-top)) 10px max(14px, env(safe-area-inset-bottom));
+    gap: 12px;
+  }
+  .monad-game.app-mode .game-shell {
+    order: -1;
+    width: 100%;
+    max-width: 460px;
+    justify-self: center;
+    padding: 10px;
+  }
+  .monad-game.app-mode .game-copy {
+    display: grid;
+    gap: 10px;
+    max-width: 460px;
+    justify-self: center;
+    width: 100%;
+  }
+  .monad-game.app-mode .chapter,
+  .monad-game.app-mode .lede,
+  .monad-game.app-mode .monanimal-strip,
+  .monad-game.app-mode .game-status {
+    display: none;
+  }
+  .monad-game.app-mode .game-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 0;
+  }
+  .monad-game.app-mode .game-actions .btn {
+    width: auto;
+    min-height: 44px;
+    padding: 0 10px;
+    font-size: 13px;
+  }
+  .monad-game.app-mode .tile-ladder {
+    display: none;
+  }
+  .monad-game.app-mode .game-shell-head {
+    display: flex;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+  }
 }
 @media (max-width: 520px) {
   .monanimal-strip {
@@ -2118,6 +2177,57 @@ a { color: inherit; text-decoration: none; }
   }
   .monad-game:not(.app-mode) .game-prompt {
     padding: 12px;
+  }
+  .monad-game.app-mode {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  .monad-game.app-mode .game-shell {
+    padding: 9px;
+  }
+  .monad-game.app-mode .game-hud {
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .monad-game.app-mode .game-hud div {
+    min-height: 48px;
+    padding: 8px;
+  }
+  .monad-game.app-mode .game-hud span {
+    font-size: 8px;
+    letter-spacing: 0.1em;
+  }
+  .monad-game.app-mode .game-hud strong {
+    font-size: clamp(20px, 6.2vw, 26px);
+  }
+  .monad-game.app-mode .game-board {
+    gap: 7px;
+  }
+  .monad-game.app-mode .merge-cell.has-character {
+    padding: 42px 5px 6px;
+  }
+  .monad-game.app-mode .tile-character {
+    width: clamp(62px, 18vw, 78px);
+    height: clamp(48px, 15vw, 66px);
+  }
+  .monad-game.app-mode .game-controls {
+    gap: 7px;
+    margin-top: 10px;
+  }
+  .monad-game.app-mode .game-controls button {
+    min-height: 40px;
+  }
+  .monad-game.app-mode .game-prompt {
+    margin-top: 10px;
+    padding: 12px;
+    min-height: auto;
+  }
+  .monad-game.app-mode .game-prompt strong {
+    font-size: clamp(20px, 6vw, 25px);
+  }
+  .monad-game.app-mode .game-prompt span {
+    font-size: 8px;
+    line-height: 1.45;
   }
 }
 
