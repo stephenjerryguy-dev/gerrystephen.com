@@ -496,10 +496,11 @@ function Timeline({ y = 0, intensity = 60 }) {
   }, []);
   const section = sectionRef.current;
   const viewport = typeof window !== 'undefined' ? window.innerHeight || 800 : 800;
-  const readHold = 0.14;
-  const scrollDistance = Math.max(viewport * 1.65, (railTravel * 1.18) / (1 - readHold));
+  const readHold = 0.16;
+  const scrollDistance = Math.max(viewport * 2.35, (railTravel * 1.45) / (1 - readHold));
   const timelineHeight = viewport + scrollDistance;
-  const pinProgress = section ? clamp((y - section.offsetTop) / scrollDistance, 0, 1) : 0;
+  const sectionTop = section ? section.getBoundingClientRect().top : 0;
+  const pinProgress = section ? clamp(-sectionTop / scrollDistance, 0, 1) : 0;
   const rawProgress = clamp((pinProgress - readHold) / (1 - readHold), 0, 1);
   const easedProgress = rawProgress * rawProgress * (3 - 2 * rawProgress);
   return (
@@ -576,7 +577,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-47`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-48`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
