@@ -145,6 +145,7 @@ function slowScrollTo(targetY, duration = 2600) {
     if (progress < 1) requestAnimationFrame(frame);
   }
 
+  window.scrollTo(0, startY + Math.sign(delta) * Math.min(Math.abs(delta), 48));
   requestAnimationFrame(frame);
 }
 
@@ -210,7 +211,13 @@ function Topbar() {
         <a href="#zeppole">Cafe</a>
         <a href="#contact">Contact</a>
       </nav>
-      <a href="https://opensea.io/profile/gerrystephen" target="_blank" rel="noopener" className="top-cta">OpenSea</a>
+      <div className="top-actions">
+        <a href="https://x.com/gerrydoteth" target="_blank" rel="noopener" className="top-cta icon" aria-label="Gerry Stephen on X">
+          <span aria-hidden="true">𝕏</span>
+          <strong>X</strong>
+        </a>
+        <a href="https://opensea.io/profile/gerrystephen" target="_blank" rel="noopener" className="top-cta">OpenSea</a>
+      </div>
     </header>);
 
 }
@@ -288,7 +295,7 @@ function Hero({ y, mouse, intensity }) {
     const target = ref.current
       ? ref.current.offsetTop + ref.current.offsetHeight - window.innerHeight + 4
       : window.innerHeight * 1.9;
-    slowScrollTo(target, 3600);
+    slowScrollTo(target, 2400);
   };
 
   return (
@@ -387,7 +394,7 @@ function Hero({ y, mouse, intensity }) {
         </div>
 
         <div className="terminal-copy terminal-left" style={{ opacity: copyOpacity }}>
-          <strong>IGLU // GERRY STEPHEN</strong>
+          <strong>WELCOME TO GERRY'S IGLU</strong>
           <span>Copyright © 2026</span>
           <span>Business / Web3 / Legacy</span>
         </div>
@@ -461,13 +468,13 @@ function Timeline() {
       <div className="rail">
         <div className="rail-line" />
         {TIMELINE.map((t, i) =>
-        <Reveal key={`${t.year}-${t.tag}`} delay={i * 60} className={`rail-item ${i % 2 ? 'right' : 'left'}`}>
+        <Reveal key={`${t.year}-${t.tag}`} delay={i * 60} className="rail-item">
+            <div className="rail-pin"><div /></div>
             <div className="rail-card">
               <div className="rc-year">{t.year}</div>
               <div className="rc-tag">{t.tag}</div>
               <p>{t.body}</p>
             </div>
-            <div className="rail-pin"><div /></div>
           </Reveal>
         )}
       </div>
@@ -514,27 +521,50 @@ const NFT_WALLETS = [
 '0x382556a543aad855c07678e7f8e820d0d90429bb',
 '0xc3ce1eb539c1cc031ecd7b95e8c00768bf324403'];
 
+const LIVE_API_ORIGIN = 'https://gerrystephen.com';
+
+function shouldUseLiveApiFallback() {
+  return window.location.protocol === 'file:'
+    || ['127.0.0.1', 'localhost'].includes(window.location.hostname);
+}
+
+async function fetchAppJson(path, signal) {
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-28`;
+  const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
+  if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
+    return localResponse.json();
+  }
+
+  if (!shouldUseLiveApiFallback()) return null;
+
+  const liveResponse = await fetch(`${LIVE_API_ORIGIN}${versionedPath}`, { signal, cache: 'no-store' }).catch(() => undefined);
+  return liveResponse?.ok ? liveResponse.json() : null;
+}
+
 const NFT_ECOSYSTEMS = [
 {
   id: 'sappy',
   label: 'Sappy Seals ecosystem',
-  note: 'Seals, Pixseals, Sappy Keys, Omnia Pets, Omnia items, and $PIXL.',
-  keywords: ['sappy', 'pixl', 'omnia', 'pets', 'pixseals', 'sappy key', 'pixlverse items'],
-  fallback: [
+  note: '$PIXL, Sappy Faithful Key, Sappy Seals, Omnia Pets, Omnia items, Pixseals, and a Bitcoin ordinal.',
+    keywords: ['sappy', 'pixl', 'omnia', 'pets', 'pixseals', 'sappy key', 'pixlverse items'],
+    fallback: [
   { name: 'Sappy Seals ecosystem', collection: 'Owned-token images only', glyph: 'SS', tokenId: 'pending', contract: 'pending' },
   { name: '$PIXL', collection: 'Omnia ecosystem', glyph: '$PIXL', tokenId: 'asset', amount: '103,278.52', chain: 'Ethereum' },
+  { name: 'Pixseal #3013', collection: 'Pixseals by Sappy Seals', image: 'https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/3013.png', href: 'https://opensea.io/assets/matic/0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b/3013', tokenId: '3013', contract: '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b' },
+  { name: 'Pixseals on Polygon', collection: 'Pixseals by Sappy Seals', glyph: 'PIX', href: 'https://opensea.io/assets/matic/0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b', tokenId: 'collection', contract: '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b' },
+  { name: 'Digital Artifact Ordinal', collection: 'Bitcoin Ordinals wallet', glyph: '₿', href: 'https://ordinals.com/address/bc1p6hqlam8sdnpldr2v8hgx0sncenw4pqu852fsps3jw6q7rheyhylsuzk5jx', tokenId: 'ordinal', contract: 'bc1p6hqlam8sdnpldr2v8hgx0sncenw4pqu852fsps3jw6q7rheyhylsuzk5jx' },
   { name: 'Omnia items', collection: 'Pixlverse item metadata accepted', glyph: 'OM', tokenId: 'pending', contract: 'pending' },
   { name: 'Pixseals and Sappy Keys', collection: 'Owned-token images only', glyph: 'KEY', tokenId: 'pending', contract: 'pending' }]
 },
 {
   id: 'pudgy',
   label: 'Pudgy Penguins ecosystem',
-  note: 'The penguin, Lil Pudgy, Pudgy Rods, Pudgy Pins, SBTs, and $PENGU.',
-  keywords: ['pudgy', 'penguin', 'lil pudgy', 'rod', 'pengu', 'pudgy pin', 'soulbound', 'truepengu'],
+  note: 'Pudgy Penguin, Lil Pudgy, Pudgy Rods, and $PENGU.',
+  keywords: ['pudgy', 'penguin', 'lil pudgy', 'rod', 'pengu'],
   fallback: [
   { name: 'Pudgy Penguin', collection: 'Pudgy Penguins ecosystem', image: 'assets/pudgy-penguin.webp', tokenId: 'pending', contract: 'pending' },
   { name: '$PENGU', collection: 'Pudgy Penguins ecosystem', glyph: '$PENGU', tokenId: 'asset', amount: 'syncing', chain: 'Abstract' },
-  { name: 'Lil Pudgy, Rods, Pins, SBTs', collection: 'Owned-token images only', glyph: 'PP', tokenId: 'pending', contract: 'pending' }]
+  { name: 'Lil Pudgy and Pudgy Rods', collection: 'Owned-token images only', glyph: 'PP', tokenId: 'pending', contract: 'pending' }]
 },
 {
   id: 'inkfinity',
@@ -542,9 +572,9 @@ const NFT_ECOSYSTEMS = [
   note: 'Eric Guy signed canvases and the permanent collection around them.',
   keywords: ['inkfinity', 'nftvisionary', 'nuttyprofessor', 'thunderofthoughts', 'e. guy'],
   fallback: [
-  { name: 'NFTVisionary', collection: 'Inkfinity Canvas', image: 'assets/inkfinity-visionary.svg', href: 'https://opensea.io/collection/inkfinity-canvas', tokenId: 'canvas', contract: 'inkfinity' },
-  { name: 'NuttyProfessor', collection: 'Inkfinity Canvas', image: 'assets/inkfinity-professor.svg', href: 'https://opensea.io/collection/inkfinity-canvas', tokenId: 'canvas', contract: 'inkfinity' },
-  { name: 'ThunderOfThoughts', collection: 'Inkfinity Canvas', image: 'assets/inkfinity-thoughts.svg', href: 'https://opensea.io/collection/inkfinity-canvas', tokenId: 'canvas', contract: 'inkfinity' }]
+  { name: 'NFTVisionary', collection: 'Inkfinity Canvas', image: 'assets/inkfinity-visionary.png', href: 'https://opensea.io/assets/ethereum/0x4de49a57235cc0d4d22baad106a4dc302c8d935e/1', tokenId: '1', contract: '0x4de49a57235cc0d4d22baad106a4dc302c8d935e' },
+  { name: 'NuttyProfessor', collection: 'Inkfinity Canvas', image: 'assets/inkfinity-professor.png', href: 'https://opensea.io/assets/ethereum/0x4de49a57235cc0d4d22baad106a4dc302c8d935e/2', tokenId: '2', contract: '0x4de49a57235cc0d4d22baad106a4dc302c8d935e' },
+  { name: 'ThunderOfThoughts', collection: 'Inkfinity Canvas', image: 'assets/inkfinity-thoughts.png', href: 'https://opensea.io/assets/ethereum/0x4de49a57235cc0d4d22baad106a4dc302c8d935e/3', tokenId: '3', contract: '0x4de49a57235cc0d4d22baad106a4dc302c8d935e' }]
 },
 {
   id: 'great-terriers',
@@ -553,7 +583,7 @@ const NFT_ECOSYSTEMS = [
   keywords: ['great terriers'],
   fallback: [
   { name: 'Great Terriers', collection: 'Coming soon', image: 'assets/great-terriers-coming-soon.png', tokenId: 'soon', contract: 'soon', comingSoon: true }]
-}];
+}].filter((ecosystem) => !['inkfinity', 'great-terriers'].includes(ecosystem.id));
 
 function ecosystemForNft(nft) {
   if (nft?.ecosystem) return NFT_ECOSYSTEMS.find((ecosystem) => ecosystem.id === nft.ecosystem);
@@ -563,12 +593,52 @@ function ecosystemForNft(nft) {
   );
 }
 
+function numericTokenId(nft) {
+  const value = Number.parseInt(String(nft?.tokenId || '').replace(/\D/g, ''), 10);
+  return Number.isFinite(value) ? value : Number.MAX_SAFE_INTEGER;
+}
+
+function pudgyAssetRank(nft) {
+  const haystack = `${nft?.collection || ''} ${nft?.name || ''}`.toLowerCase();
+  if (nft?.tokenId === 'asset' && haystack.includes('pengu')) return 0;
+  if (haystack.includes('pudgy penguin')) return 1;
+  if (haystack.includes('lil pudgy')) return 2;
+  if (haystack.includes('rod') || haystack.includes('present')) return 3;
+  return 4;
+}
+
+function sappyAssetRank(nft) {
+  const collection = `${nft?.collection || ''}`.toLowerCase();
+  const name = `${nft?.name || ''}`.toLowerCase();
+  const haystack = `${collection} ${name}`;
+  if (nft?.tokenId === 'asset' && haystack.includes('pixl')) return 0;
+  if (haystack.includes('faithful key') || haystack.includes('sappy soulbounds')) return 1;
+  if (collection.includes('stakedseals') || /^sappy seal\s*#/.test(name)) return 2;
+  if (haystack.includes('omnia pet')) return 3;
+  if (haystack.includes('omnia item') || haystack.includes('pixlverse')) return 4;
+  if (haystack.includes('pixseal')) return 5;
+  if (haystack.includes('ordinal') || haystack.includes('bitcoin')) return 6;
+  return 6;
+}
+
+function orderEcosystemItems(ecosystem, items) {
+  if (ecosystem.id === 'pudgy') {
+    return [...items].sort((a, b) =>
+      (pudgyAssetRank(a) - pudgyAssetRank(b)) || (numericTokenId(a) - numericTokenId(b))
+    );
+  }
+  if (ecosystem.id !== 'sappy') return items;
+  return [...items].sort((a, b) =>
+    (sappyAssetRank(a) - sappyAssetRank(b)) || (numericTokenId(a) - numericTokenId(b))
+  );
+}
+
 function buildEcosystemSlides(items) {
   const slides = NFT_ECOSYSTEMS.map((ecosystem) => {
     const ecosystemItems = items.filter((nft) => ecosystemForNft(nft)?.id === ecosystem.id);
     return {
       ...ecosystem,
-      items: (ecosystemItems.length ? ecosystemItems : ecosystem.fallback)
+      items: orderEcosystemItems(ecosystem, ecosystemItems.length ? ecosystemItems : ecosystem.fallback)
     };
   });
   return slides;
@@ -590,6 +660,14 @@ function normalizeNft(item, wallet) {
   };
 }
 
+function NftArt({ nft }) {
+  const [failed, setFailed] = useState(false);
+  if (nft.image && !failed) {
+    return <img src={nft.image} alt={nft.name} loading="lazy" onError={() => setFailed(true)} />;
+  }
+  return <div className="nft-glyph">{nft.glyph || nft.name?.slice(0, 2) || 'NFT'}</div>;
+}
+
 function NftCarousel() {
   const [groups, setGroups] = useState(() => buildEcosystemSlides([]));
   const [source, setSource] = useState('curated');
@@ -597,17 +675,14 @@ function NftCarousel() {
   const [assetData, setAssetData] = useState([]);
   const [paused, setPaused] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const trackRef = useRef(null);
 
   useEffect(() => {
     const controller = new AbortController();
     async function loadNfts() {
       try {
-        const apiResponse = await fetch('/api/nfts?v=ecosystems-app-5', {
-          signal: controller.signal,
-          cache: 'no-store'
-        });
-        if (apiResponse.ok) {
-          const apiData = await apiResponse.json();
+        const apiData = await fetchAppJson('/api/nfts', controller.signal);
+        if (apiData) {
           const apiItems = (apiData?.nfts || []).filter((nft) => nft.href?.includes('/assets/'));
           if (apiItems.length) {
             setGroups(buildEcosystemSlides(apiItems));
@@ -644,11 +719,7 @@ function NftCarousel() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch('/api/ecosystem-assets?v=ecosystems-app-5', {
-      signal: controller.signal,
-      cache: 'no-store'
-    })
-      .then((res) => res.ok ? res.json() : Promise.reject(new Error('asset api unavailable')))
+    fetchAppJson('/api/ecosystem-assets', controller.signal)
       .then((data) => setAssetData(data?.assets || []))
       .catch(() => setAssetData([]));
     return () => controller.abort();
@@ -658,7 +729,7 @@ function NftCarousel() {
     if (groups.length <= 1 || paused || expanded) return undefined;
     const timer = window.setInterval(() => {
       setIndex((i) => (i + 1) % groups.length);
-    }, 4800);
+    }, 8000);
     return () => window.clearInterval(timer);
   }, [groups.length, paused, expanded]);
 
@@ -674,21 +745,35 @@ function NftCarousel() {
   };
   const groupsWithAssets = groups.map((group) => ({
     ...group,
-    items: [...assetData.filter((asset) => asset.ecosystem === group.id), ...(group.items || [])]
+    items: orderEcosystemItems(group, [...(group.items || []), ...assetData.filter((asset) => asset.ecosystem === group.id)])
   }));
   const activeGroup = groupsWithAssets[index] || groupsWithAssets[0];
   const visible = activeGroup?.items || [];
-  const shouldLoop = !paused && !expanded && visible.length > 1 && visible.length < 5;
+  const shouldLoop = !paused && !expanded && visible.length > 1;
   const smartItems = shouldLoop ? [...visible, ...visible].slice(0, Math.max(4, visible.length * 2)) : visible;
+
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!shouldLoop || !track) return undefined;
+    let frame = 0;
+    let last = 0;
+    const step = (now) => {
+      if (!last) last = now;
+      const delta = now - last;
+      last = now;
+      track.scrollLeft += 0.58 * (delta / 16.67);
+      const midpoint = track.scrollWidth / 2;
+      if (midpoint > 0 && track.scrollLeft >= midpoint) track.scrollLeft -= midpoint;
+      frame = requestAnimationFrame(step);
+    };
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [shouldLoop, activeGroup?.id, visible.length]);
 
   return (
     <section className="nft-showcase" id="nfts">
       <div className="nft-head">
-        <Chapter num="02" kicker="My community ecosystems" title="Sappy, Pudgy, Inkfinity, and what comes next." />
-        <div className="nft-actions">
-          <button type="button" className="icon-btn" aria-label="Previous NFT" onClick={prev}>‹</button>
-          <button type="button" className="icon-btn" aria-label="Next NFT" onClick={next}>›</button>
-        </div>
+        <Chapter num="02" kicker="My community ecosystems" title="My forever communities - Pudgy & Sappy." />
       </div>
       <p className="lede nft-lede">
         {source === 'wallet' ? `${activeGroup?.note} Cards open the matching asset, collection, or explorer page.` : `${activeGroup?.note} Waiting on exact metadata for this ecosystem.`}
@@ -698,6 +783,10 @@ function NftCarousel() {
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => !expanded && setPaused(false)}
         onFocusCapture={() => setPaused(true)}>
+        <div className="nft-actions stage-nav" aria-label="NFT carousel controls">
+          <button type="button" className="icon-btn" aria-label="Previous NFT" onClick={prev}>‹</button>
+          <button type="button" className="icon-btn" aria-label="Next NFT" onClick={next}>›</button>
+        </div>
         <div className="ecosystem-tabs" aria-label="NFT ecosystem carousel position">
           {groupsWithAssets.map((group, i) =>
           <button key={group.id} type="button" className={i === index ? 'active' : ''} onClick={() => {
@@ -712,25 +801,20 @@ function NftCarousel() {
           )}
         </div>
         <div className="ecosystem-focus">
-          <span>{activeGroup?.label}</span>
+            <span>{activeGroup?.label}</span>
           <div className="ecosystem-status">
-            <strong>{visible.length} featured items {paused || expanded ? '· paused' : ''}</strong>
+            <strong>{visible.length} featured items {paused ? '· paused' : ''}</strong>
             <button type="button" className="mini-link" onClick={() => {
-              if (expanded) {
-                setExpanded(false);
-                setPaused(false);
-              } else {
-                setExpanded(true);
-                setPaused(true);
-              }
-            }}>{expanded ? 'Resume carousel' : 'View all'}</button>
+              setExpanded(true);
+              setPaused(true);
+            }}>View all</button>
           </div>
         </div>
-        <div className={`nft-track smart-track ${shouldLoop ? 'is-looped' : ''}`}>
+        <div ref={trackRef} className={`nft-track smart-track ${shouldLoop ? 'is-looped' : ''}`}>
           {smartItems.map((nft, i) =>
           <a key={`${nft.name}-${nft.tokenId}-${i}`} className={`nft-card ${nft.tokenId === 'pending' || nft.tokenId === 'soon' ? 'disabled' : ''} ${nft.tokenId === 'asset' ? 'asset-card' : ''} ${nft.comingSoon ? 'coming-soon-card' : ''}`} href={nft.href || '#nfts'} target="_blank" rel="noopener" style={{ '--i': i }}>
               <div className="nft-art">
-                {nft.image ? <img src={nft.image} alt={nft.name} loading="lazy" /> : <div className="nft-glyph">{nft.glyph}</div>}
+                <NftArt nft={nft} />
               </div>
               <div className="nft-meta">
                 <span>{nft.collection}</span>
@@ -749,6 +833,48 @@ function NftCarousel() {
           )}
         </div>
       </div>
+      {expanded &&
+      <div className="nft-modal" role="dialog" aria-modal="true" aria-label={`${activeGroup?.label} collection preview`}>
+          <button type="button" className="nft-modal-scrim" aria-label="Close collection preview" onClick={() => {
+            setExpanded(false);
+            setPaused(false);
+          }} />
+          <div className={`nft-modal-panel ${activeGroup?.id || ''}`}>
+            <div className="nft-modal-head">
+              <div>
+                <span>{activeGroup?.label}</span>
+                <strong>{visible.length} featured items</strong>
+              </div>
+              <button type="button" className="icon-btn" aria-label="Close collection preview" onClick={() => {
+                setExpanded(false);
+                setPaused(false);
+              }}>×</button>
+            </div>
+            <div className="nft-modal-grid">
+              {visible.map((nft, i) =>
+              <a key={`${nft.name}-${nft.tokenId}-modal-${i}`} className={`nft-card ${nft.tokenId === 'pending' || nft.tokenId === 'soon' ? 'disabled' : ''} ${nft.tokenId === 'asset' ? 'asset-card' : ''} ${nft.comingSoon ? 'coming-soon-card' : ''}`} href={nft.href || '#nfts'} target="_blank" rel="noopener" style={{ '--i': i }}>
+                  <div className="nft-art">
+                    <NftArt nft={nft} />
+                  </div>
+                  <div className="nft-meta">
+                    <span>{nft.collection}</span>
+                    <strong>{nft.name}</strong>
+                    <small>
+                      {nft.tokenId === 'asset'
+                        ? `${nft.amount || 'syncing'} · ${nft.chain}`
+                        : nft.tokenId === 'soon'
+                          ? 'Coming soon'
+                          : nft.tokenId && nft.tokenId !== 'pending'
+                            ? `${String(nft.contract).slice(0, 6)}...${String(nft.contract).slice(-4)} / #${nft.tokenId}`
+                            : 'Exact token data pending'}
+                    </small>
+                  </div>
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      }
     </section>);
 }
 
@@ -774,34 +900,69 @@ function hexFromText(text) {
 }
 
 const MONAD_TILE_NAMES = {
-  2: 'M',
-  4: 'MON',
-  8: 'NAD',
-  16: 'CHOG',
-  32: 'DAK',
-  64: 'MOUCH',
+  2: 'CHOG',
+  4: 'DAK',
+  8: 'MOUCH',
+  16: 'MOS',
+  32: 'MOYAKI',
+  64: 'SHRAMP',
   128: 'MOKA',
-  256: 'MOYAKI',
+  256: 'NADBOT',
   512: 'SALMONAD',
-  1024: 'FOCUS',
-  2048: 'HYPER'
+  1024: 'HYPERNAD',
+  2048: 'EMONAD'
 };
 
 const MONAD_TILE_CHARACTERS = {
-  16: 'Chog',
-  32: 'Molandak',
-  64: 'Mouch',
-  128: 'Moka',
-  256: 'Moyaki',
+  2: 'Chog',
+  4: 'Molandak',
+  8: 'Mouch',
+  16: 'Mosferatu',
+  32: 'Moyaki',
+  64: 'Shramp',
+  128: 'Mokadel',
+  256: 'Nadbot',
   512: 'Salmonad',
-  1024: 'Focus',
-  2048: 'Hyper'
+  1024: 'Hypernad',
+  2048: 'Emonad'
 };
 
+const MONAD_CHARACTER_IMAGES = {
+  Chog: 'assets/monanimals/chog-official-sprite.png',
+  Molandak: 'assets/monanimals/molandak-official-sprite.png',
+  Mouch: 'assets/monanimals/mouch-clean.svg',
+  Mosferatu: 'assets/monanimals/mosferatu-clean.svg',
+  Moyaki: 'assets/monanimals/moyaki-clean.svg',
+  Shramp: 'assets/monanimals/shramp-clean.svg',
+  Moka: 'assets/monanimals/mokadel-clean.svg',
+  Mokadel: 'assets/monanimals/mokadel-clean.svg',
+  Nadbot: 'assets/monanimals/nadbot-clean.svg',
+  Salmonad: 'assets/monanimals/salmonad-clean.svg',
+  Mondana: 'assets/monanimals/mondana-clean.svg',
+  Hypernad: 'assets/monanimals/hypernad-clean.svg',
+  Emonad: 'assets/monanimals/emonad-sprite.png'
+};
+
+const MONAD_TILE_LADDER = [
+{ value: 2, code: 'CHOG', character: 'Chog', note: 'starter focus' },
+{ value: 4, code: 'DAK', character: 'Molandak', note: 'purple charge' },
+{ value: 8, code: 'MOUCH', character: 'Mouch', note: 'quick reaction' },
+{ value: 16, code: 'MOS', character: 'Mosferatu', note: 'night focus' },
+{ value: 32, code: 'MOYAKI', character: 'Moyaki', note: 'side quest energy' },
+{ value: 64, code: 'SHRAMP', character: 'Shramp', note: 'combo current' },
+{ value: 128, code: 'MOKA', character: 'Mokadel', note: 'deep-lore monanimal' },
+{ value: 256, code: 'NADBOT', character: 'Nadbot', note: 'automation mode' },
+{ value: 512, code: 'SALMONAD', character: 'Salmonad', note: 'salmoposting power' },
+{ value: 1024, code: 'HYPERNAD', character: 'Hypernad', note: 'hyperfocus tier' },
+{ value: 2048, code: 'EMONAD', character: 'Emonad', note: 'final iglu state' }];
+
 const MONAD_CHARACTERS = [
-  { name: 'Molandak', note: 'spiky mascot energy' },
-  { name: 'Chog', note: 'catlike chaos' },
-  { name: 'Salmonad', note: 'timeline spam power' }
+  { name: 'Chog', note: 'starter focus', value: 2 },
+  { name: 'Molandak', note: 'purple charge', value: 4 },
+  { name: 'Mouch', note: 'quick reaction', value: 8 },
+  { name: 'Mokadel', note: 'deep-lore monanimal', value: 128 },
+  { name: 'Salmonad', note: 'salmoposting power', value: 512 },
+  { name: 'Emonad', note: 'final iglu state', value: 2048 }
 ];
 
 function addRandomTile(board) {
@@ -887,6 +1048,7 @@ function MonadGame() {
   const [txHash, setTxHash] = useState('');
   const isMonad = chainId?.toLowerCase() === MONAD_TESTNET.chainId;
   const maxTile = Math.max(...board);
+  const isGameApp = new URLSearchParams(window.location.search).get('app') === 'iglu-merge';
 
   useEffect(() => {
     if (!window.ethereum) return undefined;
@@ -1009,34 +1171,52 @@ function MonadGame() {
   }
 
   return (
-    <section className="monad-game" id="monad-game">
+    <section className={`monad-game ${isGameApp ? 'app-mode' : ''}`} id="monad-game">
       <div className="game-copy">
         <Chapter num="04" kicker="Built on Monad" title={`${GAME_NAME}.`} />
         <p className="lede">A fast focus game for BuildAnything: merge Monad-coded tiles, climb the monanimal ladder, and post a score receipt on Monad Testnet.</p>
         <div className="monanimal-strip" aria-label="Monad character inspirations">
           {MONAD_CHARACTERS.map((character) =>
-          <span key={character.name}><strong>{character.name}</strong>{character.note}</span>
+          <span key={character.name} className={`monanimal-chip tile-${character.value}`}>
+            {MONAD_CHARACTER_IMAGES[character.name] ? <img src={MONAD_CHARACTER_IMAGES[character.name]} alt="" aria-hidden="true" /> : <i aria-hidden="true" />}
+            <strong>{character.name}</strong>{character.note}
+          </span>
           )}
         </div>
         <div className="game-actions">
           <button type="button" className="btn primary" onClick={connectMonad}>{shortWallet(account)}</button>
           <button type="button" className="btn ghost" onClick={newGame}>New run</button>
-          <a className="btn ghost" href="/?app=iglu-merge#monad-game" target="_blank" rel="noopener">Open app window</a>
           <button type="button" className="btn ghost" onClick={submitScore} disabled={!score}>Submit score</button>
         </div>
         <div className="game-status">
           <span>{walletState}</span>
           <span>{isMonad ? 'Monad Testnet' : 'Wrong network'}</span>
           <span>PWA ready</span>
-          <span>Telegram / Farcaster / Roblox path</span>
           {txHash && <a href={`https://testnet.monadexplorer.com/tx/${txHash}`} target="_blank" rel="noopener">View score tx</a>}
         </div>
       </div>
       <div className="game-shell" role="application" aria-label={`${GAME_NAME} game`}>
+        <div className="game-shell-head">
+          <div>
+            <span>Playable embed</span>
+            <strong>{GAME_NAME}</strong>
+          </div>
+          <a href="/?app=iglu-merge#monad-game" target="_blank" rel="noopener">Open app</a>
+        </div>
         <div className="game-hud">
           <div><span>Score</span><strong>{score}</strong></div>
           <div><span>Best</span><strong>{best}</strong></div>
           <div><span>Tile</span><strong>{maxTile}</strong></div>
+        </div>
+        <div className="tile-ladder" aria-label="Monad tile progression">
+          {MONAD_TILE_LADDER.map((tile) =>
+          <div key={tile.value} className={`tile-ladder-card tile-${tile.value} ${maxTile >= tile.value ? 'unlocked' : ''}`}>
+              {tile.character && MONAD_CHARACTER_IMAGES[tile.character] ? <img className={`ladder-character character-${tile.character.toLowerCase()}`} src={MONAD_CHARACTER_IMAGES[tile.character]} alt="" aria-hidden="true" /> : <i aria-hidden="true" />}
+              <span>{tile.value}</span>
+              <strong>{tile.character || tile.code}</strong>
+              <small>{tile.code}</small>
+            </div>
+          )}
         </div>
         <div
           className="game-board merge-board"
@@ -1048,9 +1228,9 @@ function MonadGame() {
           <div
             key={cell}
             role="gridcell"
-            className={`game-cell merge-cell ${value ? 'filled' : ''} tile-${value}`}
+            className={`game-cell merge-cell ${value ? 'filled' : ''} ${MONAD_TILE_CHARACTERS[value] ? 'has-character' : ''} tile-${value}`}
             aria-label={value ? `${value} tile` : 'Empty tile'}>
-              {value ? <><strong>{value}</strong><span>{MONAD_TILE_NAMES[value] || 'MON'}</span>{MONAD_TILE_CHARACTERS[value] && <em>{MONAD_TILE_CHARACTERS[value]}</em>}</> : null}
+              {value ? <>{MONAD_TILE_CHARACTERS[value] && MONAD_CHARACTER_IMAGES[MONAD_TILE_CHARACTERS[value]] ? <img className={`tile-character character-${MONAD_TILE_CHARACTERS[value].toLowerCase()}`} src={MONAD_CHARACTER_IMAGES[MONAD_TILE_CHARACTERS[value]]} alt="" aria-hidden="true" /> : null}<strong>{value}</strong><span>{MONAD_TILE_NAMES[value] || 'MON'}</span>{MONAD_TILE_CHARACTERS[value] && <em>{MONAD_TILE_CHARACTERS[value]}</em>}</> : null}
             </div>
           )}
           {gameOver && <div className="game-over"><strong>Board locked</strong><button type="button" onClick={newGame}>Run it back</button></div>}
@@ -1062,7 +1242,7 @@ function MonadGame() {
           <button type="button" onClick={() => makeMove('right')}>→</button>
         </div>
         <div className="game-prompt">
-          <strong>{gameOver ? 'Score it, or start fresh.' : maxTile >= 2048 ? 'Hyperfocus unlocked.' : 'Merge matching monanimals.'}</strong>
+          <strong>{gameOver ? 'Score it, or start fresh.' : maxTile >= 2048 ? 'Emonad unlocked.' : 'Merge matching monanimals.'}</strong>
           <span>{moves} moves · arrow keys, swipe, or tap the controls</span>
         </div>
       </div>
@@ -1071,9 +1251,9 @@ function MonadGame() {
 
 // ---------- Inkfinity Canvas ----------
 const INKFINITY = [
-{ title: 'NFTVisionary', tag: 'Featured', note: 'The piece that started it.', featured: true, variant: 'visionary' },
-{ title: 'NuttyProfessor', tag: 'Canvas', note: 'Pen on paper. Signed E. Guy.', variant: 'professor' },
-{ title: 'ThunderOfThoughts', tag: 'Canvas', note: 'A crowded mind, distilled.', variant: 'thunder' }];
+{ title: 'NFTVisionary', tag: 'Featured', note: 'The piece that started it.', featured: true, image: 'assets/inkfinity-visionary.png' },
+{ title: 'NuttyProfessor', tag: 'Canvas', note: 'Pen on paper. Signed E. Guy.', image: 'assets/inkfinity-professor.png' },
+{ title: 'ThunderOfThoughts', tag: 'Canvas', note: 'A crowded mind, distilled.', image: 'assets/inkfinity-thoughts.png' }];
 
 function InkfinityGallery() {
   return (
@@ -1085,13 +1265,8 @@ function InkfinityGallery() {
         <Reveal key={p.title} delay={i * 100}>
             <a className={`ink-card ${p.featured ? 'featured' : ''}`} href="https://opensea.io/collection/inkfinity-canvas" target="_blank" rel="noopener">
               <div className="ink-canvas">
-                <div className={`ink-frame ink-art ${p.variant}`}>
-                  <span className="ink-line l1" />
-                  <span className="ink-line l2" />
-                  <span className="ink-line l3" />
-                  <span className="ink-orb o1" />
-                  <span className="ink-orb o2" />
-                  <div className="ink-mark">E.G.</div>
+                <div className="ink-frame real-ink-art">
+                  <img src={p.image} alt={`${p.title} Inkfinity Canvas artwork`} loading="lazy" />
                   <div className="ink-stamp">{p.tag}</div>
                 </div>
               </div>
@@ -1115,16 +1290,18 @@ function Stats() {
       <div className="stat"><div className="num">5</div><div className="lbl">years on-chain</div></div>
       <div className="stat"><div className="num">15</div><div className="lbl">years building beside Eric</div></div>
       <div className="stat"><div className="num">1</div><div className="lbl">penguin in a flat cap</div></div>
-      <div className="stat"><div className="num">40+</div><div className="lbl">years of construction craft</div></div>
+      <div className="stat"><div className="num">40+</div><div className="lbl">family construction craft</div></div>
     </section>);
 
 }
 
 // ---------- Now Building ----------
 const NOW = [
-{ title: 'AI Agents', note: 'Autonomous workers for hospitality ops, content systems, and the useful glue between them.', logo: 'assets/iglu-mark.svg', alt: 'Iglu mark' },
-{ title: 'Blue Star Web3', note: 'Live now: ecosystem-holder benefits for vacation, worcation, and nomadic stays.', logo: 'assets/bluestar-logo.svg', alt: 'Blue Star logo' },
-{ title: 'Seal Stay', note: 'Where Web3 meets hospitality. Stay tuned for the next stay layer.', logo: 'assets/seal-stay-logo.png', alt: 'Seal Stay logo' }];
+{ title: 'AI Agents', note: 'Autonomous workers for hospitality ops, content systems, and the useful glue between them.', logo: 'assets/pudgy-penguin-cutout.png', alt: 'Gerry Stephen Pudgy Penguin', className: 'pudgy-agent-logo' },
+{ title: 'Blue Star Web3', note: 'Live now: ecosystem-holder benefits for vacation, worcation, and nomadic stays.', logo: 'assets/bluestar-logo.png', alt: 'Blue Star Apartments & Hotel logo', className: 'blue-star-logo' },
+{ title: 'Abstract Gold', note: 'Gold tier 1 on Abstract. Public identity card for the 0x3825...29BB Abstract address.', glyph: 'AG', href: 'https://abscan.org/address/0x382556A543aAd855C07678E7F8e820d0d90429BB', className: 'abstract-gold-card' },
+{ title: 'Seal Stay', note: 'Where Web3 meets hospitality. Stay tuned for the next stay layer.', logo: 'assets/seal-stay-logo.png', alt: 'Seal Stay logo' },
+{ title: 'Great Terriers', note: 'Coming soon: the AI-native collection that started as a 2022 idea and keeps moving forward.', logo: 'assets/great-terriers-coming-soon.png', alt: 'Great Terriers coming soon artwork', className: 'great-terriers-logo' }];
 
 function NowBuilding() {
   return (
@@ -1133,11 +1310,11 @@ function NowBuilding() {
       <div className="nb-grid">
         {NOW.map((n, i) =>
         <Reveal key={n.title} delay={i * 80}>
-            <div className="nb-card">
-              <img className="nb-logo" src={n.logo} alt={n.alt} />
+            <a className={`nb-card ${n.className || ''}`} href={n.href || '#now'} target={n.href ? '_blank' : undefined} rel={n.href ? 'noopener' : undefined}>
+              {n.logo ? <img className={`nb-logo ${n.className || ''}`} src={n.logo} alt={n.alt} /> : <div className="nb-abstract-mark" aria-hidden="true">{n.glyph}</div>}
               <div className="nb-title">{n.title}</div>
               <div className="nb-note">{n.note}</div>
-            </div>
+            </a>
           </Reveal>
         )}
       </div>
@@ -1216,10 +1393,59 @@ function Zeppole({ y, intensity, warm }) {
             <ul className="venture-bullets warm">
               <li><span>●</span> Fresh pastries, daily</li>
               <li><span>●</span> American/Italian cuisine - Brunch!</li>
-              <li><span>●</span> A booth in the back for builders</li>
+              <li><span>●</span> Catering and events</li>
             </ul>
-            <a className="btn primary warm" href="https://www.instagram.com/zeppoledolci/" target="_blank" rel="noopener">Zeppole Instagram →</a>
+            <div className="venture-actions">
+              <a className="btn primary warm" href="https://zeppoledolci.com/" target="_blank" rel="noopener">ZeppoleDolci.com →</a>
+              <a className="btn ghost warm" href="https://www.instagram.com/zeppoledolci/" target="_blank" rel="noopener">Instagram →</a>
+            </div>
           </div>
+        </Reveal>
+      </div>
+    </section>);
+
+}
+
+function Ventures({ y, intensity, warm }) {
+  const k = intensity / 100;
+  return (
+    <section className={`ventures-combo ${warm ? 'warm' : ''}`} id="ventures">
+      <div className="ventures-bg" style={{ transform: `translate3d(0, ${y * 0.025 * k}px, 0)` }} />
+      <Chapter num="06" kicker="IRL ventures" title="Stay, eat, and build from the same standard." />
+      <div className="ventures-panel">
+        <Reveal>
+          <article className="venture-mini bluestar-mini" id="bluestar">
+            <div className="venture-mini-photo">
+              <img src="assets/bluestar-property.jpg" alt="Blue Star Apartments and Hotel property and pool" loading="lazy" />
+              <img className="venture-mini-logo bluestar-photo-logo" src="assets/bluestar-logo.png" alt="Blue Star Apartments & Hotel logo" loading="lazy" />
+            </div>
+            <div className="venture-mini-copy">
+              <span>Hospitality · Web3 live</span>
+              <h3>Blue Star Apartments & Hotel</h3>
+              <p>Family-built stays in Grenada with Web3 booking benefits for Sappy Seals and Pudgy ecosystem holders. Inkfinity Canvas holders sit in the founders tier.</p>
+              <div className="venture-actions">
+                <a className="btn primary blue" href="https://www.bluestarstay.com/web3" target="_blank" rel="noopener">Book a stay →</a>
+                <a className="btn ghost" href="https://www.instagram.com/bluestarstay/" target="_blank" rel="noopener">Instagram</a>
+              </div>
+            </div>
+          </article>
+        </Reveal>
+        <Reveal delay={100}>
+          <article className="venture-mini zeppole-mini" id="zeppole">
+            <div className="venture-mini-photo">
+              <img src="assets/zeppole-shop.jpg" alt="Zeppole Dolci cafe interior with pastry case" loading="lazy" />
+              <img className="venture-mini-logo" src="assets/zeppole-logo.png" alt="Zeppole Dolci logo" loading="lazy" />
+            </div>
+            <div className="venture-mini-copy">
+              <span>Cafe · eatery · bakery</span>
+              <h3>Zeppole Dolci</h3>
+              <p>Fresh pastries, American/Italian brunch, coffee, catering, and events. A warm IRL counterpoint to the colder iglu energy.</p>
+              <div className="venture-actions">
+                <a className="btn primary warm" href="https://zeppoledolci.com/" target="_blank" rel="noopener">ZeppoleDolci.com →</a>
+                <a className="btn ghost warm" href="https://www.instagram.com/zeppoledolci/" target="_blank" rel="noopener">Instagram</a>
+              </div>
+            </div>
+          </article>
         </Reveal>
       </div>
     </section>);
@@ -1267,6 +1493,17 @@ function App() {
     document.documentElement.style.setProperty('--accent-hue', tweaks.accentHue);
   }, [tweaks.displayFont, tweaks.accentHue]);
 
+  useEffect(() => {
+    if (!window.location.hash) return;
+    const id = window.location.hash.slice(1);
+    const scrollToHash = () => {
+      const target = document.getElementById(id);
+      if (target) target.scrollIntoView({ block: 'start' });
+    };
+    const frame = requestAnimationFrame(() => window.setTimeout(scrollToHash, 80));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
   return (
     <div className="page" data-warm={tweaks.warmChapters}>
       <Topbar />
@@ -1279,8 +1516,7 @@ function App() {
       <MonadGame />
       <Stats />
       <NowBuilding />
-      <BlueStar y={y} intensity={tweaks.parallaxIntensity} warm={tweaks.warmChapters} />
-      <Zeppole y={y} intensity={tweaks.parallaxIntensity} warm={tweaks.warmChapters} />
+      <Ventures y={y} intensity={tweaks.parallaxIntensity} warm={tweaks.warmChapters} />
       <Contact />
       <footer className="foot">
         <span>© {new Date().getFullYear()} gerrystephen.eth · the iglu</span>

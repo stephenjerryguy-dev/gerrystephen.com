@@ -1,0 +1,23 @@
+<svg width="320" height="220" viewBox="0 0 320 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <filter id="shadow" x="-20%" y="-30%" width="140%" height="160%">
+    <feDropShadow dx="0" dy="10" stdDeviation="8" flood-color="#160B33" flood-opacity=".32"/>
+  </filter>
+  <g filter="url(#shadow)" stroke="#13091F" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M164 92C193 50 244 33 298 48C263 63 232 83 211 113" fill="#F7F7FF"/>
+    <path d="M161 111C197 86 246 82 302 109C258 115 219 124 185 145" fill="#F7F7FF"/>
+    <path d="M28 117C47 69 112 43 175 62C212 73 230 102 218 130C205 161 146 174 86 157C46 146 20 132 28 117Z" fill="#8751D6"/>
+    <path d="M62 82C88 64 125 55 163 64" stroke="#33165E" stroke-width="5"/>
+    <path d="M71 146C99 157 139 161 173 151" stroke="#33165E" stroke-width="5"/>
+    <path d="M120 44L112 20M142 49L147 24M90 54L75 33" stroke="#13091F" stroke-width="6"/>
+    <path d="M92 101C76 90 51 91 33 101" stroke="#13091F" stroke-width="7"/>
+    <path d="M102 102C122 91 148 91 166 105" stroke="#13091F" stroke-width="7"/>
+    <path d="M82 132C99 145 131 148 153 133" stroke="#C27C46" stroke-width="11"/>
+    <path d="M55 177L39 207M116 171L109 207M174 157L188 203" stroke="#13091F" stroke-width="7"/>
+  </g>
+  <ellipse cx="67" cy="101" rx="26" ry="17" fill="#F9FAFF" stroke="#13091F" stroke-width="6"/>
+  <ellipse cx="128" cy="103" rx="30" ry="18" fill="#F9FAFF" stroke="#13091F" stroke-width="6"/>
+  <circle cx="70" cy="103" r="9" fill="#13091F"/>
+  <circle cx="128" cy="104" r="10" fill="#13091F"/>
+  <circle cx="74" cy="99" r="3" fill="#fff"/>
+  <circle cx="132" cy="100" r="3" fill="#fff"/>
+</svg>

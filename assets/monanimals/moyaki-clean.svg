@@ -1,0 +1,13 @@
+<svg width="320" height="240" viewBox="0 0 320 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <filter id="s" x="-20%" y="-30%" width="140%" height="160%"><feDropShadow dx="0" dy="12" stdDeviation="8" flood-color="#120B2E" flood-opacity=".32"/></filter>
+  <g filter="url(#s)" stroke="#160B2E" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M73 137C84 80 138 49 204 60C257 68 286 103 278 144C267 198 178 206 114 180C83 167 69 153 73 137Z" fill="#A764F0"/>
+    <path d="M76 135C48 121 32 95 41 69C72 83 91 105 94 134" fill="#A764F0"/>
+    <path d="M250 139C279 132 299 109 302 78C270 91 254 112 250 139" fill="#A764F0"/>
+    <path d="M119 83C144 70 188 68 222 84M111 169C145 187 206 187 246 162" stroke="#7B3EC6" stroke-width="5"/>
+  </g>
+  <ellipse cx="159" cy="113" rx="30" ry="22" fill="#F9FAFF" stroke="#160B2E" stroke-width="6"/>
+  <ellipse cx="216" cy="116" rx="29" ry="21" fill="#F9FAFF" stroke="#160B2E" stroke-width="6"/>
+  <circle cx="160" cy="116" r="10" fill="#160B2E"/><circle cx="218" cy="118" r="10" fill="#160B2E"/>
+  <path d="M151 151C183 165 221 162 249 145" stroke="#C27C46" stroke-width="12" stroke-linecap="round"/>
+</svg>

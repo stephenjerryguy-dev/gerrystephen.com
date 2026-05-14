@@ -1,26 +1,7 @@
-const CACHE_NAME = 'gerry-iglu-v8';
-const APP_SHELL = [
-  '/',
-  '/index.html',
-  '/styles.css',
-  '/app.jsx',
-  '/tweaks-panel.jsx',
-  '/manifest.webmanifest',
-  '/assets/pudgy-penguin-cutout.png',
-  '/assets/bluestar-property.jpg',
-  '/assets/zeppole-shop.jpg',
-  '/assets/great-terriers-coming-soon.png',
-  '/assets/iglu-mark.svg',
-  '/assets/bluestar-logo.svg',
-  '/assets/seal-stay-logo.png'
-];
+const CACHE_NAME = 'gerry-iglu-v31';
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_SHELL))
-      .then(() => self.skipWaiting())
-  );
+  event.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener('activate', (event) => {
@@ -31,33 +12,26 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
+});
+
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+
   const url = new URL(event.request.url);
-  const isAppFile = ['/', '/index.html', '/app.jsx', '/styles.css', '/service-worker.js'].includes(url.pathname);
-  const isApi = url.pathname.startsWith('/api/');
-
-  if (isApi) {
-    event.respondWith(fetch(event.request));
-    return;
-  }
-
-  if (isAppFile) {
-    event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          return response;
-        })
-        .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/index.html')))
-    );
-    return;
-  }
+  const isSameOrigin = url.origin === self.location.origin;
+  if (!isSameOrigin) return;
 
   event.respondWith(
-    caches.match(event.request).then((cached) => (
-      cached || fetch(event.request).catch(() => caches.match('/index.html'))
-    ))
+    fetch(event.request, { cache: 'no-store' })
+      .then((response) => {
+        if (response.ok && !url.pathname.startsWith('/api/')) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
+        return response;
+      })
+      .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/index.html')))
   );
 });

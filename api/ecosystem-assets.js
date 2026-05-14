@@ -36,6 +36,31 @@ const ASSETS = [
   },
 ];
 
+const STATIC_ASSETS = [
+  {
+    id: 'pixseals-polygon',
+    ecosystem: 'sappy',
+    name: 'Pixseals on Polygon',
+    collection: 'Pixseals by Sappy Seals',
+    glyph: 'PIX',
+    chain: 'Polygon',
+    tokenId: 'collection',
+    contract: '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b',
+    href: 'https://opensea.io/assets/matic/0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b',
+  },
+  {
+    id: 'bitcoin-digital-artifact',
+    ecosystem: 'sappy',
+    name: 'Digital Artifact Ordinal',
+    collection: 'Bitcoin Ordinals wallet',
+    glyph: '₿',
+    chain: 'Bitcoin',
+    tokenId: 'ordinal',
+    contract: 'bc1p6hqlam8sdnpldr2v8hgx0sncenw4pqu852fsps3jw6q7rheyhylsuzk5jx',
+    href: 'https://ordinals.com/address/bc1p6hqlam8sdnpldr2v8hgx0sncenw4pqu852fsps3jw6q7rheyhylsuzk5jx',
+  },
+];
+
 function encodeAddress(address) {
   return address.toLowerCase().replace(/^0x/, '').padStart(64, '0');
 }
@@ -106,5 +131,5 @@ async function withBalance(asset) {
 export default async function handler(req, res) {
   const assets = await Promise.all(ASSETS.map(withBalance));
   res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=3600');
-  res.status(200).json({ assets });
+  res.status(200).json({ assets: [...assets, ...STATIC_ASSETS] });
 }

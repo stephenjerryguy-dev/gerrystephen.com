@@ -1,0 +1,12 @@
+<svg width="320" height="240" viewBox="0 0 320 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <filter id="s" x="-20%" y="-30%" width="140%" height="160%"><feDropShadow dx="0" dy="14" stdDeviation="10" flood-color="#120B2E" flood-opacity=".36"/></filter>
+  <g filter="url(#s)" stroke="#13091F" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M159 30L196 80L257 73L224 124L250 181L189 169L159 219L128 169L67 181L94 124L61 73L122 80L159 30Z" fill="url(#g)"/>
+    <path d="M104 123C126 100 190 99 216 124" stroke="#fff" stroke-opacity=".55" stroke-width="6"/>
+  </g>
+  <ellipse cx="132" cy="118" rx="31" ry="23" fill="#F9FAFF" stroke="#13091F" stroke-width="6"/>
+  <ellipse cx="190" cy="118" rx="31" ry="23" fill="#F9FAFF" stroke="#13091F" stroke-width="6"/>
+  <circle cx="136" cy="120" r="10" fill="#13091F"/><circle cx="187" cy="120" r="10" fill="#13091F"/>
+  <path d="M137 157C157 170 183 169 202 157" stroke="#D9417E" stroke-width="9" stroke-linecap="round"/>
+  <defs><linearGradient id="g" x1="61" y1="30" x2="258" y2="216"><stop stop-color="#fff"/><stop offset=".28" stop-color="#FFE66D"/><stop offset=".58" stop-color="#A68BFF"/><stop offset="1" stop-color="#2DBFB0"/></linearGradient></defs>
+</svg>

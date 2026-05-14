@@ -2,7 +2,7 @@
   "name": "Gerry Stephen Iglu",
   "short_name": "Gerry Iglu",
   "description": "Gerry Stephen's parallax Web3 home base and Iglu Merge mobile game.",
-  "start_url": "/?source=pwa",
+  "start_url": "/?app=iglu-merge#monad-game",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
