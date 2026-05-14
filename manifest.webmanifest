@@ -1,8 +1,8 @@
 {
-  "name": "Gerry Stephen Iglu",
-  "short_name": "Gerry Iglu",
-  "description": "Gerry Stephen's parallax Web3 home base and Iglu Merge mobile game.",
-  "start_url": "/?app=iglu-merge#monad-game",
+  "name": "Monerge",
+  "short_name": "Monerge",
+  "description": "Monerge, a Monad merge game from gerrystephen.com.",
+  "start_url": "/?app=monerge#monad-game",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
@@ -10,8 +10,14 @@
   "theme_color": "#0E1F2C",
   "icons": [
     {
-      "src": "assets/pudgy-penguin-cutout.png",
+      "src": "assets/monerge-icon-512.png",
       "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/monerge-icon.png",
+      "sizes": "1024x1024",
       "type": "image/png",
       "purpose": "any maskable"
     }
