@@ -677,7 +677,7 @@ a { color: inherit; text-decoration: none; }
 
 /* ---------- Timeline ---------- */
 .timeline {
-  min-height: 235vh;
+  min-height: var(--timeline-height, 285vh);
   padding: 0 80px;
   background:
     radial-gradient(circle at 18% 22%, rgba(255,255,255,0.9), transparent 26%),
@@ -716,7 +716,7 @@ a { color: inherit; text-decoration: none; }
   padding: 38px 4px 22px;
   scrollbar-width: none;
   will-change: transform;
-  transition: transform 80ms linear;
+  transition: transform 40ms linear;
 }
 .rail-viewport {
   position: relative;

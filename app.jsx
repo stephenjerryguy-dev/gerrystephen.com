@@ -486,12 +486,16 @@ function Timeline({ y = 0, intensity = 60 }) {
   }, []);
   const section = sectionRef.current;
   const viewport = typeof window !== 'undefined' ? window.innerHeight || 800 : 800;
-  const start = section ? section.offsetTop + viewport * 0.18 : 0;
-  const distance = section ? Math.max(1, section.offsetHeight - viewport * 1.18) : 1;
+  const startHold = Math.min(260, viewport * 0.28);
+  const endHold = Math.min(72, viewport * 0.08);
+  const scrollDistance = Math.max(viewport * 1.35, railTravel * 1.08);
+  const timelineHeight = viewport + startHold + scrollDistance + endHold;
+  const start = section ? section.offsetTop + startHold : 0;
+  const distance = Math.max(1, scrollDistance);
   const rawProgress = section ? clamp((y - start) / distance, 0, 1) : 0;
   const easedProgress = rawProgress * rawProgress * (3 - 2 * rawProgress);
   return (
-    <section ref={sectionRef} className="timeline" id="journey" style={{ '--scroll': y, '--timeline-depth': depth, '--timeline-progress': easedProgress }}>
+    <section ref={sectionRef} className="timeline" id="journey" style={{ '--scroll': y, '--timeline-depth': depth, '--timeline-progress': easedProgress, '--timeline-height': `${timelineHeight}px` }}>
       <div className="timeline-sticky">
         <Chapter num="01" kicker="On-chain" title="The road from collector to operator." />
         <div className="rail-viewport">
@@ -564,7 +568,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-45`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-46`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();

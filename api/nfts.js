@@ -14,6 +14,7 @@ const OMNIA_PETS_CONTRACT = '0x4e76c23fe2a4e37b5e07b5625e17098baab86c18';
 const OMNIA_ITEMS_CONTRACT = '0xf0ea56402b2e2b27556d7abf4236c7327722fe41';
 const INKFINITY_CONTRACT = '0x4de49a57235cc0d4d22baad106a4dc302c8d935e';
 const PIXSEALS_CONTRACT = '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b';
+const DIGITAL_ARTIFACT_CONTRACT = '0xb1cdf2bfab043ea1d81d0a73b3b849efaac1d31a';
 const LOCAL_INKFINITY_IMAGES = {
   1: 'assets/inkfinity-visionary.png',
   2: 'assets/inkfinity-professor.png',
@@ -21,6 +22,15 @@ const LOCAL_INKFINITY_IMAGES = {
 };
 const FORCE_METADATA_REFRESH = new Set([OMNIA_PETS_CONTRACT, OMNIA_ITEMS_CONTRACT, INKFINITY_CONTRACT]);
 const STATIC_PREVIEW_NFTS = [
+  {
+    name: 'Digital Artifact #93',
+    collection: 'Digital Artifact',
+    image: 'assets/digital-artifact-93.jpg',
+    href: `https://opensea.io/item/ethereum/${DIGITAL_ARTIFACT_CONTRACT}/93`,
+    contract: DIGITAL_ARTIFACT_CONTRACT,
+    tokenId: '93',
+    wallet: 'collection',
+  },
   {
     name: 'Pixseal #525',
     collection: 'Pixseals by Sappy Seals',
@@ -69,9 +79,10 @@ const ECOSYSTEMS = [
       '0xf0ea56402b2e2b27556d7abf4236c7327722fe41',
       '0x3d3ad7b00e885d3d969e03bfcbaed80fb3df6667',
       PIXSEALS_CONTRACT,
+      DIGITAL_ARTIFACT_CONTRACT,
     ],
     keywords: ['sappy', 'pixl', 'omnia', 'pets'],
-    strictKeywords: ['pixseals', 'pixseal', 'sappy key', 'sappy keys', 'sappy soulbounds', 'faithful key', 'pixlverse item', 'pixlverse items', 'omnia item', 'omnia items'],
+    strictKeywords: ['pixseals', 'pixseal', 'sappy key', 'sappy keys', 'sappy soulbounds', 'faithful key', 'pixlverse item', 'pixlverse items', 'omnia item', 'omnia items', 'digital artifact'],
   },
   {
     id: 'pudgy',
