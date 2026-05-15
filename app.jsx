@@ -514,7 +514,8 @@ function Timeline({ y = 0, intensity = 60 }) {
   const section = sectionRef.current;
   const viewport = typeof window !== 'undefined' ? window.innerHeight || 800 : 800;
   const readHold = 0.16;
-  const scrollDistance = Math.max(viewport * 2.35, (railTravel * 1.45) / (1 - readHold));
+  const isCompactTimeline = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 800px)').matches;
+  const scrollDistance = isCompactTimeline ? viewport * 0.95 : Math.max(viewport * 1.55, (railTravel * 0.92) / (1 - readHold));
   const timelineHeight = viewport + scrollDistance;
   const sectionTop = section ? section.getBoundingClientRect().top : 0;
   const pinProgress = section ? clamp(-sectionTop / scrollDistance, 0, 1) : 0;
@@ -594,7 +595,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-55`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-57`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
@@ -829,7 +830,7 @@ function NftCarousel() {
   }));
   const activeGroup = groupsWithAssets[index] || groupsWithAssets[0];
   const visible = activeGroup?.items || [];
-  const shouldLoop = !isMobileCarousel && !expanded && visible.length > 1;
+  const shouldLoop = !expanded && visible.length > 1;
   const smartItems = shouldLoop ? [...visible, ...visible].slice(0, Math.max(4, visible.length * 2)) : visible;
 
   useEffect(() => {
@@ -976,7 +977,9 @@ const MONAD_NETWORK = {
   blockExplorerUrls: ['https://monadscan.com']
 };
 const DYNAMIC_ENV_ID = 'b62527ee-ec89-4502-86b3-37987b5720d4';
-const DYNAMIC_REDIRECT_URL = `${window.location.origin}/?app=monerge#monad-game`;
+const MONERGE_APP_PATH = '/?app=monerge#monad-game';
+const DYNAMIC_REDIRECT_URL = `${window.location.origin}${MONERGE_APP_PATH}`;
+const METAMASK_APP_LINK = `https://metamask.app.link/dapp/${window.location.host}/?app=monerge%23monad-game`;
 const MONAD_DYNAMIC_NETWORK = {
   blockExplorerUrls: MONAD_NETWORK.blockExplorerUrls,
   chainId: 143,
@@ -998,6 +1001,7 @@ const DYNAMIC_SETTINGS = {
   deepLinkPreference: 'universal',
   redirectUrl: DYNAMIC_REDIRECT_URL,
   defaultNumberOfWalletsToShow: 8,
+  networkValidationMode: 'never',
   recommendedWallets: [
     { walletKey: 'metamask', label: 'MetaMask' },
     { walletKey: 'walletconnect', label: 'WalletConnect' }
@@ -1011,6 +1015,16 @@ const DYNAMIC_SETTINGS = {
 };
 
 function SocialIcon({ name }) {
+  if (name === 'LinkedIn') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path
+          fill="currentColor"
+          d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.34V9h3.42v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28ZM5.32 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12Zm1.78 13.02H3.54V9H7.1v11.45ZM22.23 0H1.76C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.76 24h20.47c.97 0 1.77-.77 1.77-1.72V1.72C24 .77 23.2 0 22.23 0Z"
+        />
+      </svg>
+    );
+  }
   const slug = {
     X: 'x',
     Instagram: 'instagram',
@@ -1024,6 +1038,7 @@ function SocialIcon({ name }) {
 }
 
 const GAME_NAME = 'Monerge';
+const GAME_DURATION_SECONDS = 120;
 const LAVA_DIRECTIONS = ['left', 'up', 'right', 'down'];
 const DIRECTION_LABELS = {
   left: 'Left wall',
@@ -1209,11 +1224,30 @@ function MonadGame() {
   const [scoreReveal, setScoreReveal] = useState(null);
   const [gameMessage, setGameMessage] = useState('Score is hidden. Track the merges in your head.');
   const [gameStarted, setGameStarted] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(GAME_DURATION_SECONDS);
   const isMonad = chainId?.toLowerCase() === MONAD_NETWORK.chainId;
   const maxTile = Math.max(...board);
   const appMode = new URLSearchParams(window.location.search).get('app');
   const isGameApp = appMode === 'monerge' || appMode === 'iglu-merge';
   const finalScore = scoreReveal?.final ?? null;
+  const timeBonus = Math.max(0, timeLeft) * 2;
+  const hasInjectedWallet = typeof window !== 'undefined' && Boolean(window.ethereum);
+
+  useEffect(() => {
+    if (!gameStarted || gameOver || scoreReveal) return undefined;
+    const timer = window.setInterval(() => {
+      setTimeLeft((value) => {
+        if (value <= 1) {
+          window.clearInterval(timer);
+          setGameOver(true);
+          setGameMessage('Time. Guess the score before the iglu closes.');
+          return 0;
+        }
+        return value - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [gameStarted, gameOver, scoreReveal]);
 
   useEffect(() => {
     if (!isGameApp) return undefined;
@@ -1288,6 +1322,24 @@ function MonadGame() {
     return next;
   }
 
+  function openDynamicFlow(message = 'Opening Dynamic wallet connect.') {
+    setAuthMode?.('connect-only');
+    setWalletState(sdkHasLoaded ? message : 'Loading wallet connector...');
+    setShowAuthFlow?.(true);
+    window.setTimeout(() => {
+      setWalletState((current) => (
+        current === message || current === 'Loading wallet connector...'
+          ? 'Still loading? Try Open MetaMask or refresh the app.'
+          : current
+      ));
+    }, 6500);
+  }
+
+  function openMetaMaskApp() {
+    setWalletState('Opening MetaMask mobile.');
+    window.location.href = METAMASK_APP_LINK;
+  }
+
   async function connectMonad() {
     setAuthMode?.('connect-only');
     if (primaryWallet) {
@@ -1304,8 +1356,7 @@ function MonadGame() {
       return;
     }
     if (!window.ethereum) {
-      setWalletState(sdkHasLoaded ? 'Opening Dynamic wallet connect.' : 'Wallet connect is loading. Try again in a second.');
-      if (sdkHasLoaded) setShowAuthFlow?.(true);
+      openDynamicFlow();
       return;
     }
     try {
@@ -1344,6 +1395,7 @@ function MonadGame() {
     setScoreGuess('');
     setScoreReveal(null);
     setFrozenTurns(0);
+    setTimeLeft(GAME_DURATION_SECONDS);
     const firstHazards = randomHazards(undefined, true);
     setLavaDirection(firstHazards.lava);
     setFreezeDirection(firstHazards.freeze);
@@ -1355,11 +1407,14 @@ function MonadGame() {
   function makeMove(direction) {
     if (gameOver) return;
     if (frozenTurns > 0) {
+      const blockedBoard = addRandomTile(board);
+      setBoard(blockedBoard);
       setFrozenTurns((value) => Math.max(0, value - 1));
       const nextHazards = rotateHazards(moves + 1, { forceFreeze: true });
       setMoves((value) => value + 1);
       hitHazard('freeze');
-      setGameMessage(`Frozen turn skipped. New lava: ${DIRECTION_LABELS[nextHazards.lava]}.`);
+      setGameMessage(`Frozen. Move skipped and an extra block entered. New lava: ${DIRECTION_LABELS[nextHazards.lava]}.`);
+      if (!canMove(blockedBoard)) setGameOver(true);
       return;
     }
     if (direction === lavaDirection) {
@@ -1402,14 +1457,14 @@ function MonadGame() {
       return;
     }
     const miss = Math.abs(score - guess);
-    const final = Math.max(0, score - miss);
-    const reveal = { actual: score, guess, miss, final };
+    const final = Math.max(0, score - miss + timeBonus);
+    const reveal = { actual: score, guess, miss, timeBonus, final };
     setScoreReveal(reveal);
     if (final > best) {
       setBest(final);
       localStorage.setItem('monergeBlindBest', String(final));
     }
-    setGameMessage(`Actual ${score}. You missed by ${miss}. Final score ${final}.`);
+    setGameMessage(`Actual ${score}. Off by ${miss}. Time bonus ${timeBonus}. Final score ${final}.`);
   }
 
   function handleTouchEnd(event) {
@@ -1477,6 +1532,7 @@ function MonadGame() {
         </div>
         <div className="game-actions">
           <div className="dynamic-widget-wrap"><DynamicWidget /></div>
+          {!hasInjectedWallet && <button type="button" className="btn ghost" onClick={openMetaMaskApp}>Open MetaMask</button>}
           <button type="button" className="btn ghost" onClick={newGame}>New run</button>
           <button type="button" className="btn ghost" onClick={submitScore} disabled={!score}>Submit score</button>
         </div>
@@ -1502,6 +1558,7 @@ function MonadGame() {
           <div className="start-actions">
             <button type="button" onClick={newGame}>Play</button>
             <button type="button" onClick={connectMonad}>Connect</button>
+            {!hasInjectedWallet && <button type="button" onClick={openMetaMaskApp}>MetaMask</button>}
           </div>
           <small>{account ? shortWallet(account) : 'Dynamic-ready wallet connect'}</small>
         </div>}
@@ -1514,6 +1571,7 @@ function MonadGame() {
         </div>
         <div className="game-shell-actions" aria-label="Wallet and run controls">
           <div className="dynamic-widget-wrap"><DynamicWidget /></div>
+          {!hasInjectedWallet && <button type="button" onClick={openMetaMaskApp}>MetaMask</button>}
           <button type="button" onClick={newGame}>New</button>
           <button type="button" onClick={submitScore} disabled={!score}>Submit</button>
         </div>
@@ -1521,7 +1579,7 @@ function MonadGame() {
           <div><span>Hidden score</span><strong>{scoreReveal ? score : '???'}</strong></div>
           <div><span>Best</span><strong>{best}</strong></div>
           <div><span>Lava</span><strong>{DIRECTION_LABELS[lavaDirection]}</strong></div>
-          <div><span>Freeze</span><strong>{freezeDirection ? DIRECTION_LABELS[freezeDirection] : 'Clear'}</strong></div>
+          <div><span>Time</span><strong>{Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}</strong></div>
         </div>
         <div className="tile-ladder" aria-label="Monad tile progression">
           {MONAD_TILE_LADDER.map((tile) =>
@@ -1558,7 +1616,7 @@ function MonadGame() {
           {gameOver && <form className="game-over" onSubmit={revealBlindScore}>
             <strong>{scoreReveal ? 'Score revealed' : 'Guess your score'}</strong>
             {scoreReveal
-              ? <span>Actual {scoreReveal.actual} · off by {scoreReveal.miss} · final {scoreReveal.final}</span>
+              ? <span>Actual {scoreReveal.actual} · off by {scoreReveal.miss} · bonus {scoreReveal.timeBonus} · final {scoreReveal.final}</span>
               : <input inputMode="numeric" pattern="[0-9]*" value={scoreGuess} onChange={(event) => setScoreGuess(event.target.value)} placeholder="Your score guess" aria-label="Score guess" />}
             <div className="game-over-actions">
               {!scoreReveal && <button type="submit">Reveal</button>}
@@ -1591,14 +1649,14 @@ const INKFINITY = [
 { title: 'ThunderOfThoughts', tag: 'Canvas', note: 'A crowded mind, distilled.', image: 'assets/inkfinity-thoughts.png' }];
 
 function InkfinityGallery() {
+  const inkItems = [...INKFINITY, ...INKFINITY];
   return (
     <section className="inkfinity" id="inkfinity">
       <Chapter num="03" kicker="Eric Guy · Inkfinity Canvas" title="Signed work, carried forward." />
       <p className="lede inkfinity-lede">Inkfinity Canvas brings my dad's hand-signed work into the builder story: craft, signature, permanence, and a family standard that still shapes how I move.</p>
       <div className="ink-grid">
-        {INKFINITY.map((p, i) =>
-        <Reveal key={p.title} delay={i * 100}>
-            <a className={`ink-card ${p.featured ? 'featured' : ''}`} href="https://opensea.io/collection/inkfinity-canvas" target="_blank" rel="noopener">
+        {inkItems.map((p, i) =>
+            <a key={`${p.title}-${i}`} className={`ink-card ${p.featured ? 'featured' : ''} ${i >= INKFINITY.length ? 'ink-duplicate' : ''}`} href="https://opensea.io/collection/inkfinity-canvas" target="_blank" rel="noopener" style={{ '--i': i }}>
               <div className="ink-canvas">
                 <div className="ink-frame real-ink-art">
                   <img src={p.image} alt={`${p.title} Inkfinity Canvas artwork`} loading="lazy" />
@@ -1610,7 +1668,6 @@ function InkfinityGallery() {
                 <div className="ink-note">{p.note}</div>
               </div>
             </a>
-          </Reveal>
         )}
       </div>
       <a className="btn primary ink-cta" href="https://opensea.io/collection/inkfinity-canvas" target="_blank" rel="noopener">View the collection on OpenSea →</a>

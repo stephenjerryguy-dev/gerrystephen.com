@@ -41,8 +41,11 @@ html, body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   scroll-behavior: smooth;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
-body { overflow-x: clip; }
+body { overflow-x: hidden; }
 ::selection { background: var(--ink); color: var(--sky); }
 a { color: inherit; text-decoration: none; }
 
@@ -51,7 +54,9 @@ a { color: inherit; text-decoration: none; }
   background:
     radial-gradient(1400px 800px at 80% -10%, #fff 0%, transparent 60%),
     linear-gradient(180deg, var(--sky) 0%, var(--sky-soft) 30%, var(--sky) 100%);
-  overflow: visible;
+  max-width: 100vw;
+  overflow-x: clip;
+  overflow-y: visible;
 }
 .page.game-app-page {
   width: 100%;
@@ -553,16 +558,16 @@ a { color: inherit; text-decoration: none; }
 }
 .abstract-tier-label {
   position: absolute;
-  left: 24px;
-  bottom: 34px;
+  left: 22px;
+  bottom: 30px;
   display: inline-flex;
   align-items: center;
-  color: rgba(143, 113, 30, 0.9);
+  color: rgba(143, 113, 30, 0.82);
   font-family: Inter, system-ui, sans-serif;
   font-weight: 700;
-  font-size: clamp(26px, 2.7vw, 34px);
+  font-size: clamp(20px, 2.4vw, 29px);
   line-height: 1;
-  letter-spacing: -0.045em;
+  letter-spacing: -0.025em;
   text-shadow: 0 1px 0 rgba(255,255,255,0.28);
   mix-blend-mode: multiply;
 }
@@ -813,7 +818,8 @@ a { color: inherit; text-decoration: none; }
   .game-hud { grid-template-columns: repeat(2, 1fr); }
   .timeline {
     min-height: auto;
-    padding: 84px 24px 92px;
+    padding: 72px 24px 70px;
+    overflow: hidden;
   }
   .timeline-sticky {
     position: relative;
@@ -822,20 +828,27 @@ a { color: inherit; text-decoration: none; }
   }
   .rail-viewport {
     max-width: none;
-    overflow: visible;
+    overflow: hidden;
     mask-image: none;
   }
   .rail {
-    display: grid;
-    width: auto;
+    display: flex;
+    width: max-content;
     transform: none !important;
-    grid-template-columns: 1fr;
-    margin-top: 32px;
-    padding-bottom: 18px;
+    margin-top: 28px;
+    padding-bottom: 16px;
+    animation: mobileRailDrift 26s ease-in-out infinite alternate;
   }
-  .rail-item { min-height: 300px; }
+  .rail-item {
+    flex: 0 0 min(78vw, 300px);
+    min-height: 250px;
+  }
   .rail-card,
   .rail-item:nth-child(even) .rail-card { transform: none; }
+}
+@keyframes mobileRailDrift {
+  from { translate: 0 0; }
+  to { translate: calc(-100% + min(78vw, 300px)) 0; }
 }
 
 /* ---------- Projects ---------- */
@@ -1346,6 +1359,15 @@ a { color: inherit; text-decoration: none; }
   .nft-card { flex-basis: clamp(220px, 42vw, 300px); }
 }
 @media (max-width: 700px) {
+  .abstract-veteran-card {
+    width: min(230px, 70vw);
+    padding: 5px;
+  }
+  .abstract-tier-label {
+    left: 18px;
+    bottom: 24px;
+    font-size: clamp(19px, 6vw, 26px);
+  }
   .nft-showcase { padding: 100px 24px; }
   .nft-head { flex-direction: column; }
   .nft-actions { padding-top: 0; }
@@ -1359,17 +1381,19 @@ a { color: inherit; text-decoration: none; }
   .ecosystem-focus strong { white-space: normal; }
   .ecosystem-status { align-items: flex-start; flex-direction: column; }
   .nft-track {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scroll-snap-type: x mandatory;
+    overflow-x: hidden;
+    scroll-snap-type: none;
     mask-image: none;
-    padding-right: 48px;
+    padding-right: 0;
+    scrollbar-width: none;
   }
+  .nft-track::-webkit-scrollbar { display: none; }
   .smart-track.is-looped {
-    overflow-x: auto;
-    scrollbar-width: thin;
+    overflow-x: hidden;
+    scrollbar-width: none;
   }
-  .nft-card { flex-basis: min(82vw, 320px); }
+  .smart-track.is-looped::-webkit-scrollbar { display: none; }
+  .nft-card { flex-basis: min(78vw, 300px); }
   .nft-modal { padding: 12px; align-items: end; }
   .nft-modal-panel {
     width: 100%;
@@ -2555,7 +2579,7 @@ a { color: inherit; text-decoration: none; }
   }
   .monad-game.app-mode .game-actions {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
     gap: 8px;
     margin-top: 0;
   }
@@ -2652,18 +2676,37 @@ a { color: inherit; text-decoration: none; }
     font-size: clamp(20px, 6.2vw, 26px);
   }
   .monad-game.app-mode .game-board {
-    gap: 6px;
+    gap: 5px;
     width: 100%;
-    max-width: min(100%, calc(100dvh - 282px));
+    max-width: min(100%, calc(100dvh - 318px));
     min-width: 0;
     margin-inline: auto;
   }
+  .monad-game.app-mode .merge-cell {
+    border-radius: 6px;
+    padding: 4px;
+  }
   .monad-game.app-mode .merge-cell.has-character {
-    padding: clamp(28px, 9.6vw, 38px) 5px 5px;
+    padding: clamp(24px, 8vw, 34px) 4px 4px;
+  }
+  .monad-game.app-mode .merge-cell strong {
+    font-size: clamp(16px, 5vw, 24px);
+  }
+  .monad-game.app-mode .merge-cell.has-character strong {
+    left: 5px;
+    top: 5px;
+    min-width: 20px;
+    padding: 2px 5px;
+    font-size: clamp(10px, 3.2vw, 13px);
+  }
+  .monad-game.app-mode .merge-cell span {
+    font-size: 7px;
+    letter-spacing: 0.06em;
   }
   .monad-game.app-mode .tile-character {
-    width: clamp(46px, 15.5vw, 66px);
-    height: clamp(36px, 12vw, 54px);
+    top: 3px;
+    width: clamp(38px, 13vw, 58px);
+    height: clamp(30px, 10vw, 46px);
   }
   .monad-game.app-mode .game-controls {
     gap: 6px;
@@ -2760,6 +2803,7 @@ a { color: inherit; text-decoration: none; }
   transition: transform 0.25s, box-shadow 0.25s;
   color: inherit;
 }
+.ink-duplicate { display: none; }
 .ink-card:hover { transform: translateY(-6px); box-shadow: 0 24px 60px rgba(92,52,22,0.18); }
 .ink-canvas {
   position: relative;
@@ -2925,12 +2969,22 @@ a { color: inherit; text-decoration: none; }
   .inkfinity { padding: 86px 24px; }
   .inkfinity-lede { margin-bottom: 24px; }
   .ink-grid {
-    grid-template-columns: repeat(3, minmax(220px, 1fr));
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
+    display: flex;
+    gap: 16px;
+    overflow: hidden;
+    scroll-snap-type: none;
     padding-bottom: 8px;
   }
-  .ink-card { scroll-snap-align: start; }
+  .ink-card {
+    flex: 0 0 min(78vw, 290px);
+    scroll-snap-align: none;
+    animation: inkMobileDrift 24s linear infinite;
+  }
+  .ink-duplicate { display: block; }
+}
+@keyframes inkMobileDrift {
+  from { translate: 0 0; }
+  to { translate: calc(-300% - 48px) 0; }
 }
 
 /* ---------- Dedication ---------- */

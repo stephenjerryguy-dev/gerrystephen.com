@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="Monerge" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <title>Gerry Stephen · Business, Web3, and the Iglu</title>
-<link rel="manifest" href="/manifest.webmanifest?v=ecosystems-app-55" />
+<link rel="manifest" href="/manifest.webmanifest?v=ecosystems-app-57" />
 <link rel="apple-touch-icon" href="assets/monerge-icon-512.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -16,11 +16,11 @@
 </head>
 <body>
 <div id="root"></div>
-<script type="module" src="/app.jsx?v=ecosystems-app-55"></script>
+<script type="module" src="/app.jsx?v=ecosystems-app-57"></script>
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js?v=ecosystems-app-55')
+    navigator.serviceWorker.register('/service-worker.js?v=ecosystems-app-57')
       .then((registration) => {
         registration.update();
         if (registration.waiting) registration.waiting.postMessage({ type: 'SKIP_WAITING' });
