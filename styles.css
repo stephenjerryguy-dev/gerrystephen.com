@@ -53,6 +53,14 @@ a { color: inherit; text-decoration: none; }
     linear-gradient(180deg, var(--sky) 0%, var(--sky-soft) 30%, var(--sky) 100%);
   overflow: visible;
 }
+.page.game-app-page {
+  width: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+}
 
 /* ---------- Type ---------- */
 .display {
@@ -2496,10 +2504,12 @@ a { color: inherit; text-decoration: none; }
   }
   .monad-game.app-mode {
     min-height: 100dvh;
-    max-height: none;
+    max-height: 100dvh;
     grid-template-columns: 1fr;
     padding: max(12px, env(safe-area-inset-top)) 10px max(14px, env(safe-area-inset-bottom));
     gap: 12px;
+    overflow: hidden;
+    touch-action: none;
   }
   .monad-game.app-mode .game-shell {
     order: -1;
@@ -2953,8 +2963,12 @@ a { color: inherit; text-decoration: none; }
 .nb-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: stretch;
   gap: 22px;
   margin-top: 40px;
+}
+.nb-grid > .reveal {
+  height: 100%;
 }
 .nb-card {
   position: relative;
@@ -2965,6 +2979,7 @@ a { color: inherit; text-decoration: none; }
   border-radius: 8px;
   padding: 34px 30px 32px;
   min-height: 268px;
+  height: 100%;
   display: grid;
   grid-template-rows: 82px auto 1fr;
   align-items: start;
@@ -3589,9 +3604,12 @@ a { color: inherit; text-decoration: none; }
   line-height: 1;
   transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.16s ease;
 }
-.social-strip a span {
+.social-strip img,
+.social-strip svg {
+  width: 19px;
+  height: 19px;
   display: block;
-  transform: translateY(-0.02em);
+  object-fit: contain;
 }
 .social-strip a:hover {
   transform: translateY(-2px);

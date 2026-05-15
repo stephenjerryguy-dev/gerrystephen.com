@@ -594,7 +594,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-54`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-55`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
@@ -856,7 +856,9 @@ function NftCarousel() {
         <Chapter num="02" kicker="My community ecosystems" title="My forever communities - Pudgy & Sappy." />
       </div>
       <p className="lede nft-lede">
-        {source === 'wallet' ? `${activeGroup?.note} Cards open the matching asset, collection, or explorer page.` : `${activeGroup?.note} Waiting on exact metadata for this ecosystem.`}
+        {source === 'wallet'
+          ? `A curated view of my owned collection: ${activeGroup?.note} Cards open the matching asset, collection, or explorer page.`
+          : `A curated view of my owned collection: ${activeGroup?.note} Waiting on exact metadata for this ecosystem.`}
       </p>
       <div
         className={`ecosystem-stage ${activeGroup?.id || ''} ${expanded ? 'is-expanded' : ''}`}
@@ -974,6 +976,7 @@ const MONAD_NETWORK = {
   blockExplorerUrls: ['https://monadscan.com']
 };
 const DYNAMIC_ENV_ID = 'b62527ee-ec89-4502-86b3-37987b5720d4';
+const DYNAMIC_REDIRECT_URL = `${window.location.origin}/?app=monerge#monad-game`;
 const MONAD_DYNAMIC_NETWORK = {
   blockExplorerUrls: MONAD_NETWORK.blockExplorerUrls,
   chainId: 143,
@@ -986,13 +989,39 @@ const MONAD_DYNAMIC_NETWORK = {
   vanityName: 'Monad'
 };
 const DYNAMIC_SETTINGS = {
+  appName: 'Monerge',
+  appLogoUrl: `${window.location.origin}/assets/monerge-icon-512.png`,
   environmentId: DYNAMIC_ENV_ID,
+  initialAuthenticationMode: 'connect-only',
+  enableConnectOnlyFallback: true,
+  mobileExperience: 'redirect',
+  deepLinkPreference: 'universal',
+  redirectUrl: DYNAMIC_REDIRECT_URL,
+  defaultNumberOfWalletsToShow: 8,
+  recommendedWallets: [
+    { walletKey: 'metamask', label: 'MetaMask' },
+    { walletKey: 'walletconnect', label: 'WalletConnect' }
+  ],
+  useMetamaskSdk: false,
   walletConnectors: [EthereumWalletConnectors],
   walletConnectPreferredChains: ['eip155:143'],
   overrides: {
     evmNetworks: (networks) => mergeNetworks([MONAD_DYNAMIC_NETWORK], networks)
   }
 };
+
+function SocialIcon({ name }) {
+  const slug = {
+    X: 'x',
+    Instagram: 'instagram',
+    TikTok: 'tiktok',
+    Farcaster: 'farcaster',
+    LinkedIn: 'linkedin',
+    Telegram: 'telegram',
+    Twitch: 'twitch'
+  }[name];
+  return <img src={`https://cdn.simpleicons.org/${slug}/DCF2F7`} alt="" aria-hidden="true" loading="lazy" />;
+}
 
 const GAME_NAME = 'Monerge';
 const LAVA_DIRECTIONS = ['left', 'up', 'right', 'down'];
@@ -1160,7 +1189,7 @@ function canMove(board) {
 }
 
 function MonadGame() {
-  const { primaryWallet, setShowAuthFlow } = useDynamicContext();
+  const { primaryWallet, setShowAuthFlow, setAuthMode, sdkHasLoaded } = useDynamicContext();
   const [account, setAccount] = useState('');
   const [chainId, setChainId] = useState('');
   const [walletState, setWalletState] = useState('Ready');
@@ -1185,6 +1214,22 @@ function MonadGame() {
   const appMode = new URLSearchParams(window.location.search).get('app');
   const isGameApp = appMode === 'monerge' || appMode === 'iglu-merge';
   const finalScore = scoreReveal?.final ?? null;
+
+  useEffect(() => {
+    if (!isGameApp) return undefined;
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverscroll = document.documentElement.style.overscrollBehavior;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overscrollBehavior = 'none';
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overscrollBehavior = previousHtmlOverscroll;
+    };
+  }, [isGameApp]);
+
+  useEffect(() => {
+    setAuthMode?.('connect-only');
+  }, [setAuthMode]);
 
   useEffect(() => {
     if (!primaryWallet?.address) return;
@@ -1244,6 +1289,7 @@ function MonadGame() {
   }
 
   async function connectMonad() {
+    setAuthMode?.('connect-only');
     if (primaryWallet) {
       try {
         await primaryWallet.switchNetwork?.(143);
@@ -1258,8 +1304,8 @@ function MonadGame() {
       return;
     }
     if (!window.ethereum) {
-      setWalletState('Opening Dynamic wallet connect.');
-      setShowAuthFlow?.(true);
+      setWalletState(sdkHasLoaded ? 'Opening Dynamic wallet connect.' : 'Wallet connect is loading. Try again in a second.');
+      if (sdkHasLoaded) setShowAuthFlow?.(true);
       return;
     }
     try {
@@ -1367,6 +1413,7 @@ function MonadGame() {
   }
 
   function handleTouchEnd(event) {
+    event.preventDefault();
     if (!touchStart) return;
     const touch = event.changedTouches[0];
     const dx = touch.clientX - touchStart.x;
@@ -1491,7 +1538,11 @@ function MonadGame() {
           style={{ '--hazard-pulse': hazardPulse }}
           role="grid"
           aria-label={`${GAME_NAME} board`}
-          onTouchStart={(event) => setTouchStart({ x: event.touches[0].clientX, y: event.touches[0].clientY })}
+          onTouchStart={(event) => {
+            event.preventDefault();
+            setTouchStart({ x: event.touches[0].clientX, y: event.touches[0].clientY });
+          }}
+          onTouchMove={(event) => event.preventDefault()}
           onTouchEnd={handleTouchEnd}>
           <div className={`freeze-wall ${freezeDirection ? `show freeze-${freezeDirection}` : ''}`} aria-hidden="true" />
           <div className={`hazard-burst ${hazardHit ? `show ${hazardHit}` : ''}`} aria-hidden="true" />
@@ -1738,13 +1789,13 @@ function Ventures({ y, intensity, warm }) {
 // ---------- Contact ----------
 function Contact() {
   const socials = [
-  { name: 'X', href: 'https://x.com/gerrydoteth', mark: 'X' },
-  { name: 'Instagram', href: 'https://www.instagram.com/gerrydoteth/', mark: '◎' },
-  { name: 'TikTok', href: 'https://www.tiktok.com/@gerrydoteth', mark: '♪' },
-  { name: 'Farcaster', href: 'https://warpcast.com/gerrydoteth', mark: 'F' },
-  { name: 'LinkedIn', href: 'https://www.linkedin.com/in/gerrydoteth/', mark: 'in' },
-  { name: 'Telegram', href: 'https://t.me/gerrydoteth', mark: '↗' },
-  { name: 'Twitch', href: 'https://www.twitch.tv/gerrydoteth', mark: 'Tw' }];
+  { name: 'X', href: 'https://x.com/gerrydoteth' },
+  { name: 'Instagram', href: 'https://www.instagram.com/gerrydoteth/' },
+  { name: 'TikTok', href: 'https://www.tiktok.com/@gerrydoteth' },
+  { name: 'Farcaster', href: 'https://warpcast.com/gerrydoteth' },
+  { name: 'LinkedIn', href: 'https://www.linkedin.com/in/gerrydoteth/' },
+  { name: 'Telegram', href: 'https://t.me/gerrydoteth' },
+  { name: 'Twitch', href: 'https://www.twitch.tv/gerrydoteth' }];
   const cards = [
   { kind: '@ x', handle: 'gerrydoteth', note: 'Builder notes, collector signal, and the occasional market thought.', href: 'https://x.com/gerrydoteth', label: 'Follow' },
   { kind: '◈ opensea', handle: 'gerrystephen', note: 'Penguins, seals, Inkfinity, and the public collector trail.', href: 'https://opensea.io/profile/gerrystephen', label: 'Browse' },
@@ -1771,7 +1822,7 @@ function Contact() {
       <div className="social-strip" aria-label="Gerry Stephen socials">
         {socials.map((social) =>
           <a key={social.name} href={social.href} target="_blank" rel="noopener" aria-label={`Gerry Stephen on ${social.name}`}>
-            <span aria-hidden="true">{social.mark}</span>
+            <SocialIcon name={social.name} />
           </a>
         )}
       </div>
