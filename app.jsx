@@ -55,8 +55,9 @@ function useMouse() {
   return pos;
 }
 
-function useAmbientScrollSound(y) {
+function useAmbientScrollSound(y, enabled = true) {
   const audioRef = useRef(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     function makeNoiseBuffer(ctx, seconds = 2) {
@@ -85,8 +86,10 @@ function useAmbientScrollSound(y) {
     }
 
     function startAmbience() {
+      if (!enabled) return;
       if (audioRef.current) {
         audioRef.current.ctx.resume?.();
+        setReady(true);
         return;
       }
 
@@ -109,15 +112,19 @@ function useAmbientScrollSound(y) {
 
       audioRef.current = { ctx, beachGain, snowGain, beach, snow };
       ctx.resume?.();
+      setReady(true);
     }
 
+    startAmbience();
     const opts = { passive: true };
+    window.addEventListener('scroll', startAmbience, opts);
     window.addEventListener('pointerdown', startAmbience, opts);
     window.addEventListener('wheel', startAmbience, opts);
     window.addEventListener('touchstart', startAmbience, opts);
     window.addEventListener('keydown', startAmbience);
     return () => {
       window.removeEventListener('pointerdown', startAmbience);
+      window.removeEventListener('scroll', startAmbience);
       window.removeEventListener('wheel', startAmbience);
       window.removeEventListener('touchstart', startAmbience);
       window.removeEventListener('keydown', startAmbience);
@@ -127,8 +134,21 @@ function useAmbientScrollSound(y) {
       audio.snow.source.stop();
       audio.ctx.close?.();
       audioRef.current = null;
+      setReady(false);
     };
-  }, []);
+  }, [enabled]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const now = audio.ctx.currentTime;
+    if (!enabled) {
+      audio.beachGain.gain.setTargetAtTime(0, now, 0.18);
+      audio.snowGain.gain.setTargetAtTime(0, now, 0.18);
+      return;
+    }
+    audio.ctx.resume?.();
+  }, [enabled]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -140,7 +160,9 @@ function useAmbientScrollSound(y) {
     const now = audio.ctx.currentTime;
     audio.beachGain.gain.setTargetAtTime(beachLevel, now, 0.45);
     audio.snowGain.gain.setTargetAtTime(snowLevel, now, 0.55);
-  }, [y]);
+  }, [y, enabled]);
+
+  return ready;
 }
 
 function useInView(ref, threshold = 0.15) {
@@ -605,7 +627,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-58`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-59`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
@@ -1005,8 +1027,11 @@ const DYNAMIC_SETTINGS = {
   appName: 'Monerge',
   appLogoUrl: `${window.location.origin}/assets/monerge-icon-512.png`,
   environmentId: DYNAMIC_ENV_ID,
-  initialAuthenticationMode: 'connect-and-sign',
+  initialAuthenticationMode: 'connect-only',
+  enableConnectOnlyFallback: true,
   theme: 'dark',
+  mobileExperience: 'redirect',
+  deepLinkPreference: 'universal',
   redirectUrl: DYNAMIC_REDIRECT_URL,
   defaultNumberOfWalletsToShow: 8,
   networkValidationMode: 'never',
@@ -1077,8 +1102,7 @@ function MonergeDynamicBridge() {
   useEffect(() => {
     dynamicBridgeRef.current = {
       open: () => {
-        if (user || primaryWallet?.address || wallets?.length) setShowLinkNewWalletModal?.(true);
-        else setShowAuthFlow?.(true);
+        setShowAuthFlow?.(true);
       },
       logout: async () => {
         await handleLogOut?.();
@@ -1381,7 +1405,7 @@ function MonadGame() {
   }, [isGameApp]);
 
   useEffect(() => {
-    setAuthMode?.('connect-and-sign');
+    setAuthMode?.('connect-only');
   }, [setAuthMode]);
 
   useEffect(() => {
@@ -1452,7 +1476,7 @@ function MonadGame() {
   }
 
   function openDynamicFlow(message = 'Opening Dynamic wallet connect.') {
-    setAuthMode?.('connect-and-sign');
+    setAuthMode?.('connect-only');
     setWalletState(sdkHasLoaded ? message : 'Loading wallet connector...');
     if (dynamicBridgeRef.current) dynamicBridgeRef.current.open();
     else setShowAuthFlow?.(true);
@@ -1471,7 +1495,7 @@ function MonadGame() {
   }
 
   async function connectMonad() {
-    setAuthMode?.('connect-and-sign');
+    setAuthMode?.('connect-only');
     if (primaryWallet) {
       try {
         await primaryWallet.switchNetwork?.(143);
@@ -2022,11 +2046,12 @@ function Contact() {
 // ---------- App ----------
 function App() {
   const [tweaks, setTweaks] = useTweaks(TWEAK_DEFAULTS);
+  const [soundEnabled, setSoundEnabled] = useState(true);
   const y = useScrollY();
   const mouse = useMouse();
   const appMode = new URLSearchParams(window.location.search).get('app');
   const isGameApp = appMode === 'monerge' || appMode === 'iglu-merge';
-  useAmbientScrollSound(y);
+  const soundReady = useAmbientScrollSound(y, soundEnabled);
 
   useEffect(() => {
     document.documentElement.style.setProperty('--display-font', `"${tweaks.displayFont}"`);
@@ -2055,6 +2080,16 @@ function App() {
   return (
     <div className={`page ${isGameApp ? 'game-app-page' : ''}`} data-warm={tweaks.warmChapters}>
       <Topbar />
+      <button
+        type="button"
+        className={`sound-toggle ${soundEnabled ? 'on' : 'off'}`}
+        onClick={() => setSoundEnabled((value) => !value)}
+        aria-pressed={soundEnabled}
+        aria-label={soundEnabled ? 'Turn sound off' : 'Turn sound on'}
+      >
+        <span>{soundEnabled ? 'Sound on' : 'Sound off'}</span>
+        <i>{soundReady && soundEnabled ? 'ON' : 'OFF'}</i>
+      </button>
       <Hero y={y} mouse={mouse} intensity={tweaks.parallaxIntensity} />
       {tweaks.snowfall && <Snowfall count={60} intensity={tweaks.parallaxIntensity / 100} scrollY={y} />}
       <Marquee items={['gerrystephen.eth', 'inkfinity canvas', 'great terriers', 'sappy seals', 'pudgy penguins', 'web3 since 2021', 'building IRL', 'hot weather, iced coffee']} />
