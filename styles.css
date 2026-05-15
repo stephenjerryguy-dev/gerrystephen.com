@@ -55,8 +55,7 @@ a { color: inherit; text-decoration: none; }
     radial-gradient(1400px 800px at 80% -10%, #fff 0%, transparent 60%),
     linear-gradient(180deg, var(--sky) 0%, var(--sky-soft) 30%, var(--sky) 100%);
   max-width: 100vw;
-  overflow-x: clip;
-  overflow-y: visible;
+  overflow: visible;
 }
 .page.game-app-page {
   width: 100%;
@@ -817,14 +816,15 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 800px) {
   .game-hud { grid-template-columns: repeat(2, 1fr); }
   .timeline {
-    min-height: auto;
-    padding: 72px 24px 70px;
+    min-height: var(--timeline-height, 210vh);
+    padding: 0 24px;
     overflow: hidden;
   }
   .timeline-sticky {
-    position: relative;
-    height: auto;
-    padding: 0;
+    position: sticky;
+    top: 0;
+    height: 100svh;
+    padding: 78px 0 58px;
   }
   .rail-viewport {
     max-width: none;
@@ -834,10 +834,8 @@ a { color: inherit; text-decoration: none; }
   .rail {
     display: flex;
     width: max-content;
-    transform: none !important;
     margin-top: 28px;
     padding-bottom: 16px;
-    animation: mobileRailDrift 26s ease-in-out infinite alternate;
   }
   .rail-item {
     flex: 0 0 min(78vw, 300px);
@@ -845,10 +843,6 @@ a { color: inherit; text-decoration: none; }
   }
   .rail-card,
   .rail-item:nth-child(even) .rail-card { transform: none; }
-}
-@keyframes mobileRailDrift {
-  from { translate: 0 0; }
-  to { translate: calc(-100% + min(78vw, 300px)) 0; }
 }
 
 /* ---------- Projects ---------- */
@@ -1932,8 +1926,10 @@ a { color: inherit; text-decoration: none; }
   position: relative;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(4, 1fr);
   gap: 12px;
   aspect-ratio: 1;
+  width: 100%;
   touch-action: none;
   user-select: none;
   align-items: stretch;
@@ -2541,6 +2537,7 @@ a { color: inherit; text-decoration: none; }
     max-width: 460px;
     justify-self: center;
     padding: 10px;
+    overflow: hidden;
   }
   .monad-game.app-mode.start-mode {
     display: grid;
@@ -2602,6 +2599,7 @@ a { color: inherit; text-decoration: none; }
   }
   .monad-game.app-mode .game-shell-actions {
     display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(82px, 1fr));
   }
 }
 @media (max-width: 520px) {
@@ -2659,6 +2657,7 @@ a { color: inherit; text-decoration: none; }
   }
   .monad-game.app-mode .game-shell {
     padding: 8px;
+    max-width: min(100%, 390px);
   }
   .monad-game.app-mode .game-hud {
     gap: 5px;
@@ -2676,21 +2675,22 @@ a { color: inherit; text-decoration: none; }
     font-size: clamp(20px, 6.2vw, 26px);
   }
   .monad-game.app-mode .game-board {
-    gap: 5px;
-    width: 100%;
-    max-width: min(100%, calc(100dvh - 318px));
-    min-width: 0;
+    gap: 6px;
+    width: min(100%, 338px, calc(100dvh - 386px));
+    max-width: 100%;
+    min-width: 280px;
     margin-inline: auto;
+    flex: 0 0 auto;
   }
   .monad-game.app-mode .merge-cell {
     border-radius: 6px;
-    padding: 4px;
+    padding: 3px;
   }
   .monad-game.app-mode .merge-cell.has-character {
-    padding: clamp(24px, 8vw, 34px) 4px 4px;
+    padding: clamp(20px, 7vw, 30px) 4px 4px;
   }
   .monad-game.app-mode .merge-cell strong {
-    font-size: clamp(16px, 5vw, 24px);
+    font-size: clamp(15px, 4.6vw, 22px);
   }
   .monad-game.app-mode .merge-cell.has-character strong {
     left: 5px;
@@ -2700,13 +2700,16 @@ a { color: inherit; text-decoration: none; }
     font-size: clamp(10px, 3.2vw, 13px);
   }
   .monad-game.app-mode .merge-cell span {
-    font-size: 7px;
-    letter-spacing: 0.06em;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 6px;
+    letter-spacing: 0.05em;
   }
   .monad-game.app-mode .tile-character {
     top: 3px;
-    width: clamp(38px, 13vw, 58px);
-    height: clamp(30px, 10vw, 46px);
+    width: clamp(34px, 11vw, 50px);
+    height: clamp(27px, 8.8vw, 40px);
   }
   .monad-game.app-mode .game-controls {
     gap: 6px;

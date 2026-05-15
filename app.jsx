@@ -1,6 +1,14 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
-import { DynamicContextProvider, DynamicWidget, useDynamicContext, mergeNetworks } from '@dynamic-labs/sdk-react-core';
+import {
+  DynamicContextProvider,
+  DynamicWidget,
+  dynamicEvents,
+  mergeNetworks,
+  useDynamicContext,
+  useDynamicModals,
+  useUserWallets
+} from '@dynamic-labs/sdk-react-core';
 import { EthereumWalletConnectors } from '@dynamic-labs/ethereum';
 import {
   useTweaks,
@@ -515,7 +523,9 @@ function Timeline({ y = 0, intensity = 60 }) {
   const viewport = typeof window !== 'undefined' ? window.innerHeight || 800 : 800;
   const readHold = 0.16;
   const isCompactTimeline = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 800px)').matches;
-  const scrollDistance = isCompactTimeline ? viewport * 0.95 : Math.max(viewport * 1.55, (railTravel * 0.92) / (1 - readHold));
+  const scrollDistance = isCompactTimeline
+    ? Math.max(viewport * 1.3, (railTravel * 0.78) / (1 - readHold))
+    : Math.max(viewport * 1.8, (railTravel * 1.08) / (1 - readHold));
   const timelineHeight = viewport + scrollDistance;
   const sectionTop = section ? section.getBoundingClientRect().top : 0;
   const pinProgress = section ? clamp(-sectionTop / scrollDistance, 0, 1) : 0;
@@ -595,7 +605,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-57`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-58`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
@@ -995,10 +1005,8 @@ const DYNAMIC_SETTINGS = {
   appName: 'Monerge',
   appLogoUrl: `${window.location.origin}/assets/monerge-icon-512.png`,
   environmentId: DYNAMIC_ENV_ID,
-  initialAuthenticationMode: 'connect-only',
-  enableConnectOnlyFallback: true,
-  mobileExperience: 'redirect',
-  deepLinkPreference: 'universal',
+  initialAuthenticationMode: 'connect-and-sign',
+  theme: 'dark',
   redirectUrl: DYNAMIC_REDIRECT_URL,
   defaultNumberOfWalletsToShow: 8,
   networkValidationMode: 'never',
@@ -1011,8 +1019,119 @@ const DYNAMIC_SETTINGS = {
   walletConnectPreferredChains: ['eip155:143'],
   overrides: {
     evmNetworks: (networks) => mergeNetworks([MONAD_DYNAMIC_NETWORK], networks)
-  }
+  },
+  cssOverrides: `
+    .dynamic-shadow-dom { --dynamic-font-family-primary: inherit; }
+    :host {
+      --dynamic-brand-primary-color: #8f6bff;
+      --dynamic-brand-secondary-color: #7fd2e7;
+      --dynamic-background-color: #160f36;
+      --dynamic-base-1: #160f36;
+      --dynamic-base-2: #24184f;
+      --dynamic-base-3: #332263;
+      --dynamic-base-4: #493078;
+      --dynamic-overlay: rgba(8,7,24,0.76);
+      --dynamic-modal-backdrop-background: rgba(8,7,24,0.76);
+      --dynamic-header-background: #160f36;
+      --dynamic-footer-background: #160f36;
+      --dynamic-wallet-list-tile-background: #24184f;
+      --dynamic-wallet-list-tile-background-hover: #332263;
+      --dynamic-wallet-list-tile-border: 1px solid rgba(127,210,231,0.22);
+      --dynamic-wallet-list-tile-border-hover: 1px solid rgba(166,139,255,0.48);
+      --dynamic-connect-button-background: linear-gradient(135deg, #8f6bff, #7fd2e7);
+      --dynamic-connect-button-background-hover: linear-gradient(135deg, #a68bff, #8cf7f0);
+      --dynamic-connect-button-color: #0e1f2c;
+      --dynamic-button-primary-background: #8f6bff;
+      --dynamic-button-secondary-background: #332263;
+      --dynamic-text-primary: #ffffff;
+      --dynamic-text-primary-color: #ffffff;
+      --dynamic-text-secondary: rgba(255,255,255,0.74);
+      --dynamic-text-secondary-color: rgba(255,255,255,0.74);
+      --dynamic-text-link: #7fd2e7;
+      --dynamic-border: rgba(255,255,255,0.12);
+      --dynamic-border-color: rgba(255,255,255,0.12);
+      --dynamic-border-radius: 16px;
+      --dynamic-shadow-down-3: 0 24px 48px rgba(0,0,0,0.55);
+    }
+  `
 };
+
+const dynamicBridgeRef = { current: null };
+
+function purgeDynamicWalletCache() {
+  try {
+    Object.keys(localStorage).forEach((key) => {
+      if (/^dynamic_|^@dynamic|walletconnect|wallet-connect|wc@|appkit|w3m/i.test(key)) {
+        localStorage.removeItem(key);
+      }
+    });
+  } catch (_) {}
+}
+
+function MonergeDynamicBridge() {
+  const ctx = useDynamicContext();
+  const { setShowAuthFlow, handleLogOut, user, primaryWallet } = ctx;
+  const { setShowLinkNewWalletModal } = useDynamicModals();
+  const wallets = useUserWallets();
+
+  useEffect(() => {
+    dynamicBridgeRef.current = {
+      open: () => {
+        if (user || primaryWallet?.address || wallets?.length) setShowLinkNewWalletModal?.(true);
+        else setShowAuthFlow?.(true);
+      },
+      logout: async () => {
+        await handleLogOut?.();
+        purgeDynamicWalletCache();
+      },
+      isAuthenticated: () => Boolean(user || primaryWallet?.address || wallets?.length)
+    };
+    return () => {
+      dynamicBridgeRef.current = null;
+    };
+  }, [setShowAuthFlow, setShowLinkNewWalletModal, handleLogOut, user, primaryWallet, wallets]);
+
+  useEffect(() => {
+    const syncFromDynamic = (params) => {
+      const wallet = params?.userWallets?.find?.((item) => /^EVM|ETH$/i.test(String(item?.chain || ''))) || params?.userWallets?.[0];
+      if (wallet?.address) window.dispatchEvent(new CustomEvent('monerge-wallet', { detail: { address: wallet.address } }));
+    };
+    const onLogout = () => window.dispatchEvent(new CustomEvent('monerge-wallet', { detail: { address: '' } }));
+    try { dynamicEvents.on('userWalletsChanged', syncFromDynamic); } catch (_) {}
+    try { dynamicEvents.on('walletAdded', (_wallet, userWallets) => syncFromDynamic({ userWallets })); } catch (_) {}
+    try { dynamicEvents.on('walletRemoved', (_wallet, userWallets) => syncFromDynamic({ userWallets })); } catch (_) {}
+    try { dynamicEvents.on('logout', onLogout); } catch (_) {}
+    return () => {
+      try { dynamicEvents.off('userWalletsChanged', syncFromDynamic); } catch (_) {}
+      try { dynamicEvents.off('walletAdded', syncFromDynamic); } catch (_) {}
+      try { dynamicEvents.off('walletRemoved', syncFromDynamic); } catch (_) {}
+      try { dynamicEvents.off('logout', onLogout); } catch (_) {}
+    };
+  }, []);
+
+  useEffect(() => {
+    const stripIfOrphaned = () => {
+      const html = document.documentElement;
+      const body = document.body;
+      if (!html.classList.contains('dynamic-no-scroll') && !body.classList.contains('dynamic-no-scroll')) return;
+      const host = document.querySelector('.dynamic-shadow-dom');
+      const hasModal = Boolean(host?.shadowRoot?.querySelector('[data-testid*="modal"], [data-testid*="auth"], [class*="DynamicModal"], [class*="AuthFlow"]'));
+      if (!hasModal) {
+        html.classList.remove('dynamic-no-scroll');
+        body.classList.remove('dynamic-no-scroll');
+      }
+    };
+    stripIfOrphaned();
+    window.addEventListener('focus', stripIfOrphaned);
+    document.addEventListener('visibilitychange', stripIfOrphaned);
+    return () => {
+      window.removeEventListener('focus', stripIfOrphaned);
+      document.removeEventListener('visibilitychange', stripIfOrphaned);
+    };
+  }, []);
+
+  return null;
+}
 
 function SocialIcon({ name }) {
   if (name === 'LinkedIn') {
@@ -1262,7 +1381,7 @@ function MonadGame() {
   }, [isGameApp]);
 
   useEffect(() => {
-    setAuthMode?.('connect-only');
+    setAuthMode?.('connect-and-sign');
   }, [setAuthMode]);
 
   useEffect(() => {
@@ -1288,6 +1407,16 @@ function MonadGame() {
       window.ethereum.removeListener?.('accountsChanged', syncAccounts);
       window.ethereum.removeListener?.('chainChanged', syncChain);
     };
+  }, []);
+
+  useEffect(() => {
+    const syncDynamicWallet = (event) => {
+      const address = event.detail?.address || '';
+      setAccount(address);
+      if (address) setWalletState('Dynamic wallet connected');
+    };
+    window.addEventListener('monerge-wallet', syncDynamicWallet);
+    return () => window.removeEventListener('monerge-wallet', syncDynamicWallet);
   }, []);
 
   useEffect(() => {
@@ -1323,9 +1452,10 @@ function MonadGame() {
   }
 
   function openDynamicFlow(message = 'Opening Dynamic wallet connect.') {
-    setAuthMode?.('connect-only');
+    setAuthMode?.('connect-and-sign');
     setWalletState(sdkHasLoaded ? message : 'Loading wallet connector...');
-    setShowAuthFlow?.(true);
+    if (dynamicBridgeRef.current) dynamicBridgeRef.current.open();
+    else setShowAuthFlow?.(true);
     window.setTimeout(() => {
       setWalletState((current) => (
         current === message || current === 'Loading wallet connector...'
@@ -1341,7 +1471,7 @@ function MonadGame() {
   }
 
   async function connectMonad() {
-    setAuthMode?.('connect-only');
+    setAuthMode?.('connect-and-sign');
     if (primaryWallet) {
       try {
         await primaryWallet.switchNetwork?.(143);
@@ -1355,7 +1485,7 @@ function MonadGame() {
       }
       return;
     }
-    if (!window.ethereum) {
+    if (sdkHasLoaded || dynamicBridgeRef.current || !window.ethereum) {
       openDynamicFlow();
       return;
     }
@@ -1570,7 +1700,9 @@ function MonadGame() {
           <a href="/?app=monerge#monad-game" target="_blank" rel="noopener">Open app</a>
         </div>
         <div className="game-shell-actions" aria-label="Wallet and run controls">
-          <div className="dynamic-widget-wrap"><DynamicWidget /></div>
+          {isGameApp
+            ? <button type="button" onClick={connectMonad}>{account ? shortWallet(account) : 'Login'}</button>
+            : <div className="dynamic-widget-wrap"><DynamicWidget /></div>}
           {!hasInjectedWallet && <button type="button" onClick={openMetaMaskApp}>MetaMask</button>}
           <button type="button" onClick={newGame}>New</button>
           <button type="button" onClick={submitScore} disabled={!score}>Submit</button>
@@ -1968,6 +2100,7 @@ function TweaksUI({ tweaks, setTweak }) {
 
 createRoot(document.getElementById('root')).render(
   <DynamicContextProvider settings={DYNAMIC_SETTINGS}>
+    <MonergeDynamicBridge />
     <App />
   </DynamicContextProvider>
 );
