@@ -521,35 +521,53 @@ function Timeline({ y = 0, intensity = 60 }) {
   const sectionRef = useRef(null);
   const railRef = useRef(null);
   const [railTravel, setRailTravel] = useState(0);
+  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
   const depth = intensity / 100;
   useEffect(() => {
     let frame = 0;
+    let settleTimer = 0;
     const updateTravel = () => {
       const rail = railRef.current;
       if (!rail) return;
       const viewportWidth = rail.parentElement?.getBoundingClientRect().width || Math.min(window.innerWidth - 48, 1120);
+      setViewportSize({
+        width: window.innerWidth || viewportWidth,
+        height: window.innerHeight || 800
+      });
       setRailTravel(Math.max(0, rail.scrollWidth - viewportWidth));
     };
     frame = requestAnimationFrame(updateTravel);
+    settleTimer = window.setTimeout(updateTravel, 350);
     const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateTravel) : null;
     if (observer && railRef.current) {
       observer.observe(railRef.current);
       if (railRef.current.parentElement) observer.observe(railRef.current.parentElement);
     }
     window.addEventListener('resize', updateTravel);
+    window.addEventListener('orientationchange', updateTravel);
+    window.addEventListener('load', updateTravel);
     return () => {
       cancelAnimationFrame(frame);
+      window.clearTimeout(settleTimer);
       observer?.disconnect();
       window.removeEventListener('resize', updateTravel);
+      window.removeEventListener('orientationchange', updateTravel);
+      window.removeEventListener('load', updateTravel);
     };
   }, []);
   const section = sectionRef.current;
-  const viewport = typeof window !== 'undefined' ? window.innerHeight || 800 : 800;
+  const viewport = viewportSize.height || (typeof window !== 'undefined' ? window.innerHeight || 800 : 800);
+  const viewportWidth = viewportSize.width || (typeof window !== 'undefined' ? window.innerWidth || 390 : 390);
   const isCompactTimeline = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 800px)').matches;
-  const readHold = isCompactTimeline ? 0.08 : 0.16;
+  const mobileCardWidth = Math.min(viewportWidth * 0.78, 300);
+  const mobileRailWidth = TIMELINE.length * mobileCardWidth + Math.max(0, TIMELINE.length - 1) * 16;
+  const mobileViewportWidth = Math.max(0, viewportWidth - 40);
+  const mobileFallbackTravel = Math.max(0, mobileRailWidth - mobileViewportWidth);
+  const effectiveRailTravel = isCompactTimeline ? Math.max(railTravel, mobileFallbackTravel) : railTravel;
+  const readHold = isCompactTimeline ? 0.1 : 0.16;
   const scrollDistance = isCompactTimeline
-    ? Math.max(viewport * 1.2, (railTravel * 0.98) / (1 - readHold))
-    : Math.max(viewport * 1.8, (railTravel * 1.08) / (1 - readHold));
+    ? Math.max(viewport * 1.32, (effectiveRailTravel * 1.06) / (1 - readHold))
+    : Math.max(viewport * 1.8, (effectiveRailTravel * 1.08) / (1 - readHold));
   const timelineHeight = viewport + scrollDistance;
   const sectionTop = section ? section.getBoundingClientRect().top : 0;
   const pinProgress = section ? clamp(-sectionTop / scrollDistance, 0, 1) : 0;
@@ -563,7 +581,7 @@ function Timeline({ y = 0, intensity = 60 }) {
           <div
             ref={railRef}
             className="rail"
-            style={{ transform: `translate3d(${-railTravel * easedProgress}px, 0, 0)` }}>
+            style={{ transform: `translate3d(${-effectiveRailTravel * easedProgress}px, 0, 0)` }}>
             <div className="rail-line" />
             {TIMELINE.map((t, i) =>
             <Reveal key={`${t.year}-${t.tag}`} delay={i * 60} className="rail-item" style={{ '--rail-i': i }}>

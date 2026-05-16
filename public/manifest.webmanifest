@@ -2,7 +2,7 @@
   "name": "Monerge",
   "short_name": "Monerge",
   "description": "Monerge, a Monad merge game from gerrystephen.com.",
-  "start_url": "/?app=monerge#monad-game",
+  "start_url": "/monerge",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",

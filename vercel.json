@@ -4,7 +4,9 @@
   "cleanUrls": true,
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/monerge", "destination": "/index.html" }
+    { "source": "/monerge", "destination": "/index.html" },
+    { "source": "/monerge/:path*", "destination": "/index.html" },
+    { "source": "/:path*", "destination": "/index.html" }
   ],
   "headers": [
     {
