@@ -476,7 +476,7 @@ function Hero({ y, mouse, intensity }) {
 
         <div className="father-note" style={{ opacity: copyOpacity }}>
           <span>Strength before beauty</span>
-          <small>Eric Guy</small>
+          <small>ericgoodguy</small>
         </div>
 
         <div className="hero-bigtitle" style={{ opacity: titleOp, transform: `translate3d(0, ${(1 - titleOp) * 60}px, 0) scale(${0.96 + titleOp * 0.04})` }}>
@@ -526,7 +526,7 @@ function Chapter({ num, kicker, title }) {
 // ---------- Timeline ----------
 const TIMELINE = [
 { year: '2021', tag: 'First NFT purchase · Sappy Seals', body: 'The rabbit hole opened through community, identity, and the feeling that ownership could become culture.' },
-{ year: '2021', tag: 'Inkfinity Canvas · family craft', body: 'Eric Guy signed the work by hand. Inkfinity Canvas put that signature somewhere permanent.' },
+{ year: '2021', tag: 'Inkfinity Canvas · family craft', body: 'ericgoodguy signed the work by hand. Inkfinity Canvas put that signature somewhere permanent.' },
 { year: '2022', tag: 'The Guy standard', body: 'My dad ran construction for decades. I spent fifteen years beside him learning how real work gets scoped, built, and carried forward. His legacy now lives on forever.' },
 { year: '2022', tag: 'Lil Pudgy chapter', body: 'I had a Lil Pudgy early, sold it, and kept circling the ecosystem from the outside.' },
 { year: '2023', tag: 'Community & tools', body: 'I kept showing up for Sappy Seals with constant memes across X, Instagram, TikTok, and YouTube Shorts while supporting the whole ecosystem. I still do.' },
@@ -620,7 +620,7 @@ function Timeline({ y = 0, intensity = 60 }) {
 
 // ---------- Projects ----------
 const PROJECTS = [
-{ title: 'Inkfinity Canvas', kind: 'Signed work · 2021', note: 'Eric Guy signed canvases, preserved as a permanent collection of craft and authorship.', glyph: 'EG', href: 'https://opensea.io/collection/inkfinity-canvas' },
+{ title: 'Inkfinity Canvas', kind: 'Signed work · 2021', note: 'ericgoodguy signed canvases, preserved as a permanent collection of craft and authorship.', glyph: 'EG', href: 'https://opensea.io/collection/inkfinity-canvas' },
 { title: 'Sappy Seals', kind: 'First NFT purchase', note: 'The community that pulled the first thread and made Web3 feel human.', glyph: 'SS' },
 { title: 'Pudgy Penguins', kind: 'Holder', note: 'The flat-cap penguin energy that shaped the iglu visual language.', glyph: 'PP' },
 { title: 'gerrystephen.eth', kind: 'Identity', note: 'One name for collections, experiments, and public reputation.', glyph: 'Ξ' },
@@ -681,7 +681,7 @@ const NFT_ECOSYSTEMS = [
 {
   id: 'sappy',
   label: 'Sappy Seals ecosystem',
-  note: '$PIXL, Sappy Faithful Key, Sappy Seals, Omnia Pets, Omnia items, Pixseals, and a Bitcoin ordinal.',
+  note: 'My Sappy-side collection: $PIXL, Sappy Faithful Key, Sappy Seals, Omnia Pets, Omnia items, Pixseals, and a Bitcoin ordinal.',
     keywords: ['sappy', 'pixl', 'omnia', 'pets', 'pixseals', 'sappy key', 'pixlverse items'],
     fallback: [
   { name: 'Sappy Seals ecosystem', collection: 'Owned-token images only', glyph: 'SS', tokenId: 'pending', contract: 'pending' },
@@ -707,7 +707,7 @@ const NFT_ECOSYSTEMS = [
 {
   id: 'inkfinity',
   label: 'Inkfinity Canvas',
-  note: 'Eric Guy signed canvases and the permanent collection around them.',
+  note: 'ericgoodguy signed canvases and the permanent collection around them.',
   keywords: ['inkfinity', 'nftvisionary', 'nuttyprofessor', 'thunderofthoughts', 'e. guy'],
   fallback: [
   { name: 'NFTVisionary', collection: 'Inkfinity Canvas', image: 'assets/inkfinity-visionary.png', href: 'https://opensea.io/assets/ethereum/0x4de49a57235cc0d4d22baad106a4dc302c8d935e/1', tokenId: '1', contract: '0x4de49a57235cc0d4d22baad106a4dc302c8d935e' },
@@ -1065,44 +1065,31 @@ const wagmiConfig = createConfig({
   transports: { [monadMainnet.id]: http(MONAD_NETWORK.rpcUrls[0]) }
 });
 const MONERGE_APP_PATH = '/monerge';
-const DYNAMIC_REDIRECT_URL = `${window.location.origin}${MONERGE_APP_PATH}`;
 const METAMASK_APP_LINK = `https://metamask.app.link/dapp/${window.location.host}${MONERGE_APP_PATH}`;
-const MONAD_DYNAMIC_NETWORK = {
-  blockExplorerUrls: MONAD_NETWORK.blockExplorerUrls,
-  chainId: 143,
-  chainName: MONAD_NETWORK.chainName,
-  iconUrls: [],
-  name: MONAD_NETWORK.chainName,
-  nativeCurrency: MONAD_NETWORK.nativeCurrency,
-  networkId: 143,
-  rpcUrls: MONAD_NETWORK.rpcUrls,
-  vanityName: 'Monad'
-};
+
+function monergeWalletsFilter(options = []) {
+  return options.filter((opt) => {
+    const supported = opt?.walletConnector?.supportedChains;
+    if (Array.isArray(supported) && supported.includes('EVM')) return true;
+    const key = String(opt?.key ?? opt?.walletKey ?? '').toLowerCase();
+    const group = String(opt?.chainGroup ?? opt?.walletGroup ?? '').toLowerCase();
+    return (
+      group.includes('evm') ||
+      group.includes('eth') ||
+      /metamask|walletconnect|coinbase|rainbow|rabby|zerion|trust|okx|phantom/.test(key)
+    );
+  });
+}
+
 const DYNAMIC_SETTINGS = {
   appName: 'Monerge',
   appLogoUrl: `${window.location.origin}/assets/monerge-icon-512.png`,
   environmentId: DYNAMIC_ENV_ID,
   initialAuthenticationMode: 'connect-and-sign',
-  enableConnectOnlyFallback: true,
   theme: 'dark',
-  mobileExperience: 'redirect',
-  deepLinkPreference: 'universal',
-  redirectUrl: DYNAMIC_REDIRECT_URL,
   defaultNumberOfWalletsToShow: 8,
-  networkValidationMode: 'never',
-  recommendedWallets: [
-    { walletKey: 'metamask', label: 'MetaMask' },
-    { walletKey: 'walletconnect', label: 'WalletConnect' }
-  ],
-  useMetamaskSdk: false,
   walletConnectors: [EthereumWalletConnectors],
-  walletConnectPreferredChains: ['eip155:143'],
-  overrides: {
-    evmNetworks: (networks) => {
-      const withoutMonad = networks.filter((network) => Number(network.chainId) !== 143);
-      return [MONAD_DYNAMIC_NETWORK, ...withoutMonad];
-    }
-  },
+  walletsFilter: monergeWalletsFilter,
   events: {
     onAuthFlowOpen: () => window.dispatchEvent(new CustomEvent('monerge-wallet-status', { detail: { status: 'Dynamic wallet modal open' } })),
     onAuthInit: () => window.dispatchEvent(new CustomEvent('monerge-wallet-status', { detail: { status: 'Signing in with Dynamic' } })),
@@ -1177,6 +1164,13 @@ function MonergeDynamicBridge() {
   useEffect(() => {
     dynamicBridgeRef.current = {
       open: () => {
+        const authenticated = Boolean(user || primaryWallet?.address || wallets?.length);
+        if (authenticated) {
+          try {
+            setShowLinkNewWalletModal?.(true);
+            return;
+          } catch (_) {}
+        }
         setShowAuthFlow?.(true, DYNAMIC_AUTH_OPTIONS);
       },
       logout: async () => {
@@ -1913,7 +1907,7 @@ function InkfinityGallery() {
   const inkItems = [...INKFINITY, ...INKFINITY];
   return (
     <section className="inkfinity" id="inkfinity">
-      <Chapter num="03" kicker="Eric Guy · Inkfinity Canvas" title="Signed work, carried forward." />
+      <Chapter num="03" kicker="ericgoodguy · Inkfinity Canvas" title="Signed work, carried forward." />
       <p className="lede inkfinity-lede">Inkfinity Canvas brings my dad's hand-signed work into the builder story: craft, signature, permanence, and a family standard that still shapes how I move.</p>
       <div className="ink-grid">
         {inkItems.map((p, i) =>
@@ -1931,7 +1925,12 @@ function InkfinityGallery() {
             </a>
         )}
       </div>
-      <a className="btn primary ink-cta" href="https://opensea.io/collection/inkfinity-canvas" target="_blank" rel="noopener">View the collection on OpenSea →</a>
+      <div className="ink-actions">
+        <a className="btn primary ink-cta" href="https://opensea.io/collection/inkfinity-canvas" target="_blank" rel="noopener">View the collection on OpenSea →</a>
+        <a className="btn ghost ink-x" href="https://x.com/inkfinitycanvas" target="_blank" rel="noopener" aria-label="Inkfinity Canvas on X">
+          <SocialIcon name="X" /> @inkfinitycanvas
+        </a>
+      </div>
     </section>);
 
 }
@@ -1950,10 +1949,10 @@ function Stats() {
 
 // ---------- Now Building ----------
 const NOW = [
-{ title: 'AI Agents', note: 'Autonomous workers for hospitality ops, content systems, and the useful glue between them.', logo: 'assets/pudgy-penguin-cutout.png', alt: 'Gerry Stephen Pudgy Penguin', className: 'pudgy-agent-logo' },
-{ title: 'Blue Star Web3', note: 'Live now: ecosystem-holder benefits for vacation, worcation, and nomadic stays.', logo: 'assets/bluestar-logo.png', alt: 'Blue Star Apartments & Hotel logo', className: 'blue-star-logo' },
-{ title: 'Seal Stay', note: 'Where Web3 meets hospitality. Stay tuned for the next stay layer.', logo: 'assets/seal-stay-logo.png', alt: 'Seal Stay logo' },
-{ title: 'Great Terriers', note: 'Coming soon: the AI-native collection that started as a 2022 idea and keeps moving forward.', logo: 'assets/great-terriers-coming-soon.png', alt: 'Great Terriers coming soon artwork', className: 'great-terriers-logo' }];
+{ title: 'AI Agents', note: 'Autonomous workers for hospitality ops, content systems, and the useful glue between them.', logo: 'assets/pudgy-penguin-cutout.png', alt: 'Gerry Stephen Pudgy Penguin', className: 'pudgy-agent-logo', href: 'https://x.com/gerrydoteth' },
+{ title: 'Blue Star Web3', note: 'Live now: ecosystem-holder benefits for vacation, worcation, and nomadic stays.', logo: 'assets/bluestar-logo.png', alt: 'Blue Star Apartments & Hotel logo', className: 'blue-star-logo', href: 'https://x.com/bluestarstay' },
+{ title: 'Seal Stay', note: 'Where Web3 meets hospitality. Stay tuned for the next stay layer.', logo: 'assets/seal-stay-logo.png', alt: 'Seal Stay logo', href: 'https://x.com/sappylifestyle' },
+{ title: 'Great Terriers', note: 'Coming soon: the AI-native collection that started as a 2022 idea and keeps moving forward.', logo: 'assets/great-terriers-coming-soon.png', alt: 'Great Terriers coming soon artwork', className: 'great-terriers-logo', href: 'https://x.com/greatterriers' }];
 
 function NowBuilding() {
   return (
@@ -2136,7 +2135,7 @@ function Contact() {
         )}
       </div>
       <div className="signoff">My father, a visionary, successfully built for decades.<br />I carry the standard forward.</div>
-      <div className="dedication">Built from the Guy family standard. <span>Eric Guy · strength before beauty</span></div>
+      <div className="dedication">Built from the Guy family standard. <span>ericgoodguy · strength before beauty</span></div>
       <div className="social-strip" aria-label="Gerry Stephen socials">
         {socials.map((social) =>
           <a key={social.name} href={social.href} target="_blank" rel="noopener" aria-label={`Gerry Stephen on ${social.name}`}>

@@ -4031,10 +4031,26 @@ body:has(.game-app-page) {
   color: var(--warm-coffee);
 }
 .ink-note { font-size: 13px; color: rgba(92,52,22,0.65); }
+.ink-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
 .ink-cta {
   background: var(--warm-coffee);
   color: var(--warm-cream);
   margin-top: 8px;
+}
+.ink-x {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.ink-x svg {
+  width: 16px;
+  height: 16px;
 }
 @media (max-width: 1000px) { .ink-grid { grid-template-columns: repeat(3, minmax(220px, 1fr)); overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 8px; } .ink-card { scroll-snap-align: start; } }
 @media (max-width: 700px) {
@@ -4664,11 +4680,16 @@ body:has(.game-app-page) {
 @media (max-width: 1100px) { .contact-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 600px) { .contact-grid { grid-template-columns: 1fr; } }
 .cc {
-  display: block;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 8px;
   padding: 22px;
+  min-height: 224px;
+  height: 100%;
+  text-decoration: none;
+  color: inherit;
   transition: transform 0.2s, background 0.2s;
 }
 .cc:hover { transform: translateY(-4px); background: rgba(255,255,255,0.08); }
