@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   DynamicContextProvider,
+  DynamicWidget,
   dynamicEvents,
   useDynamicContext,
   useDynamicModals,
@@ -1279,6 +1280,17 @@ function shortWallet(account) {
   return account ? `${account.slice(0, 6)}...${account.slice(-4)}` : 'Connect wallet';
 }
 
+function MonergeWalletButton({ account, label = 'Log in or sign up' }) {
+  return (
+    <DynamicWidget
+      variant="modal"
+      buttonContainerClassName="monerge-dynamic-wrap"
+      buttonClassName="monerge-dynamic-btn"
+      innerButtonComponent={<span>{account ? shortWallet(account) : label}</span>}
+    />
+  );
+}
+
 function hexFromText(text) {
   return '0x' + Array.from(new TextEncoder().encode(text))
     .map((byte) => byte.toString(16).padStart(2, '0'))
@@ -1566,6 +1578,11 @@ function MonadGame() {
     if (dynamicBridgeRef.current) dynamicBridgeRef.current.open();
     else setShowAuthFlow?.(true, DYNAMIC_AUTH_OPTIONS);
     window.setTimeout(() => {
+      const modalHost = document.querySelector('.dynamic-shadow-dom');
+      const hasVisibleDynamic = Boolean(modalHost?.shadowRoot?.textContent?.trim());
+      if (!hasVisibleDynamic) document.querySelector('.monerge-dynamic-btn')?.click?.();
+    }, 80);
+    window.setTimeout(() => {
       setWalletState((current) => (
         current === message || current === 'Loading wallet connector...'
           ? 'Still loading? Refresh once, or open MetaMask from the button.'
@@ -1751,7 +1768,7 @@ function MonadGame() {
           )}
         </div>
         <div className="game-actions">
-          <button type="button" className="btn primary" onClick={connectMonad}>{account ? shortWallet(account) : 'Log in or sign up'}</button>
+          <MonergeWalletButton account={account} label="Log in or sign up" />
           {!hasInjectedWallet && <button type="button" className="btn ghost" onClick={openMetaMaskApp}>Open MetaMask</button>}
           <button type="button" className="btn ghost" onClick={newGame}>New run</button>
           <button type="button" className="btn ghost" onClick={submitScore} disabled={!score}>Submit score</button>
@@ -1777,7 +1794,7 @@ function MonadGame() {
           <p>Merge the tiles, dodge lava, survive freeze turns, then guess your hidden score.</p>
           <div className="start-actions">
             <button type="button" onClick={newGame}>Play</button>
-            <button type="button" onClick={connectMonad}>Connect</button>
+            <MonergeWalletButton account={account} label="Connect" />
             {!hasInjectedWallet && <button type="button" onClick={openMetaMaskApp}>MetaMask</button>}
           </div>
           <small>{account ? shortWallet(account) : 'Dynamic-ready wallet connect'}</small>
@@ -1803,7 +1820,7 @@ function MonadGame() {
             </div>
             <p>A blind-score merge run: dodge lava walls, survive freeze turns, keep the score in your head, then guess before posting on Monad mainnet.</p>
             <div className="game-menu-actions">
-              <button type="button" onClick={connectMonad}>{account ? shortWallet(account) : 'Connect wallet'}</button>
+              <MonergeWalletButton account={account} label="Connect wallet" />
               <button type="button" onClick={() => { newGame(); setGameMenuOpen(false); }}>New run</button>
               <button type="button" onClick={submitScore} disabled={!score}>Submit score</button>
             </div>
@@ -1825,7 +1842,7 @@ function MonadGame() {
           </div>
         </div>}
         <div className="game-shell-actions" aria-label="Wallet and run controls">
-          <button type="button" onClick={connectMonad}>{account ? shortWallet(account) : 'Login'}</button>
+          <MonergeWalletButton account={account} label="Login" />
           {!hasInjectedWallet && <button type="button" onClick={openMetaMaskApp}>MetaMask</button>}
           <button type="button" onClick={newGame}>New</button>
           <button type="button" onClick={submitScore} disabled={!score}>Submit</button>
@@ -1927,7 +1944,7 @@ function InkfinityGallery() {
       </div>
       <div className="ink-actions">
         <a className="btn primary ink-cta" href="https://opensea.io/collection/inkfinity-canvas" target="_blank" rel="noopener">View the collection on OpenSea →</a>
-        <a className="btn ghost ink-x" href="https://x.com/inkfinitycanvas" target="_blank" rel="noopener" aria-label="Inkfinity Canvas on X">
+        <a className="btn primary ink-cta ink-x" href="https://x.com/inkfinitycanvas" target="_blank" rel="noopener" aria-label="Inkfinity Canvas on X">
           <SocialIcon name="X" /> @inkfinitycanvas
         </a>
       </div>
@@ -1962,6 +1979,7 @@ function NowBuilding() {
         {NOW.map((n, i) =>
         <Reveal key={n.title} delay={i * 80}>
             <a className={`nb-card ${n.className || ''}`} href={n.href || '#now'} target={n.href ? '_blank' : undefined} rel={n.href ? 'noopener' : undefined}>
+              {n.href && <span className="nb-x-mark" aria-hidden="true"><SocialIcon name="X" /></span>}
               {n.logo ? <img className={`nb-logo ${n.className || ''}`} src={n.logo} alt={n.alt} /> : <div className="nb-abstract-mark" aria-hidden="true">{n.glyph}</div>}
               <div className="nb-title">{n.title}</div>
               <div className="nb-note">{n.note}</div>

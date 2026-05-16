@@ -1664,6 +1664,28 @@ a { color: inherit; text-decoration: none; }
 .game-actions .btn {
   min-height: 46px;
 }
+.monerge-dynamic-wrap {
+  display: contents;
+}
+.monerge-dynamic-btn {
+  min-height: 46px !important;
+  border: 1px solid transparent !important;
+  border-radius: 999px !important;
+  padding: 0 26px !important;
+  background: linear-gradient(135deg, #9F7CFF, #7AC9E8) !important;
+  color: #120B2E !important;
+  font-family: var(--body) !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  box-shadow: 0 16px 36px rgba(105,80,255,0.22) !important;
+  transition: transform 0.18s ease, filter 0.18s ease !important;
+}
+.monerge-dynamic-btn:hover,
+.monerge-dynamic-btn:focus-visible {
+  transform: translateY(-2px);
+  filter: brightness(1.05);
+}
 .game-actions .btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
@@ -1839,6 +1861,15 @@ a { color: inherit; text-decoration: none; }
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
+.game-menu-actions .monerge-dynamic-btn {
+  width: 100% !important;
+  min-height: 42px !important;
+  border-radius: 8px !important;
+  padding: 0 10px !important;
+  font: 900 10px/1 var(--mono) !important;
+  letter-spacing: 0.1em !important;
+  text-transform: uppercase !important;
+}
 .game-menu-actions button:first-child {
   background: linear-gradient(135deg, #9F7CFF, #7AC9E8);
   color: #120B2E;
@@ -1911,6 +1942,15 @@ a { color: inherit; text-decoration: none; }
   font: 800 10px/1 var(--mono);
   letter-spacing: 0.1em;
   text-transform: uppercase;
+}
+.game-shell-actions .monerge-dynamic-btn {
+  width: 100% !important;
+  min-height: 38px !important;
+  border-radius: 8px !important;
+  padding: 0 8px !important;
+  font: 800 10px/1 var(--mono) !important;
+  letter-spacing: 0.1em !important;
+  text-transform: uppercase !important;
 }
 .game-shell-actions button:first-child {
   background: linear-gradient(135deg, rgba(159,124,255,0.82), rgba(45,191,176,0.62));
@@ -1990,6 +2030,19 @@ a { color: inherit; text-decoration: none; }
   font: 900 12px/1 var(--mono);
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+.start-actions .monerge-dynamic-btn {
+  width: 100% !important;
+  min-height: 52px !important;
+  border-radius: 8px !important;
+  padding: 0 12px !important;
+  background: rgba(255,255,255,0.1) !important;
+  border-color: rgba(238,246,251,0.18) !important;
+  color: #EEF6FB !important;
+  box-shadow: none !important;
+  font: 900 12px/1 var(--mono) !important;
+  letter-spacing: 0.12em !important;
+  text-transform: uppercase !important;
 }
 .start-actions button:first-child {
   background: linear-gradient(135deg, #9F7CFF, #2DBFB0);
@@ -4132,6 +4185,23 @@ body:has(.game-app-page) {
 .nb-card:hover {
   transform: translateY(-6px);
   box-shadow: 0 24px 60px rgba(14,31,44,0.1);
+}
+.nb-x-mark {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: rgba(14,31,44,0.08);
+  color: var(--ink);
+  opacity: 0.72;
+}
+.nb-x-mark svg {
+  width: 13px;
+  height: 13px;
 }
 .nb-glyph {
   width: 56px; height: 56px;
