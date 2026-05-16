@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   DynamicContextProvider,
-  DynamicWidget,
   dynamicEvents,
-  mergeNetworks,
   useDynamicContext,
   useDynamicModals,
   useUserWallets
 } from '@dynamic-labs/sdk-react-core';
 import { EthereumWalletConnectors } from '@dynamic-labs/ethereum';
+import { DynamicWagmiConnector } from '@dynamic-labs/wagmi-connector';
+import { WagmiProvider, createConfig, http } from 'wagmi';
+import { defineChain } from 'viem';
 import {
   useTweaks,
   TweaksPanel,
@@ -543,10 +545,10 @@ function Timeline({ y = 0, intensity = 60 }) {
   }, []);
   const section = sectionRef.current;
   const viewport = typeof window !== 'undefined' ? window.innerHeight || 800 : 800;
-  const readHold = 0.16;
   const isCompactTimeline = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 800px)').matches;
+  const readHold = isCompactTimeline ? 0.08 : 0.16;
   const scrollDistance = isCompactTimeline
-    ? Math.max(viewport * 1.3, (railTravel * 0.78) / (1 - readHold))
+    ? Math.max(viewport * 1.2, (railTravel * 0.98) / (1 - readHold))
     : Math.max(viewport * 1.8, (railTravel * 1.08) / (1 - readHold));
   const timelineHeight = viewport + scrollDistance;
   const sectionTop = section ? section.getBoundingClientRect().top : 0;
@@ -1008,10 +1010,27 @@ const MONAD_NETWORK = {
   rpcUrls: ['https://rpc.monad.xyz'],
   blockExplorerUrls: ['https://monadscan.com']
 };
+const monadMainnet = defineChain({
+  id: 143,
+  name: MONAD_NETWORK.chainName,
+  nativeCurrency: MONAD_NETWORK.nativeCurrency,
+  rpcUrls: {
+    default: { http: MONAD_NETWORK.rpcUrls },
+    public: { http: MONAD_NETWORK.rpcUrls }
+  },
+  blockExplorers: {
+    default: { name: 'MonadScan', url: MONAD_NETWORK.blockExplorerUrls[0] }
+  }
+});
 const DYNAMIC_ENV_ID = 'b62527ee-ec89-4502-86b3-37987b5720d4';
-const MONERGE_APP_PATH = '/?app=monerge#monad-game';
+const queryClient = new QueryClient();
+const wagmiConfig = createConfig({
+  chains: [monadMainnet],
+  transports: { [monadMainnet.id]: http(MONAD_NETWORK.rpcUrls[0]) }
+});
+const MONERGE_APP_PATH = '/monerge';
 const DYNAMIC_REDIRECT_URL = `${window.location.origin}${MONERGE_APP_PATH}`;
-const METAMASK_APP_LINK = `https://metamask.app.link/dapp/${window.location.host}/?app=monerge%23monad-game`;
+const METAMASK_APP_LINK = `https://metamask.app.link/dapp/${window.location.host}${MONERGE_APP_PATH}`;
 const MONAD_DYNAMIC_NETWORK = {
   blockExplorerUrls: MONAD_NETWORK.blockExplorerUrls,
   chainId: 143,
@@ -1027,7 +1046,7 @@ const DYNAMIC_SETTINGS = {
   appName: 'Monerge',
   appLogoUrl: `${window.location.origin}/assets/monerge-icon-512.png`,
   environmentId: DYNAMIC_ENV_ID,
-  initialAuthenticationMode: 'connect-only',
+  initialAuthenticationMode: 'connect-and-sign',
   enableConnectOnlyFallback: true,
   theme: 'dark',
   mobileExperience: 'redirect',
@@ -1043,7 +1062,18 @@ const DYNAMIC_SETTINGS = {
   walletConnectors: [EthereumWalletConnectors],
   walletConnectPreferredChains: ['eip155:143'],
   overrides: {
-    evmNetworks: (networks) => mergeNetworks([MONAD_DYNAMIC_NETWORK], networks)
+    evmNetworks: (networks) => {
+      const withoutMonad = networks.filter((network) => Number(network.chainId) !== 143);
+      return [MONAD_DYNAMIC_NETWORK, ...withoutMonad];
+    }
+  },
+  events: {
+    onAuthFlowOpen: () => window.dispatchEvent(new CustomEvent('monerge-wallet-status', { detail: { status: 'Dynamic wallet modal open' } })),
+    onAuthInit: () => window.dispatchEvent(new CustomEvent('monerge-wallet-status', { detail: { status: 'Signing in with Dynamic' } })),
+    onAuthSuccess: () => window.dispatchEvent(new CustomEvent('monerge-wallet-status', { detail: { status: 'Dynamic wallet connected' } })),
+    onAuthFailure: () => window.dispatchEvent(new CustomEvent('monerge-wallet-status', { detail: { status: 'Dynamic sign-in needs another try' } })),
+    onAuthCancel: () => window.dispatchEvent(new CustomEvent('monerge-wallet-status', { detail: { status: 'Wallet sign-in cancelled' } })),
+    onLogout: () => window.dispatchEvent(new CustomEvent('monerge-wallet', { detail: { address: '' } }))
   },
   cssOverrides: `
     .dynamic-shadow-dom { --dynamic-font-family-primary: inherit; }
@@ -1075,6 +1105,10 @@ const DYNAMIC_SETTINGS = {
       --dynamic-text-link: #7fd2e7;
       --dynamic-border: rgba(255,255,255,0.12);
       --dynamic-border-color: rgba(255,255,255,0.12);
+      --dynamic-wallet-list-tile-background: rgba(255,255,255,0.08);
+      --dynamic-wallet-list-tile-background-hover: rgba(127,210,231,0.18);
+      --dynamic-wallet-list-tile-border: 1px solid rgba(238,246,251,0.16);
+      --dynamic-wallet-list-tile-border-hover: 1px solid rgba(127,210,231,0.38);
       --dynamic-border-radius: 16px;
       --dynamic-shadow-down-3: 0 24px 48px rgba(0,0,0,0.55);
     }
@@ -1155,6 +1189,12 @@ function MonergeDynamicBridge() {
   }, []);
 
   return null;
+}
+
+function getAppMode() {
+  const path = window.location.pathname.replace(/\/+$/, '') || '/';
+  if (path === MONERGE_APP_PATH) return 'monerge';
+  return new URLSearchParams(window.location.search).get('app');
 }
 
 function SocialIcon({ name }) {
@@ -1367,10 +1407,12 @@ function MonadGame() {
   const [scoreReveal, setScoreReveal] = useState(null);
   const [gameMessage, setGameMessage] = useState('Score is hidden. Track the merges in your head.');
   const [gameStarted, setGameStarted] = useState(false);
+  const [gameMenuOpen, setGameMenuOpen] = useState(false);
+  const [pressedDirection, setPressedDirection] = useState('');
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION_SECONDS);
   const isMonad = chainId?.toLowerCase() === MONAD_NETWORK.chainId;
   const maxTile = Math.max(...board);
-  const appMode = new URLSearchParams(window.location.search).get('app');
+  const appMode = getAppMode();
   const isGameApp = appMode === 'monerge' || appMode === 'iglu-merge';
   const finalScore = scoreReveal?.final ?? null;
   const timeBonus = Math.max(0, timeLeft) * 2;
@@ -1405,7 +1447,7 @@ function MonadGame() {
   }, [isGameApp]);
 
   useEffect(() => {
-    setAuthMode?.('connect-only');
+    setAuthMode?.('connect-and-sign');
   }, [setAuthMode]);
 
   useEffect(() => {
@@ -1439,8 +1481,16 @@ function MonadGame() {
       setAccount(address);
       if (address) setWalletState('Dynamic wallet connected');
     };
+    const syncDynamicStatus = (event) => {
+      const status = event.detail?.status;
+      if (status) setWalletState(status);
+    };
     window.addEventListener('monerge-wallet', syncDynamicWallet);
-    return () => window.removeEventListener('monerge-wallet', syncDynamicWallet);
+    window.addEventListener('monerge-wallet-status', syncDynamicStatus);
+    return () => {
+      window.removeEventListener('monerge-wallet', syncDynamicWallet);
+      window.removeEventListener('monerge-wallet-status', syncDynamicStatus);
+    };
   }, []);
 
   useEffect(() => {
@@ -1476,7 +1526,7 @@ function MonadGame() {
   }
 
   function openDynamicFlow(message = 'Opening Dynamic wallet connect.') {
-    setAuthMode?.('connect-only');
+    setAuthMode?.('connect-and-sign');
     setWalletState(sdkHasLoaded ? message : 'Loading wallet connector...');
     if (dynamicBridgeRef.current) dynamicBridgeRef.current.open();
     else setShowAuthFlow?.(true);
@@ -1495,7 +1545,7 @@ function MonadGame() {
   }
 
   async function connectMonad() {
-    setAuthMode?.('connect-only');
+    setAuthMode?.('connect-and-sign');
     if (primaryWallet) {
       try {
         await primaryWallet.switchNetwork?.(143);
@@ -1603,6 +1653,14 @@ function MonadGame() {
     if (!canMove(nextBoard)) setGameOver(true);
   }
 
+  function pressMove(direction) {
+    setPressedDirection(direction);
+    window.setTimeout(() => {
+      setPressedDirection((current) => current === direction ? '' : current);
+    }, 220);
+    makeMove(direction);
+  }
+
   function revealBlindScore(event) {
     event?.preventDefault?.();
     const guess = Number.parseInt(scoreGuess, 10);
@@ -1685,7 +1743,7 @@ function MonadGame() {
           )}
         </div>
         <div className="game-actions">
-          <div className="dynamic-widget-wrap"><DynamicWidget /></div>
+          <button type="button" className="btn primary" onClick={connectMonad}>{account ? shortWallet(account) : 'Log in or sign up'}</button>
           {!hasInjectedWallet && <button type="button" className="btn ghost" onClick={openMetaMaskApp}>Open MetaMask</button>}
           <button type="button" className="btn ghost" onClick={newGame}>New run</button>
           <button type="button" className="btn ghost" onClick={submitScore} disabled={!score}>Submit score</button>
@@ -1718,15 +1776,48 @@ function MonadGame() {
         </div>}
         <div className="game-shell-head">
           <div>
-            <span>{isGameApp ? 'Mobile app' : 'Playable embed'}</span>
+            <span>{isGameApp ? 'Game app' : 'Playable embed'}</span>
             <strong className="monerge-wordmark">Monerge</strong>
           </div>
-          <a href="/?app=monerge#monad-game" target="_blank" rel="noopener">Open app</a>
+          <div className="game-shell-menu-actions">
+            <button type="button" onClick={() => setGameMenuOpen(true)}>Menu</button>
+            {!isGameApp && <a href={MONERGE_APP_PATH} target="_blank" rel="noopener">Open app</a>}
+          </div>
         </div>
+        {gameMenuOpen && <div className="game-menu-panel" role="dialog" aria-modal="true" aria-label={`${GAME_NAME} menu`}>
+          <div className="game-menu-card">
+            <div className="game-menu-head">
+              <div>
+                <span>Game menu</span>
+                <strong className="monerge-wordmark">Monerge</strong>
+              </div>
+              <button type="button" onClick={() => setGameMenuOpen(false)} aria-label="Close menu">×</button>
+            </div>
+            <p>A blind-score merge run: dodge lava walls, survive freeze turns, keep the score in your head, then guess before posting on Monad mainnet.</p>
+            <div className="game-menu-actions">
+              <button type="button" onClick={connectMonad}>{account ? shortWallet(account) : 'Connect wallet'}</button>
+              <button type="button" onClick={() => { newGame(); setGameMenuOpen(false); }}>New run</button>
+              <button type="button" onClick={submitScore} disabled={!score}>Submit score</button>
+            </div>
+            <div className="game-menu-characters" aria-label="Monad character progression">
+              {MONAD_TILE_LADDER.map((tile) =>
+              <span key={tile.value} className={`tile-${tile.value} ${maxTile >= tile.value ? 'unlocked' : ''}`}>
+                {tile.character && MONAD_CHARACTER_IMAGES[tile.character] ? <img className={`character-${tile.character.toLowerCase()}`} src={MONAD_CHARACTER_IMAGES[tile.character]} alt="" aria-hidden="true" /> : <i aria-hidden="true" />}
+                <small>{tile.value}</small>
+                <strong>{tile.character || tile.code}</strong>
+              </span>
+              )}
+            </div>
+            <div className="game-status menu-status">
+              <span>{walletState}</span>
+              <span>{isMonad ? 'Monad mainnet' : 'Wrong network'}</span>
+              <span>{moves} moves</span>
+              {txHash && <a href={`https://monadscan.com/tx/${txHash}`} target="_blank" rel="noopener">View score tx</a>}
+            </div>
+          </div>
+        </div>}
         <div className="game-shell-actions" aria-label="Wallet and run controls">
-          {isGameApp
-            ? <button type="button" onClick={connectMonad}>{account ? shortWallet(account) : 'Login'}</button>
-            : <div className="dynamic-widget-wrap"><DynamicWidget /></div>}
+          <button type="button" onClick={connectMonad}>{account ? shortWallet(account) : 'Login'}</button>
           {!hasInjectedWallet && <button type="button" onClick={openMetaMaskApp}>MetaMask</button>}
           <button type="button" onClick={newGame}>New</button>
           <button type="button" onClick={submitScore} disabled={!score}>Submit</button>
@@ -1734,7 +1825,7 @@ function MonadGame() {
         <div className="game-hud">
           <div><span>Hidden score</span><strong>{scoreReveal ? score : '???'}</strong></div>
           <div><span>Best</span><strong>{best}</strong></div>
-          <div><span>Lava</span><strong>{DIRECTION_LABELS[lavaDirection]}</strong></div>
+          <div className="hud-lava"><span>Lava</span><strong>{DIRECTION_LABELS[lavaDirection]}</strong></div>
           <div><span>Time</span><strong>{Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}</strong></div>
         </div>
         <div className="tile-ladder" aria-label="Monad tile progression">
@@ -1785,10 +1876,10 @@ function MonadGame() {
           <span className="freeze-dot">{freezeDirection ? `Freeze skips after ${DIRECTION_LABELS[freezeDirection]}` : 'Freeze is clear'}</span>
         </div>
         <div className="game-controls" aria-label="Move controls">
-          <button type="button" className={`${lavaDirection === 'up' ? 'is-lava' : ''} ${freezeDirection === 'up' ? 'is-freeze' : ''}`} onClick={() => makeMove('up')}>↑</button>
-          <button type="button" className={`${lavaDirection === 'left' ? 'is-lava' : ''} ${freezeDirection === 'left' ? 'is-freeze' : ''}`} onClick={() => makeMove('left')}>←</button>
-          <button type="button" className={`${lavaDirection === 'down' ? 'is-lava' : ''} ${freezeDirection === 'down' ? 'is-freeze' : ''}`} onClick={() => makeMove('down')}>↓</button>
-          <button type="button" className={`${lavaDirection === 'right' ? 'is-lava' : ''} ${freezeDirection === 'right' ? 'is-freeze' : ''}`} onClick={() => makeMove('right')}>→</button>
+          <button type="button" className={`${pressedDirection === 'up' ? 'is-pressed' : ''} ${lavaDirection === 'up' ? 'is-lava' : ''} ${freezeDirection === 'up' ? 'is-freeze' : ''}`} onClick={() => pressMove('up')}>↑</button>
+          <button type="button" className={`${pressedDirection === 'left' ? 'is-pressed' : ''} ${lavaDirection === 'left' ? 'is-lava' : ''} ${freezeDirection === 'left' ? 'is-freeze' : ''}`} onClick={() => pressMove('left')}>←</button>
+          <button type="button" className={`${pressedDirection === 'down' ? 'is-pressed' : ''} ${lavaDirection === 'down' ? 'is-lava' : ''} ${freezeDirection === 'down' ? 'is-freeze' : ''}`} onClick={() => pressMove('down')}>↓</button>
+          <button type="button" className={`${pressedDirection === 'right' ? 'is-pressed' : ''} ${lavaDirection === 'right' ? 'is-lava' : ''} ${freezeDirection === 'right' ? 'is-freeze' : ''}`} onClick={() => pressMove('right')}>→</button>
         </div>
         <div className="game-prompt">
           <strong>{scoreReveal ? `Final ${scoreReveal.final}` : gameOver ? 'Board locked. Guess before you reveal.' : maxTile >= 2048 ? 'Emonad unlocked.' : gameMessage}</strong>
@@ -2049,7 +2140,7 @@ function App() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const y = useScrollY();
   const mouse = useMouse();
-  const appMode = new URLSearchParams(window.location.search).get('app');
+  const appMode = getAppMode();
   const isGameApp = appMode === 'monerge' || appMode === 'iglu-merge';
   const soundReady = useAmbientScrollSound(y, soundEnabled);
 
@@ -2135,7 +2226,13 @@ function TweaksUI({ tweaks, setTweak }) {
 
 createRoot(document.getElementById('root')).render(
   <DynamicContextProvider settings={DYNAMIC_SETTINGS}>
-    <MonergeDynamicBridge />
-    <App />
+      <WagmiProvider config={wagmiConfig}>
+        <QueryClientProvider client={queryClient}>
+          <DynamicWagmiConnector>
+            <MonergeDynamicBridge />
+            <App />
+          </DynamicWagmiConnector>
+      </QueryClientProvider>
+    </WagmiProvider>
   </DynamicContextProvider>
 );

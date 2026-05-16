@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gerry-iglu-v61';
+const CACHE_NAME = 'gerry-iglu-v62';
 const IMAGE_CACHE_NAME = 'gerry-iglu-images-v1';
 
 self.addEventListener('install', (event) => {
@@ -37,6 +37,14 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (!isSameOrigin) return;
+
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request, { cache: 'no-store' })
+        .catch(() => caches.match('/index.html'))
+    );
+    return;
+  }
 
   event.respondWith(
     fetch(event.request, { cache: 'no-store' })

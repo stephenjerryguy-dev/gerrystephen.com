@@ -3,6 +3,9 @@
   "buildCommand": "npm run build",
   "cleanUrls": true,
   "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/monerge", "destination": "/index.html" }
+  ],
   "headers": [
     {
       "source": "/(.*)",
