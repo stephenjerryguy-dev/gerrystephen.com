@@ -62,6 +62,15 @@ function useAmbientScrollSound(y, enabled = true) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    const MASTER_VOLUME = 0.08;
+
+    function fadeMaster(audio, target = MASTER_VOLUME, seconds = 1.8) {
+      const now = audio.ctx.currentTime;
+      audio.master.gain.cancelScheduledValues(now);
+      audio.master.gain.setValueAtTime(audio.master.gain.value, now);
+      audio.master.gain.linearRampToValueAtTime(target, now + seconds);
+    }
+
     function makeNoiseBuffer(ctx, seconds = 2) {
       const length = ctx.sampleRate * seconds;
       const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
@@ -90,8 +99,11 @@ function useAmbientScrollSound(y, enabled = true) {
     function startAmbience() {
       if (!enabled) return;
       if (audioRef.current) {
-        audioRef.current.ctx.resume?.();
-        setReady(true);
+        const audio = audioRef.current;
+        audio.ctx.resume?.().then?.(() => {
+          fadeMaster(audio);
+          setReady(audio.ctx.state === 'running');
+        });
         return;
       }
 
@@ -105,16 +117,18 @@ function useAmbientScrollSound(y, enabled = true) {
       const beach = createSource(ctx, noise, 'lowpass', 720, 0.8);
       const snow = createSource(ctx, noise, 'highpass', 1600, 0.4);
 
-      master.gain.value = 0.08;
+      master.gain.value = 0;
       beachGain.gain.value = 0.7;
       snowGain.gain.value = 0;
       beach.filter.connect(beachGain).connect(master);
       snow.filter.connect(snowGain).connect(master);
       master.connect(ctx.destination);
 
-      audioRef.current = { ctx, beachGain, snowGain, beach, snow };
-      ctx.resume?.();
-      setReady(true);
+      audioRef.current = { ctx, master, beachGain, snowGain, beach, snow };
+      ctx.resume?.().then?.(() => {
+        fadeMaster(audioRef.current);
+        setReady(ctx.state === 'running');
+      });
     }
 
     startAmbience();
@@ -145,11 +159,15 @@ function useAmbientScrollSound(y, enabled = true) {
     if (!audio) return;
     const now = audio.ctx.currentTime;
     if (!enabled) {
+      audio.master.gain.setTargetAtTime(0, now, 0.18);
       audio.beachGain.gain.setTargetAtTime(0, now, 0.18);
       audio.snowGain.gain.setTargetAtTime(0, now, 0.18);
       return;
     }
-    audio.ctx.resume?.();
+    audio.ctx.resume?.().then?.(() => {
+      audio.master.gain.setTargetAtTime(0.08, audio.ctx.currentTime, 0.55);
+      setReady(audio.ctx.state === 'running');
+    });
   }, [enabled]);
 
   useEffect(() => {
@@ -1134,6 +1152,11 @@ const DYNAMIC_SETTINGS = {
 };
 
 const dynamicBridgeRef = { current: null };
+const DYNAMIC_AUTH_OPTIONS = {
+  initializeWalletConnect: true,
+  clearErrors: true,
+  performMultiWalletChecks: false
+};
 
 function purgeDynamicWalletCache() {
   try {
@@ -1154,7 +1177,7 @@ function MonergeDynamicBridge() {
   useEffect(() => {
     dynamicBridgeRef.current = {
       open: () => {
-        setShowAuthFlow?.(true);
+        setShowAuthFlow?.(true, DYNAMIC_AUTH_OPTIONS);
       },
       logout: async () => {
         await handleLogOut?.();
@@ -1547,11 +1570,11 @@ function MonadGame() {
     setAuthMode?.('connect-and-sign');
     setWalletState(sdkHasLoaded ? message : 'Loading wallet connector...');
     if (dynamicBridgeRef.current) dynamicBridgeRef.current.open();
-    else setShowAuthFlow?.(true);
+    else setShowAuthFlow?.(true, DYNAMIC_AUTH_OPTIONS);
     window.setTimeout(() => {
       setWalletState((current) => (
         current === message || current === 'Loading wallet connector...'
-          ? 'Still loading? Try Open MetaMask or refresh the app.'
+          ? 'Still loading? Refresh once, or open MetaMask from the button.'
           : current
       ));
     }, 6500);
@@ -1573,38 +1596,11 @@ function MonadGame() {
         setWalletState('Dynamic wallet on Monad');
       } catch (error) {
         setWalletState(error?.message || 'Open Dynamic to finish wallet setup.');
-        setShowAuthFlow?.(true);
+        setShowAuthFlow?.(true, DYNAMIC_AUTH_OPTIONS);
       }
       return;
     }
-    if (sdkHasLoaded || dynamicBridgeRef.current || !window.ethereum) {
-      openDynamicFlow();
-      return;
-    }
-    try {
-      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-      setAccount(accounts?.[0] || '');
-      try {
-        await window.ethereum.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: MONAD_NETWORK.chainId }]
-        });
-      } catch (switchError) {
-        if (switchError?.code === 4902) {
-          await window.ethereum.request({
-            method: 'wallet_addEthereumChain',
-            params: [MONAD_NETWORK]
-          });
-        } else {
-          throw switchError;
-        }
-      }
-      const nextChain = await window.ethereum.request({ method: 'eth_chainId' });
-      setChainId(nextChain);
-      setWalletState('Monad ready');
-    } catch (error) {
-      setWalletState(error?.message || 'Wallet connection cancelled.');
-    }
+    openDynamicFlow();
   }
 
   function newGame() {

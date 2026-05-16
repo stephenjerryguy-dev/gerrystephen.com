@@ -31,6 +31,11 @@
   --body: "Inter", system-ui, -apple-system, sans-serif;
 }
 
+.dynamic-shadow-dom {
+  position: relative;
+  z-index: 2147483647 !important;
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
