@@ -1086,7 +1086,8 @@ const DYNAMIC_SETTINGS = {
   appLogoUrl: `${window.location.origin}/assets/monerge-icon-512.png`,
   apiBaseUrl: `${window.location.origin}/dynamic-api`,
   environmentId: DYNAMIC_ENV_ID,
-  initialAuthenticationMode: 'connect-and-sign',
+  initialAuthenticationMode: 'connect-only',
+  enableVisitTrackingOnConnectOnly: true,
   theme: 'dark',
   defaultNumberOfWalletsToShow: 8,
   overrides: {
@@ -1109,10 +1110,10 @@ const DYNAMIC_SETTINGS = {
   walletsFilter: monergeWalletsFilter,
   events: {
     onAuthFlowOpen: () => window.dispatchEvent(new CustomEvent('monerge-wallet-status', { detail: { status: 'Dynamic wallet modal open' } })),
-    onAuthInit: () => window.dispatchEvent(new CustomEvent('monerge-wallet-status', { detail: { status: 'Signing in with Dynamic' } })),
+    onAuthInit: () => window.dispatchEvent(new CustomEvent('monerge-wallet-status', { detail: { status: 'Connecting with Dynamic' } })),
     onAuthSuccess: () => window.dispatchEvent(new CustomEvent('monerge-wallet-status', { detail: { status: 'Dynamic wallet connected' } })),
-    onAuthFailure: () => window.dispatchEvent(new CustomEvent('monerge-wallet-status', { detail: { status: 'Dynamic sign-in needs another try' } })),
-    onAuthCancel: () => window.dispatchEvent(new CustomEvent('monerge-wallet-status', { detail: { status: 'Wallet sign-in cancelled' } })),
+    onAuthFailure: () => window.dispatchEvent(new CustomEvent('monerge-wallet-status', { detail: { status: 'Dynamic connect needs another try' } })),
+    onAuthCancel: () => window.dispatchEvent(new CustomEvent('monerge-wallet-status', { detail: { status: 'Wallet connect cancelled' } })),
     onLogout: () => window.dispatchEvent(new CustomEvent('monerge-wallet', { detail: { address: '' } }))
   },
   cssOverrides: `
@@ -1518,7 +1519,7 @@ function MonadGame() {
   }, [isGameApp]);
 
   useEffect(() => {
-    setAuthMode?.('connect-and-sign');
+    setAuthMode?.('connect-only');
   }, [setAuthMode]);
 
   useEffect(() => {
@@ -1619,7 +1620,7 @@ function MonadGame() {
   }
 
   function openDynamicFlow(message = 'Opening Dynamic wallet connect.') {
-    setAuthMode?.('connect-and-sign');
+    setAuthMode?.('connect-only');
     if (!dynamicReady) {
       setWalletState('Dynamic settings are not loaded for this domain yet.');
       window.dispatchEvent(new CustomEvent('monerge-wallet-status', {
@@ -1645,7 +1646,7 @@ function MonadGame() {
   }
 
   async function connectMonad() {
-    setAuthMode?.('connect-and-sign');
+    setAuthMode?.('connect-only');
     if (primaryWallet) {
       try {
         await primaryWallet.switchNetwork?.(143);
