@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   DynamicContextProvider,
-  DynamicWidget,
   dynamicEvents,
   useDynamicContext,
   useDynamicModals,
@@ -1085,10 +1084,27 @@ function monergeWalletsFilter(options = []) {
 const DYNAMIC_SETTINGS = {
   appName: 'Monerge',
   appLogoUrl: `${window.location.origin}/assets/monerge-icon-512.png`,
+  apiBaseUrl: `${window.location.origin}/dynamic-api`,
   environmentId: DYNAMIC_ENV_ID,
   initialAuthenticationMode: 'connect-and-sign',
   theme: 'dark',
   defaultNumberOfWalletsToShow: 8,
+  overrides: {
+    evmNetworks: [
+      {
+        blockExplorerUrls: MONAD_NETWORK.blockExplorerUrls,
+        chainId: 143,
+        chainName: MONAD_NETWORK.chainName,
+        key: 'monad',
+        name: MONAD_NETWORK.chainName,
+        nativeCurrency: MONAD_NETWORK.nativeCurrency,
+        networkId: 143,
+        rpcUrls: MONAD_NETWORK.rpcUrls,
+        shortName: 'monad',
+        vanityName: 'Monad'
+      }
+    ]
+  },
   walletConnectors: [EthereumWalletConnectors],
   walletsFilter: monergeWalletsFilter,
   events: {
@@ -1280,14 +1296,11 @@ function shortWallet(account) {
   return account ? `${account.slice(0, 6)}...${account.slice(-4)}` : 'Connect wallet';
 }
 
-function MonergeWalletButton({ account, label = 'Log in or sign up' }) {
+function MonergeWalletButton({ account, label = 'Log in or sign up', onClick }) {
   return (
-    <DynamicWidget
-      variant="modal"
-      buttonContainerClassName="monerge-dynamic-wrap"
-      buttonClassName="monerge-dynamic-btn"
-      innerButtonComponent={<span>{account ? shortWallet(account) : label}</span>}
-    />
+    <button type="button" className="monerge-dynamic-btn" onClick={onClick}>
+      <span>{account ? shortWallet(account) : label}</span>
+    </button>
   );
 }
 
@@ -1434,10 +1447,19 @@ function canMove(board) {
 }
 
 function MonadGame() {
-  const { primaryWallet, setShowAuthFlow, setAuthMode, sdkHasLoaded } = useDynamicContext();
+  const dynamicContext = useDynamicContext();
+  const {
+    primaryWallet,
+    setShowAuthFlow,
+    setAuthMode,
+    sdkHasLoaded,
+    projectSettings,
+    showAuthFlow
+  } = dynamicContext;
   const [account, setAccount] = useState('');
   const [chainId, setChainId] = useState('');
   const [walletState, setWalletState] = useState('Ready');
+  const [dynamicTimedOut, setDynamicTimedOut] = useState(false);
   const [board, setBoard] = useState(() => makeBoard());
   const [score, setScore] = useState(0);
   const [best, setBest] = useState(() => Number(localStorage.getItem('monergeBlindBest') || localStorage.getItem('igluMergeBlindBest') || 0));
@@ -1464,6 +1486,8 @@ function MonadGame() {
   const finalScore = scoreReveal?.final ?? null;
   const timeBonus = Math.max(0, timeLeft) * 2;
   const hasInjectedWallet = typeof window !== 'undefined' && Boolean(window.ethereum);
+  const dynamicReady = Boolean(sdkHasLoaded);
+  const dynamicStatus = dynamicReady ? 'Dynamic ready' : dynamicTimedOut ? 'Dynamic settings blocked' : 'Dynamic loading';
 
   useEffect(() => {
     if (!gameStarted || gameOver || scoreReveal) return undefined;
@@ -1496,6 +1520,28 @@ function MonadGame() {
   useEffect(() => {
     setAuthMode?.('connect-and-sign');
   }, [setAuthMode]);
+
+  useEffect(() => {
+    window.__monergeDynamicDebug = {
+      appMode,
+      environmentId: DYNAMIC_ENV_ID,
+      hasProjectSettings: Boolean(projectSettings),
+      origin: window.location.origin,
+      sdkHasLoaded: Boolean(sdkHasLoaded),
+      showAuthFlow: Boolean(showAuthFlow),
+      timestamp: new Date().toISOString(),
+      walletAddress: primaryWallet?.address || account || ''
+    };
+  }, [account, appMode, primaryWallet, projectSettings, sdkHasLoaded, showAuthFlow]);
+
+  useEffect(() => {
+    if (dynamicReady) {
+      setDynamicTimedOut(false);
+      return undefined;
+    }
+    const timer = window.setTimeout(() => setDynamicTimedOut(true), 4500);
+    return () => window.clearTimeout(timer);
+  }, [dynamicReady]);
 
   useEffect(() => {
     if (!primaryWallet?.address) return;
@@ -1574,18 +1620,20 @@ function MonadGame() {
 
   function openDynamicFlow(message = 'Opening Dynamic wallet connect.') {
     setAuthMode?.('connect-and-sign');
+    if (!dynamicReady) {
+      setWalletState('Dynamic settings are not loaded for this domain yet.');
+      window.dispatchEvent(new CustomEvent('monerge-wallet-status', {
+        detail: { status: 'Dynamic settings blocked or still loading.' }
+      }));
+      return;
+    }
     setWalletState(sdkHasLoaded ? message : 'Loading wallet connector...');
     if (dynamicBridgeRef.current) dynamicBridgeRef.current.open();
     else setShowAuthFlow?.(true, DYNAMIC_AUTH_OPTIONS);
     window.setTimeout(() => {
-      const modalHost = document.querySelector('.dynamic-shadow-dom');
-      const hasVisibleDynamic = Boolean(modalHost?.shadowRoot?.textContent?.trim());
-      if (!hasVisibleDynamic) document.querySelector('.monerge-dynamic-btn')?.click?.();
-    }, 80);
-    window.setTimeout(() => {
       setWalletState((current) => (
         current === message || current === 'Loading wallet connector...'
-          ? 'Still loading? Refresh once, or open MetaMask from the button.'
+          ? 'Dynamic did not open yet. Check allowed domains and popup blockers.'
           : current
       ));
     }, 6500);
@@ -1768,7 +1816,7 @@ function MonadGame() {
           )}
         </div>
         <div className="game-actions">
-          <MonergeWalletButton account={account} label="Log in or sign up" />
+          <MonergeWalletButton account={account} label="Log in or sign up" onClick={connectMonad} />
           {!hasInjectedWallet && <button type="button" className="btn ghost" onClick={openMetaMaskApp}>Open MetaMask</button>}
           <button type="button" className="btn ghost" onClick={newGame}>New run</button>
           <button type="button" className="btn ghost" onClick={submitScore} disabled={!score}>Submit score</button>
@@ -1776,6 +1824,7 @@ function MonadGame() {
         <div className="game-status">
           <span>{walletState}</span>
           <span>{isMonad ? 'Monad mainnet' : 'Wrong network'}</span>
+          <span>{dynamicStatus}</span>
           <span>PWA ready</span>
           {txHash && <a href={`https://monadscan.com/tx/${txHash}`} target="_blank" rel="noopener">View score tx</a>}
         </div>
@@ -1794,7 +1843,7 @@ function MonadGame() {
           <p>Merge the tiles, dodge lava, survive freeze turns, then guess your hidden score.</p>
           <div className="start-actions">
             <button type="button" onClick={newGame}>Play</button>
-            <MonergeWalletButton account={account} label="Connect" />
+            <MonergeWalletButton account={account} label="Connect" onClick={connectMonad} />
             {!hasInjectedWallet && <button type="button" onClick={openMetaMaskApp}>MetaMask</button>}
           </div>
           <small>{account ? shortWallet(account) : 'Dynamic-ready wallet connect'}</small>
@@ -1820,7 +1869,7 @@ function MonadGame() {
             </div>
             <p>A blind-score merge run: dodge lava walls, survive freeze turns, keep the score in your head, then guess before posting on Monad mainnet.</p>
             <div className="game-menu-actions">
-              <MonergeWalletButton account={account} label="Connect wallet" />
+              <MonergeWalletButton account={account} label="Connect wallet" onClick={connectMonad} />
               <button type="button" onClick={() => { newGame(); setGameMenuOpen(false); }}>New run</button>
               <button type="button" onClick={submitScore} disabled={!score}>Submit score</button>
             </div>
@@ -1834,15 +1883,16 @@ function MonadGame() {
               )}
             </div>
             <div className="game-status menu-status">
-              <span>{walletState}</span>
-              <span>{isMonad ? 'Monad mainnet' : 'Wrong network'}</span>
-              <span>{moves} moves</span>
+          <span>{walletState}</span>
+          <span>{isMonad ? 'Monad mainnet' : 'Wrong network'}</span>
+          <span>{dynamicStatus}</span>
+          <span>{moves} moves</span>
               {txHash && <a href={`https://monadscan.com/tx/${txHash}`} target="_blank" rel="noopener">View score tx</a>}
             </div>
           </div>
         </div>}
         <div className="game-shell-actions" aria-label="Wallet and run controls">
-          <MonergeWalletButton account={account} label="Login" />
+          <MonergeWalletButton account={account} label="Login" onClick={connectMonad} />
           {!hasInjectedWallet && <button type="button" onClick={openMetaMaskApp}>MetaMask</button>}
           <button type="button" onClick={newGame}>New</button>
           <button type="button" onClick={submitScore} disabled={!score}>Submit</button>
@@ -1945,7 +1995,7 @@ function InkfinityGallery() {
       <div className="ink-actions">
         <a className="btn primary ink-cta" href="https://opensea.io/collection/inkfinity-canvas" target="_blank" rel="noopener">View the collection on OpenSea →</a>
         <a className="btn primary ink-cta ink-x" href="https://x.com/inkfinitycanvas" target="_blank" rel="noopener" aria-label="Inkfinity Canvas on X">
-          <SocialIcon name="X" /> @inkfinitycanvas
+          <SocialIcon name="X" />
         </a>
       </div>
     </section>);

@@ -875,7 +875,8 @@ a { color: inherit; text-decoration: none; }
   .timeline {
     min-height: var(--timeline-height, 210vh);
     padding: 0 20px;
-    overflow: hidden;
+    overflow-y: visible;
+    overflow-x: clip;
   }
   .timeline-sticky {
     position: sticky;
@@ -4098,7 +4099,11 @@ body:has(.game-app-page) {
 .ink-x {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
+  width: 52px;
+  min-width: 52px;
+  padding-inline: 0;
   margin-top: 8px;
 }
 .ink-x svg {
