@@ -212,30 +212,32 @@ a { color: inherit; text-decoration: none; }
   z-index: 70;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  min-height: 44px;
-  padding: 0 14px;
-  border: 1px solid rgba(14,31,44,0.12);
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 10px 0 14px;
+  border: 1px solid rgba(255,255,255,0.42);
   border-radius: 999px;
-  background: rgba(238,246,251,0.82);
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.52), rgba(238,246,251,0.24)),
+    rgba(238,246,251,0.3);
   color: var(--ink);
-  box-shadow: 0 16px 40px rgba(14,31,44,0.16);
-  backdrop-filter: blur(14px);
+  box-shadow: 0 16px 40px rgba(14,31,44,0.14), inset 0 1px 0 rgba(255,255,255,0.58);
+  backdrop-filter: blur(18px) saturate(1.25);
   cursor: pointer;
 }
 .sound-toggle span {
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
 }
 .sound-toggle i {
   display: grid;
   place-items: center;
-  min-width: 32px;
-  height: 24px;
+  min-width: 34px;
+  height: 22px;
   border-radius: 999px;
   background: var(--ink);
   color: var(--sky);
-  font: 800 9px/1 var(--mono);
+  font: 900 9px/1 var(--mono);
   letter-spacing: 0.08em;
   font-style: normal;
 }
@@ -1036,6 +1038,7 @@ a { color: inherit; text-decoration: none; }
   position: relative;
   z-index: 1;
   margin-bottom: 36px;
+  min-height: 72px;
 }
 .ecosystem-stage {
   position: relative;
@@ -1155,10 +1158,14 @@ a { color: inherit; text-decoration: none; }
   gap: 20px;
   margin: 0 0 18px;
   padding: 14px 0;
+  min-height: 94px;
   border-top: 1px solid rgba(14,31,44,0.1);
   border-bottom: 1px solid rgba(14,31,44,0.1);
 }
 .ecosystem-focus span {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
   font-family: var(--display-font), serif;
   font-size: clamp(28px, 4vw, 54px);
   line-height: 1;
@@ -1176,7 +1183,10 @@ a { color: inherit; text-decoration: none; }
 .ecosystem-status {
   display: inline-flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 12px;
+  flex: 0 0 min(330px, 42%);
+  min-width: 270px;
 }
 .mini-link {
   border: 1px solid rgba(14,31,44,0.14);
@@ -1432,6 +1442,7 @@ a { color: inherit; text-decoration: none; }
   }
   .nft-showcase { padding: 100px 24px; }
   .nft-head { flex-direction: column; }
+  .nft-lede { min-height: 122px; }
   .nft-actions { padding-top: 0; }
   .stage-nav {
     top: auto;
@@ -1439,9 +1450,9 @@ a { color: inherit; text-decoration: none; }
     bottom: 16px;
   }
   .ecosystem-stage { padding: 16px; }
-  .ecosystem-focus { align-items: flex-start; flex-direction: column; }
+  .ecosystem-focus { align-items: flex-start; flex-direction: column; min-height: 154px; }
   .ecosystem-focus strong { white-space: normal; }
-  .ecosystem-status { align-items: flex-start; flex-direction: column; }
+  .ecosystem-status { align-items: flex-start; flex-direction: column; flex-basis: auto; min-width: 0; }
   .nft-track {
     overflow-x: hidden;
     scroll-snap-type: none;
@@ -1536,6 +1547,9 @@ a { color: inherit; text-decoration: none; }
 .monerge-wordmark {
   position: relative;
   display: inline-block;
+  overflow: visible;
+  line-height: 1.16;
+  padding-bottom: 0.12em;
   letter-spacing: 0;
   color: transparent;
   background:
@@ -1550,7 +1564,7 @@ a { color: inherit; text-decoration: none; }
   position: absolute;
   left: 0.08em;
   right: 0.02em;
-  bottom: 0.02em;
+  bottom: 0;
   height: 0.1em;
   border-radius: 999px;
   background: linear-gradient(90deg, rgba(159,124,255,0), rgba(159,124,255,0.72), rgba(122,201,232,0.64), rgba(159,124,255,0));
@@ -1890,6 +1904,15 @@ a { color: inherit; text-decoration: none; }
   width: min(100%, 430px);
   margin: 14px auto 0;
 }
+.embed-difficulty {
+  max-width: 560px;
+  margin-top: 14px;
+  margin-bottom: 0;
+}
+.monad-game:not(.app-mode) .embed-difficulty button {
+  min-height: 50px;
+  background: rgba(255,255,255,0.07);
+}
 .game-menu-actions {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
@@ -1921,6 +1944,66 @@ a { color: inherit; text-decoration: none; }
 }
 .game-menu-actions button:disabled {
   opacity: 0.44;
+}
+.monerge-profile {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 12px;
+  align-items: stretch;
+  margin: 0 0 14px;
+  padding: 12px;
+  border: 1px solid rgba(238,246,251,0.14);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(122,201,232,0.2), transparent 58%),
+    rgba(255,255,255,0.07);
+}
+.profile-preview {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(238,246,251,0.18);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(159,124,255,0.38), rgba(122,201,232,0.22));
+  color: #fff;
+  font: 900 24px/1 var(--display-font);
+}
+.profile-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.profile-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: 8px;
+}
+.profile-fields label {
+  min-width: 0;
+}
+.profile-fields span {
+  display: block;
+  margin-bottom: 6px;
+  color: rgba(127,210,231,0.8);
+  font: 900 9px/1 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.profile-fields input {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid rgba(238,246,251,0.16);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: rgba(255,255,255,0.08);
+  color: #EEF6FB;
+  font: 700 13px/1 var(--body);
+  outline: none;
+}
+.profile-fields input::placeholder {
+  color: rgba(238,246,251,0.36);
 }
 .game-menu-characters {
   display: grid;
@@ -2204,6 +2287,8 @@ a { color: inherit; text-decoration: none; }
 }
 .game-hud div {
   min-height: 68px;
+  height: 68px;
+  overflow: hidden;
   padding: 12px;
   border-radius: 8px;
   background: rgba(255,255,255,0.08);
@@ -2227,8 +2312,12 @@ a { color: inherit; text-decoration: none; }
   display: block;
   margin-top: 4px;
   font-family: var(--display-font), serif;
-  font-size: clamp(24px, 3.6vw, 42px);
+  font-size: clamp(22px, 3.2vw, 38px);
   line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
 }
 .game-board {
   position: relative;
@@ -2637,7 +2726,9 @@ a { color: inherit; text-decoration: none; }
   margin-top: 12px;
 }
 .hazard-legend span {
-  min-height: 38px;
+  min-height: 44px;
+  height: 44px;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2719,7 +2810,7 @@ a { color: inherit; text-decoration: none; }
 }
 .game-prompt {
   margin-top: 14px;
-  min-height: 68px;
+  min-height: 116px;
   padding: 16px;
   border-radius: 8px;
   border: 1px solid rgba(238,246,251,0.14);
@@ -2730,6 +2821,7 @@ a { color: inherit; text-decoration: none; }
   font-size: clamp(22px, 3vw, 34px);
   line-height: 1.05;
   margin-bottom: 8px;
+  min-height: 2.1em;
 }
 .leaderboard {
   margin-top: 16px;
@@ -2770,10 +2862,10 @@ a { color: inherit; text-decoration: none; }
 }
 .leaderboard li {
   display: grid;
-  grid-template-columns: 34px minmax(54px, auto) minmax(68px, 1fr);
+  grid-template-columns: 34px 38px minmax(54px, auto) minmax(68px, 1fr);
   grid-template-areas:
-    "rank score mode"
-    "rank wallet wallet";
+    "rank avatar score mode"
+    "rank avatar wallet wallet";
   gap: 3px 10px;
   align-items: center;
   border: 1px solid rgba(238,246,251,0.1);
@@ -2791,6 +2883,27 @@ a { color: inherit; text-decoration: none; }
   color: #fff;
   font: 900 20px/1 var(--display-font);
 }
+.leaderboard-avatar {
+  grid-area: avatar;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(238,246,251,0.14);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(159,124,255,0.34), rgba(122,201,232,0.22));
+}
+.leaderboard-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.leaderboard-avatar i {
+  color: #fff;
+  font: 900 14px/1 var(--display-font);
+  font-style: normal;
+}
 .leaderboard li em {
   grid-area: mode;
   justify-self: end;
@@ -2802,6 +2915,10 @@ a { color: inherit; text-decoration: none; }
   grid-area: wallet;
   color: rgba(238,246,251,0.58);
   font-size: 8px;
+}
+.leaderboard li small b {
+  color: rgba(238,246,251,0.78);
+  font-weight: 900;
 }
 .leaderboard p {
   color: rgba(238,246,251,0.64);
@@ -2815,8 +2932,12 @@ a { color: inherit; text-decoration: none; }
   font-size: 18px;
 }
 .leaderboard.compact li {
-  grid-template-columns: 28px 56px 1fr;
+  grid-template-columns: 28px 30px 56px 1fr;
   padding: 7px 8px;
+}
+.leaderboard.compact .leaderboard-avatar {
+  width: 28px;
+  height: 28px;
 }
 .leaderboard.compact li strong {
   font-size: 17px;
@@ -3728,7 +3849,8 @@ a { color: inherit; text-decoration: none; }
     gap: 5px;
   }
   .monad-game.app-mode .hazard-legend span {
-    min-height: 30px;
+    min-height: 34px;
+    height: 34px;
     padding: 7px 9px;
     font-size: 7px;
     letter-spacing: 0.08em;
@@ -4240,6 +4362,8 @@ body:has(.game-app-page) {
   gap: 8px;
   width: 52px;
   min-width: 52px;
+  height: 52px;
+  min-height: 52px;
   padding-inline: 0;
   margin-top: 8px;
 }
@@ -4305,7 +4429,7 @@ body:has(.game-app-page) {
 }
 .monerge-logo,
 .monerge-wordmark {
-  padding-bottom: 0.08em;
+  padding-bottom: 0.12em;
 }
 .start-brand strong,
 .game-shell-head strong {
@@ -5173,6 +5297,70 @@ body:has(.game-app-page) {
   .social-strip {
     flex-wrap: wrap;
     max-width: 280px;
+  }
+}
+
+/* ---------- Stability pass ---------- */
+.monad-game.app-mode .game-hud div {
+  min-height: 68px;
+  height: 68px;
+  overflow: hidden;
+}
+.monad-game.app-mode .game-hud strong,
+.game-hud .hud-lava strong {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+.monad-game.app-mode .hazard-legend span {
+  min-height: 44px;
+  height: 44px;
+  overflow: hidden;
+}
+.monad-game.app-mode .hazard-legend {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.monad-game.app-mode .game-prompt {
+  min-height: 116px;
+}
+.monad-game.app-mode .game-prompt strong {
+  min-height: 2.1em;
+}
+.monad-game.app-mode .game-shell-actions {
+  min-height: 38px;
+}
+.game-shell,
+.game-board,
+.game-hud,
+.hazard-legend,
+.game-controls,
+.game-prompt,
+.ecosystem-stage,
+.ecosystem-focus {
+  box-sizing: border-box;
+}
+@media (max-width: 700px) {
+  .profile-fields {
+    grid-template-columns: 1fr;
+  }
+  .monerge-profile {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+  .profile-preview {
+    width: 56px;
+    height: 56px;
+  }
+  .monad-game.app-mode .game-hud div {
+    height: 60px;
+    min-height: 60px;
+  }
+  .monad-game.app-mode .hazard-legend span {
+    height: 40px;
+    min-height: 40px;
+  }
+  .monad-game.app-mode .game-prompt {
+    min-height: 104px;
   }
 }
 

@@ -2,6 +2,11 @@ const MAX_ENTRIES = 50;
 
 globalThis.__monergeLeaderboard = globalThis.__monergeLeaderboard || [];
 
+function sanitizeProfileUrl(value = '') {
+  const url = String(value || '').trim().slice(0, 360);
+  return /^https?:\/\//i.test(url) ? url : '';
+}
+
 function sanitizeEntry(input = {}) {
   const score = Number(input.score);
   const maxTile = Number(input.maxTile);
@@ -10,6 +15,8 @@ function sanitizeEntry(input = {}) {
   return {
     id: String(input.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`).slice(0, 80),
     wallet: String(input.wallet || '').slice(0, 64),
+    username: String(input.username || '').replace(/[^a-zA-Z0-9_.-]/g, '').slice(0, 24),
+    pfp: sanitizeProfileUrl(input.pfp),
     score: Math.round(score),
     actual: Number.isFinite(Number(input.actual)) ? Math.round(Number(input.actual)) : Math.round(score),
     difficulty: String(input.difficulty || 'Classic').slice(0, 24),
