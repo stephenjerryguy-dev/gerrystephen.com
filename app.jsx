@@ -1275,7 +1275,47 @@ function SocialIcon({ name }) {
 
 const GAME_NAME = 'Monerge';
 const GAME_DURATION_SECONDS = 120;
+const SCOREBOARD_KEY = 'monergeScoreboard';
 const LAVA_DIRECTIONS = ['left', 'up', 'right', 'down'];
+const GAME_DIFFICULTIES = {
+  chill: {
+    label: 'Chill',
+    tag: 'Untimed',
+    timed: false,
+    hazards: false,
+    duration: 0,
+    multiplier: 1,
+    note: 'No clock, no lava, no freeze. Pure merge focus.'
+  },
+  classic: {
+    label: 'Classic',
+    tag: 'Timed',
+    timed: true,
+    hazards: false,
+    duration: GAME_DURATION_SECONDS,
+    multiplier: 1.12,
+    note: 'Timed run with clean walls.'
+  },
+  hazard: {
+    label: 'Hazard',
+    tag: 'Lava + freeze',
+    timed: true,
+    hazards: true,
+    duration: GAME_DURATION_SECONDS,
+    multiplier: 1.35,
+    note: 'Random lava and freeze turns.'
+  },
+  hardest: {
+    label: 'Hardest',
+    tag: 'Max bonus',
+    timed: true,
+    hazards: true,
+    duration: 90,
+    multiplier: 1.75,
+    note: 'Short clock, hazards every action, biggest score multiplier.'
+  }
+};
+const DIFFICULTY_ORDER = ['chill', 'classic', 'hazard', 'hardest'];
 const DIRECTION_LABELS = {
   left: 'Left wall',
   right: 'Right wall',
@@ -1297,12 +1337,25 @@ function shortWallet(account) {
   return account ? `${account.slice(0, 6)}...${account.slice(-4)}` : 'Connect wallet';
 }
 
-function MonergeWalletButton({ account, label = 'Log in or sign up', onClick }) {
+function MonergeWalletButton({ account, label = 'Connect wallet', onClick }) {
   return (
     <button type="button" className="monerge-dynamic-btn" onClick={onClick}>
       <span>{account ? shortWallet(account) : label}</span>
     </button>
   );
+}
+
+function loadScoreboard() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(SCOREBOARD_KEY) || '[]');
+    return Array.isArray(parsed) ? parsed.slice(0, 8) : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function saveScoreboard(entries) {
+  localStorage.setItem(SCOREBOARD_KEY, JSON.stringify(entries.slice(0, 8)));
 }
 
 function hexFromText(text) {
@@ -1453,6 +1506,7 @@ function MonadGame() {
     primaryWallet,
     setShowAuthFlow,
     setAuthMode,
+    handleLogOut,
     sdkHasLoaded,
     projectSettings,
     showAuthFlow
@@ -1467,7 +1521,8 @@ function MonadGame() {
   const [moves, setMoves] = useState(0);
   const [gameOver, setGameOver] = useState(false);
   const [touchStart, setTouchStart] = useState(null);
-  const [txHash, setTxHash] = useState('');
+  const [signedResult, setSignedResult] = useState('');
+  const [difficulty, setDifficulty] = useState('classic');
   const [lavaDirection, setLavaDirection] = useState(() => LAVA_DIRECTIONS[Math.floor(Math.random() * LAVA_DIRECTIONS.length)]);
   const [freezeDirection, setFreezeDirection] = useState(() => randomDirection(lavaDirection));
   const [frozenTurns, setFrozenTurns] = useState(0);
@@ -1475,6 +1530,7 @@ function MonadGame() {
   const [hazardPulse, setHazardPulse] = useState(0);
   const [scoreGuess, setScoreGuess] = useState('');
   const [scoreReveal, setScoreReveal] = useState(null);
+  const [scoreboard, setScoreboard] = useState(() => loadScoreboard());
   const [gameMessage, setGameMessage] = useState('Score is hidden. Track the merges in your head.');
   const [gameStarted, setGameStarted] = useState(false);
   const [gameMenuOpen, setGameMenuOpen] = useState(false);
@@ -1484,14 +1540,16 @@ function MonadGame() {
   const maxTile = Math.max(...board);
   const appMode = getAppMode();
   const isGameApp = appMode === 'monerge' || appMode === 'iglu-merge';
+  const currentDifficulty = GAME_DIFFICULTIES[difficulty] || GAME_DIFFICULTIES.classic;
+  const hazardsEnabled = Boolean(currentDifficulty.hazards);
   const finalScore = scoreReveal?.final ?? null;
-  const timeBonus = Math.max(0, timeLeft) * 2;
-  const hasInjectedWallet = typeof window !== 'undefined' && Boolean(window.ethereum);
+  const timeBonus = currentDifficulty.timed ? Math.max(0, timeLeft) * 2 : 0;
+  const difficultyBonus = scoreReveal?.difficultyBonus ?? 0;
   const dynamicReady = Boolean(sdkHasLoaded);
   const dynamicStatus = dynamicReady ? 'Dynamic ready' : dynamicTimedOut ? 'Dynamic settings blocked' : 'Dynamic loading';
 
   useEffect(() => {
-    if (!gameStarted || gameOver || scoreReveal) return undefined;
+    if (!gameStarted || gameOver || scoreReveal || !currentDifficulty.timed) return undefined;
     const timer = window.setInterval(() => {
       setTimeLeft((value) => {
         if (value <= 1) {
@@ -1504,7 +1562,7 @@ function MonadGame() {
       });
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [gameStarted, gameOver, scoreReveal]);
+  }, [currentDifficulty.timed, gameStarted, gameOver, scoreReveal]);
 
   useEffect(() => {
     if (!isGameApp) return undefined;
@@ -1597,9 +1655,16 @@ function MonadGame() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [board, gameOver, lavaDirection, freezeDirection, frozenTurns]);
+  }, [board, gameOver, hazardsEnabled, lavaDirection, freezeDirection, frozenTurns]);
 
   function rotateHazards(moveCount = moves + 1, options = {}) {
+    if (!hazardsEnabled) {
+      setLavaDirection('');
+      setFreezeDirection('');
+      setHazardHit('');
+      return { lava: '', freeze: '' };
+    }
+    if (difficulty === 'hardest') options.forceFreeze = true;
     const nextHazards = randomHazards(lavaDirection, options.forceFreeze || moveCount % 3 === 0);
     setLavaDirection(nextHazards.lava);
     setFreezeDirection(nextHazards.freeze);
@@ -1640,11 +1705,6 @@ function MonadGame() {
     }, 6500);
   }
 
-  function openMetaMaskApp() {
-    setWalletState('Opening MetaMask mobile.');
-    window.location.href = METAMASK_APP_LINK;
-  }
-
   async function connectMonad() {
     setAuthMode?.('connect-only');
     if (primaryWallet) {
@@ -1663,28 +1723,42 @@ function MonadGame() {
     openDynamicFlow();
   }
 
+  async function disconnectWallet() {
+    try {
+      await handleLogOut?.();
+    } catch (_) {
+      // Dynamic can fail logout when the session is already gone; local state still needs to clear.
+    }
+    setAccount('');
+    setChainId('');
+    setWalletState('Wallet disconnected');
+    setSignedResult('');
+  }
+
   function newGame() {
     setGameStarted(true);
     setBoard(makeBoard());
     setScore(0);
     setMoves(0);
     setGameOver(false);
-    setTxHash('');
+    setSignedResult('');
     setScoreGuess('');
     setScoreReveal(null);
     setFrozenTurns(0);
-    setTimeLeft(GAME_DURATION_SECONDS);
-    const firstHazards = randomHazards(undefined, true);
+    setTimeLeft(currentDifficulty.duration);
+    const firstHazards = currentDifficulty.hazards ? randomHazards(undefined, true) : { lava: '', freeze: '' };
     setLavaDirection(firstHazards.lava);
     setFreezeDirection(firstHazards.freeze);
     setHazardPulse((value) => value + 1);
     setHazardHit('');
-    setGameMessage('Score is hidden. Track the merges and dodge the hazards.');
+    setGameMessage(currentDifficulty.hazards
+      ? 'Score is hidden. Track the merges and dodge the hazards.'
+      : 'Score is hidden. Clean walls. Track the merges in your head.');
   }
 
   function makeMove(direction) {
     if (gameOver) return;
-    if (frozenTurns > 0) {
+    if (hazardsEnabled && frozenTurns > 0) {
       const blockedBoard = addRandomTile(board);
       setBoard(blockedBoard);
       setFrozenTurns((value) => Math.max(0, value - 1));
@@ -1695,7 +1769,7 @@ function MonadGame() {
       if (!canMove(blockedBoard)) setGameOver(true);
       return;
     }
-    if (direction === lavaDirection) {
+    if (hazardsEnabled && direction === lavaDirection) {
       const penalty = Math.max(12, Math.min(96, Math.round((maxTile || 2) / 2)));
       setScore((value) => Math.max(0, value - penalty));
       const nextHazards = rotateHazards(moves + 1);
@@ -1704,7 +1778,7 @@ function MonadGame() {
       setGameMessage(`${DIRECTION_LABELS[direction]} is lava. -${penalty}. New lava: ${DIRECTION_LABELS[nextHazards.lava]}.`);
       return;
     }
-    if (direction === freezeDirection) {
+    if (hazardsEnabled && direction === freezeDirection) {
       const nextHazards = rotateHazards(moves + 1, { forceFreeze: true });
       setFrozenTurns(1);
       setMoves((value) => value + 1);
@@ -1721,9 +1795,12 @@ function MonadGame() {
     setScore((value) => value + result.gained + streakBonus);
     setMoves(nextMoves);
     const nextHazards = rotateHazards(nextMoves);
+    const hazardCopy = hazardsEnabled
+      ? ` Avoid ${DIRECTION_LABELS[nextHazards.lava]}${nextHazards.freeze ? ` and frozen ${DIRECTION_LABELS[nextHazards.freeze]}` : ''}.`
+      : ' Clean walls.';
     setGameMessage(result.gained
-      ? `Merge landed${streakBonus ? ` +${streakBonus} streak bonus` : ''}. Avoid ${DIRECTION_LABELS[nextHazards.lava]}${nextHazards.freeze ? ` and frozen ${DIRECTION_LABELS[nextHazards.freeze]}` : ''}.`
-      : `Clean slide. Avoid ${DIRECTION_LABELS[nextHazards.lava]}${nextHazards.freeze ? ` and frozen ${DIRECTION_LABELS[nextHazards.freeze]}` : ''}.`);
+      ? `Merge landed${streakBonus ? ` +${streakBonus} streak bonus` : ''}.${hazardCopy}`
+      : `Clean slide.${hazardCopy}`);
     if (!canMove(nextBoard)) setGameOver(true);
   }
 
@@ -1743,14 +1820,24 @@ function MonadGame() {
       return;
     }
     const miss = Math.abs(score - guess);
-    const final = Math.max(0, score - miss + timeBonus);
-    const reveal = { actual: score, guess, miss, timeBonus, final };
+    const baseAfterGuess = Math.max(0, score - miss + timeBonus);
+    const difficultyBonusValue = Math.max(0, Math.round(baseAfterGuess * (currentDifficulty.multiplier - 1)));
+    const final = baseAfterGuess + difficultyBonusValue;
+    const reveal = {
+      actual: score,
+      guess,
+      miss,
+      timeBonus,
+      difficulty: currentDifficulty.label,
+      difficultyBonus: difficultyBonusValue,
+      final
+    };
     setScoreReveal(reveal);
     if (final > best) {
       setBest(final);
       localStorage.setItem('monergeBlindBest', String(final));
     }
-    setGameMessage(`Actual ${score}. Off by ${miss}. Time bonus ${timeBonus}. Final score ${final}.`);
+    setGameMessage(`Actual ${score}. Off by ${miss}. ${currentDifficulty.label} bonus ${difficultyBonusValue}. Final score ${final}.`);
   }
 
   function handleTouchEnd(event) {
@@ -1764,7 +1851,11 @@ function MonadGame() {
     makeMove(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
   }
 
-  async function submitScore() {
+  async function signResult() {
+    if (!scoreReveal) {
+      setGameMessage('Reveal your hidden score before signing the run.');
+      return;
+    }
     if (!account) {
       await connectMonad();
       return;
@@ -1774,32 +1865,53 @@ function MonadGame() {
       return;
     }
     try {
-      setWalletState('Awaiting score signature');
-      if (primaryWallet && !window.ethereum) {
-        const signer = await primaryWallet.connector?.getSigner?.();
-        if (!signer?.sendTransaction) throw new Error('Dynamic signer unavailable.');
-        const tx = await signer.sendTransaction({
-          to: primaryWallet.address,
-          value: 0n,
-          data: hexFromText(`gerrystephen.com ${GAME_NAME} final=${finalScore ?? score} actual=${score} maxTile=${maxTile}`)
+      setWalletState('Awaiting wallet signature');
+      const message = [
+        `gerrystephen.com ${GAME_NAME}`,
+        `mode=${currentDifficulty.label}`,
+        `final=${finalScore}`,
+        `actual=${score}`,
+        `guess=${scoreReveal.guess}`,
+        `miss=${scoreReveal.miss}`,
+        `timeBonus=${timeBonus}`,
+        `difficultyBonus=${difficultyBonus}`,
+        `maxTile=${maxTile}`,
+        `moves=${moves}`
+      ].join('\n');
+      let signature = '';
+      if (primaryWallet?.connector?.signMessage) {
+        signature = await primaryWallet.connector.signMessage(message);
+      } else if (primaryWallet?.signMessage) {
+        signature = await primaryWallet.signMessage(message);
+      } else if (window.ethereum) {
+        signature = await window.ethereum.request({
+          method: 'personal_sign',
+          params: [hexFromText(message), account]
         });
-        setTxHash(tx?.hash || tx);
-        setWalletState('Score posted');
-        return;
+      } else {
+        throw new Error('Wallet signer unavailable.');
       }
-      const hash = await window.ethereum.request({
-        method: 'eth_sendTransaction',
-        params: [{
-          from: account,
-          to: account,
-          value: '0x0',
-          data: hexFromText(`gerrystephen.com ${GAME_NAME} final=${finalScore ?? score} actual=${score} maxTile=${maxTile}`)
-        }]
-      });
-      setTxHash(hash);
-      setWalletState('Score posted');
+      setSignedResult(signature || 'signed');
+      const nextEntry = {
+        id: `${Date.now()}`,
+        wallet: account,
+        score: finalScore,
+        actual: score,
+        difficulty: currentDifficulty.label,
+        maxTile,
+        moves,
+        signature: signature || 'signed',
+        signedAt: new Date().toISOString()
+      };
+      const nextBoard = [nextEntry, ...scoreboard]
+        .sort((a, b) => (b.score || 0) - (a.score || 0))
+        .slice(0, 8);
+      setScoreboard(nextBoard);
+      saveScoreboard(nextBoard);
+      setWalletState('Run signed');
+      setGameMessage(`Signed ${currentDifficulty.label} run added to the scoreboard.`);
     } catch (error) {
-      setWalletState(error?.message || 'Score not posted.');
+      setWalletState(error?.message || 'Run not signed.');
     }
   }
 
@@ -1807,7 +1919,7 @@ function MonadGame() {
     <section className={`monad-game ${isGameApp ? 'app-mode' : ''} ${isGameApp && !gameStarted ? 'start-mode' : ''}`} id="monad-game">
       <div className="game-copy">
         <Chapter num="04" kicker="Built on Monad" title={<span className="monerge-logo">Monerge.</span>} />
-        <p className="lede">A blind-score focus game for BuildAnything: merge Monad-coded tiles, read the random hazard walls, remember your points, then guess your score before posting on Monad mainnet.</p>
+        <p className="lede">A wallet-backed focus game for BuildAnything: merge Monad-coded tiles, choose your difficulty, remember your hidden points, then sign your result when the run is real.</p>
         <div className="monanimal-strip" aria-label="Monad character inspirations">
           {MONAD_CHARACTERS.map((character) =>
           <span key={character.name} className={`monanimal-chip tile-${character.value}`}>
@@ -1817,17 +1929,17 @@ function MonadGame() {
           )}
         </div>
         <div className="game-actions">
-          <MonergeWalletButton account={account} label="Log in or sign up" onClick={connectMonad} />
-          {!hasInjectedWallet && <button type="button" className="btn ghost" onClick={openMetaMaskApp}>Open MetaMask</button>}
+          <MonergeWalletButton account={account} label="Connect wallet" onClick={connectMonad} />
+          {account && <button type="button" className="btn ghost" onClick={disconnectWallet}>Sign out</button>}
           <button type="button" className="btn ghost" onClick={newGame}>New run</button>
-          <button type="button" className="btn ghost" onClick={submitScore} disabled={!score}>Submit score</button>
+          <button type="button" className="btn ghost" onClick={signResult} disabled={!scoreReveal}>Sign result</button>
         </div>
         <div className="game-status">
           <span>{walletState}</span>
           <span>{isMonad ? 'Monad mainnet' : 'Wrong network'}</span>
           <span>{dynamicStatus}</span>
           <span>PWA ready</span>
-          {txHash && <a href={`https://monadscan.com/tx/${txHash}`} target="_blank" rel="noopener">View score tx</a>}
+          {signedResult && <span>Result signed</span>}
         </div>
       </div>
       <div className="game-shell" role="application" aria-label={`${GAME_NAME} game`}>
@@ -1841,13 +1953,20 @@ function MonadGame() {
             <span>Built on Monad</span>
             <strong className="monerge-wordmark">Monerge</strong>
           </div>
-          <p>Merge the tiles, dodge lava, survive freeze turns, then guess your hidden score.</p>
+          <p>Pick a mode, merge the tiles, then guess your hidden score. Hardest mode earns the biggest bonus.</p>
+          <div className="difficulty-select start-difficulty" aria-label="Difficulty">
+            {DIFFICULTY_ORDER.map((key) =>
+              <button key={key} type="button" className={difficulty === key ? 'active' : ''} onClick={() => setDifficulty(key)}>
+                <strong>{GAME_DIFFICULTIES[key].label}</strong>
+                <span>{GAME_DIFFICULTIES[key].tag}</span>
+              </button>
+            )}
+          </div>
           <div className="start-actions">
             <button type="button" onClick={newGame}>Play</button>
             <MonergeWalletButton account={account} label="Connect" onClick={connectMonad} />
-            {!hasInjectedWallet && <button type="button" onClick={openMetaMaskApp}>MetaMask</button>}
           </div>
-          <small>{account ? shortWallet(account) : 'Dynamic-ready wallet connect'}</small>
+          <small>{account ? shortWallet(account) : 'Connect when you want to sign a run'}</small>
         </div>}
         <div className="game-shell-head">
           <div>
@@ -1868,11 +1987,20 @@ function MonadGame() {
               </div>
               <button type="button" onClick={() => setGameMenuOpen(false)} aria-label="Close menu">×</button>
             </div>
-            <p>A blind-score merge run: dodge lava walls, survive freeze turns, keep the score in your head, then guess before posting on Monad mainnet.</p>
+            <p>Choose the intensity, keep the hidden score in your head, reveal it at the end, then sign the result with your wallet.</p>
+            <div className="difficulty-select" aria-label="Difficulty">
+              {DIFFICULTY_ORDER.map((key) =>
+                <button key={key} type="button" className={difficulty === key ? 'active' : ''} onClick={() => setDifficulty(key)}>
+                  <strong>{GAME_DIFFICULTIES[key].label}</strong>
+                  <span>{GAME_DIFFICULTIES[key].tag}</span>
+                </button>
+              )}
+            </div>
             <div className="game-menu-actions">
               <MonergeWalletButton account={account} label="Connect wallet" onClick={connectMonad} />
+              {account && <button type="button" onClick={disconnectWallet}>Sign out</button>}
               <button type="button" onClick={() => { newGame(); setGameMenuOpen(false); }}>New run</button>
-              <button type="button" onClick={submitScore} disabled={!score}>Submit score</button>
+              <button type="button" onClick={signResult} disabled={!scoreReveal}>Sign result</button>
             </div>
             <div className="game-menu-characters" aria-label="Monad character progression">
               {MONAD_TILE_LADDER.map((tile) =>
@@ -1888,21 +2016,22 @@ function MonadGame() {
           <span>{isMonad ? 'Monad mainnet' : 'Wrong network'}</span>
           <span>{dynamicStatus}</span>
           <span>{moves} moves</span>
-              {txHash && <a href={`https://monadscan.com/tx/${txHash}`} target="_blank" rel="noopener">View score tx</a>}
+              {signedResult && <span>Result signed</span>}
             </div>
+            <Scoreboard entries={scoreboard} />
           </div>
         </div>}
         <div className="game-shell-actions" aria-label="Wallet and run controls">
-          <MonergeWalletButton account={account} label="Login" onClick={connectMonad} />
-          {!hasInjectedWallet && <button type="button" onClick={openMetaMaskApp}>MetaMask</button>}
+          <MonergeWalletButton account={account} label="Connect" onClick={connectMonad} />
+          {account && <button type="button" onClick={disconnectWallet}>Out</button>}
           <button type="button" onClick={newGame}>New</button>
-          <button type="button" onClick={submitScore} disabled={!score}>Submit</button>
+          <button type="button" onClick={signResult} disabled={!scoreReveal}>Sign</button>
         </div>
         <div className="game-hud">
           <div><span>Hidden score</span><strong>{scoreReveal ? score : '???'}</strong></div>
           <div><span>Best</span><strong>{best}</strong></div>
-          <div className="hud-lava"><span>Lava</span><strong>{DIRECTION_LABELS[lavaDirection]}</strong></div>
-          <div><span>Time</span><strong>{Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}</strong></div>
+          <div className="hud-lava"><span>{hazardsEnabled ? 'Lava' : 'Mode'}</span><strong>{hazardsEnabled ? DIRECTION_LABELS[lavaDirection] : currentDifficulty.label}</strong></div>
+          <div><span>Time</span><strong>{currentDifficulty.timed ? `${Math.floor(timeLeft / 60)}:${String(timeLeft % 60).padStart(2, '0')}` : 'Open'}</strong></div>
         </div>
         <div className="tile-ladder" aria-label="Monad tile progression">
           {MONAD_TILE_LADDER.map((tile) =>
@@ -1915,7 +2044,7 @@ function MonadGame() {
           )}
         </div>
         <div
-          className={`game-board merge-board lava-${lavaDirection} ${freezeDirection ? `freeze-${freezeDirection}` : ''} ${hazardHit ? `hit-${hazardHit}` : ''}`}
+          className={`game-board merge-board ${hazardsEnabled ? `lava-${lavaDirection} ${freezeDirection ? `freeze-${freezeDirection}` : ''}` : 'no-hazards'} ${hazardHit ? `hit-${hazardHit}` : ''}`}
           style={{ '--hazard-pulse': hazardPulse }}
           role="grid"
           aria-label={`${GAME_NAME} board`}
@@ -1939,7 +2068,7 @@ function MonadGame() {
           {gameOver && <form className="game-over" onSubmit={revealBlindScore}>
             <strong>{scoreReveal ? 'Score revealed' : 'Guess your score'}</strong>
             {scoreReveal
-              ? <span>Actual {scoreReveal.actual} · off by {scoreReveal.miss} · bonus {scoreReveal.timeBonus} · final {scoreReveal.final}</span>
+              ? <span>Actual {scoreReveal.actual} · off by {scoreReveal.miss} · time {scoreReveal.timeBonus} · mode {scoreReveal.difficultyBonus} · final {scoreReveal.final}</span>
               : <input inputMode="numeric" pattern="[0-9]*" value={scoreGuess} onChange={(event) => setScoreGuess(event.target.value)} placeholder="Your score guess" aria-label="Score guess" />}
             <div className="game-over-actions">
               {!scoreReveal && <button type="submit">Reveal</button>}
@@ -1948,21 +2077,48 @@ function MonadGame() {
           </form>}
         </div>
         <div className="hazard-legend" aria-label="Current hazard rules">
-          <span className="lava-dot">Lava blocks {DIRECTION_LABELS[lavaDirection]}</span>
-          <span className="freeze-dot">{freezeDirection ? `Freeze skips after ${DIRECTION_LABELS[freezeDirection]}` : 'Freeze is clear'}</span>
+          <span className="lava-dot">{hazardsEnabled ? `Lava blocks ${DIRECTION_LABELS[lavaDirection]}` : `${currentDifficulty.label}: lava off`}</span>
+          <span className="freeze-dot">{hazardsEnabled ? (freezeDirection ? `Freeze skips after ${DIRECTION_LABELS[freezeDirection]}` : 'Freeze is clear') : `${currentDifficulty.tag}: freeze off`}</span>
         </div>
         <div className="game-controls" aria-label="Move controls">
-          <button type="button" className={`${pressedDirection === 'up' ? 'is-pressed' : ''} ${lavaDirection === 'up' ? 'is-lava' : ''} ${freezeDirection === 'up' ? 'is-freeze' : ''}`} onClick={() => pressMove('up')}>↑</button>
-          <button type="button" className={`${pressedDirection === 'left' ? 'is-pressed' : ''} ${lavaDirection === 'left' ? 'is-lava' : ''} ${freezeDirection === 'left' ? 'is-freeze' : ''}`} onClick={() => pressMove('left')}>←</button>
-          <button type="button" className={`${pressedDirection === 'down' ? 'is-pressed' : ''} ${lavaDirection === 'down' ? 'is-lava' : ''} ${freezeDirection === 'down' ? 'is-freeze' : ''}`} onClick={() => pressMove('down')}>↓</button>
-          <button type="button" className={`${pressedDirection === 'right' ? 'is-pressed' : ''} ${lavaDirection === 'right' ? 'is-lava' : ''} ${freezeDirection === 'right' ? 'is-freeze' : ''}`} onClick={() => pressMove('right')}>→</button>
+          <button type="button" className={`${pressedDirection === 'up' ? 'is-pressed' : ''} ${hazardsEnabled && lavaDirection === 'up' ? 'is-lava' : ''} ${hazardsEnabled && freezeDirection === 'up' ? 'is-freeze' : ''}`} onClick={() => pressMove('up')}>↑</button>
+          <button type="button" className={`${pressedDirection === 'left' ? 'is-pressed' : ''} ${hazardsEnabled && lavaDirection === 'left' ? 'is-lava' : ''} ${hazardsEnabled && freezeDirection === 'left' ? 'is-freeze' : ''}`} onClick={() => pressMove('left')}>←</button>
+          <button type="button" className={`${pressedDirection === 'down' ? 'is-pressed' : ''} ${hazardsEnabled && lavaDirection === 'down' ? 'is-lava' : ''} ${hazardsEnabled && freezeDirection === 'down' ? 'is-freeze' : ''}`} onClick={() => pressMove('down')}>↓</button>
+          <button type="button" className={`${pressedDirection === 'right' ? 'is-pressed' : ''} ${hazardsEnabled && lavaDirection === 'right' ? 'is-lava' : ''} ${hazardsEnabled && freezeDirection === 'right' ? 'is-freeze' : ''}`} onClick={() => pressMove('right')}>→</button>
         </div>
         <div className="game-prompt">
           <strong>{scoreReveal ? `Final ${scoreReveal.final}` : gameOver ? 'Board locked. Guess before you reveal.' : maxTile >= 2048 ? 'Emonad unlocked.' : gameMessage}</strong>
-          <span>{moves} moves · max tile {maxTile} · hazards reroll after every action</span>
+          <span>{moves} moves · max tile {maxTile} · {currentDifficulty.note}</span>
+          <Scoreboard entries={scoreboard} compact />
         </div>
       </div>
     </section>);
+}
+
+function Scoreboard({ entries, compact = false }) {
+  const boardEntries = entries?.length ? entries.slice(0, compact ? 3 : 6) : [];
+  return (
+    <div className={`scoreboard ${compact ? 'compact' : ''}`} aria-label="Signed run scoreboard">
+      <div className="scoreboard-head">
+        <span>Signed runs</span>
+        <strong>Scoreboard</strong>
+      </div>
+      {boardEntries.length ? (
+        <ol>
+          {boardEntries.map((entry, index) => (
+            <li key={entry.id || `${entry.wallet}-${index}`}>
+              <span>{String(index + 1).padStart(2, '0')}</span>
+              <strong>{entry.score}</strong>
+              <em>{entry.difficulty}</em>
+              <small>{shortWallet(entry.wallet)} · {entry.maxTile}</small>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p>No signed runs yet. Reveal a score, sign it, and your wallet-backed run appears here.</p>
+      )}
+    </div>
+  );
 }
 
 // ---------- Inkfinity Canvas ----------
