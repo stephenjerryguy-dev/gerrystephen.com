@@ -582,14 +582,15 @@ function Timeline({ y = 0, intensity = 60 }) {
   const mobileViewportWidth = Math.max(0, viewportWidth - 40);
   const mobileFallbackTravel = Math.max(0, mobileRailWidth - mobileViewportWidth);
   const effectiveRailTravel = isCompactTimeline ? Math.max(railTravel, mobileFallbackTravel) : railTravel;
-  const readHold = isCompactTimeline ? 0.1 : 0.16;
+  const readHold = isCompactTimeline ? 0 : 0.16;
+  const releaseHold = isCompactTimeline ? 0 : 0.04;
   const scrollDistance = isCompactTimeline
-    ? Math.max(viewport * 1.32, (effectiveRailTravel * 1.06) / (1 - readHold))
-    : Math.max(viewport * 1.8, (effectiveRailTravel * 1.08) / (1 - readHold));
+    ? Math.max(viewport * 0.94, effectiveRailTravel * 0.82)
+    : Math.max(viewport * 1.8, (effectiveRailTravel * 1.08) / (1 - readHold - releaseHold));
   const timelineHeight = viewport + scrollDistance;
   const sectionTop = section ? section.getBoundingClientRect().top : 0;
   const pinProgress = section ? clamp(-sectionTop / scrollDistance, 0, 1) : 0;
-  const rawProgress = clamp((pinProgress - readHold) / (1 - readHold), 0, 1);
+  const rawProgress = clamp((pinProgress - readHold) / (1 - readHold - releaseHold), 0, 1);
   const easedProgress = rawProgress * rawProgress * (3 - 2 * rawProgress);
   return (
     <section ref={sectionRef} className="timeline" id="journey" style={{ '--scroll': y, '--timeline-depth': depth, '--timeline-progress': easedProgress, '--timeline-height': `${timelineHeight}px` }}>
@@ -1083,7 +1084,7 @@ function monergeWalletsFilter(options = []) {
 
 const DYNAMIC_SETTINGS = {
   appName: 'Monerge',
-  appLogoUrl: `${window.location.origin}/assets/monerge-icon-512.png`,
+  appLogoUrl: `${window.location.origin}/assets/monerge-app-icon.svg`,
   apiBaseUrl: `${window.location.origin}/dynamic-api`,
   environmentId: DYNAMIC_ENV_ID,
   initialAuthenticationMode: 'connect-only',
@@ -1250,7 +1251,17 @@ function getAppMode() {
   return new URLSearchParams(window.location.search).get('app');
 }
 
-function SocialIcon({ name }) {
+function SocialIcon({ name, color = 'DCF2F7' }) {
+  if (name === 'X') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path
+          fill="currentColor"
+          d="M18.9 2h3.3l-7.2 8.23L23.5 22h-6.65l-5.2-6.8L5.7 22H2.4l7.7-8.8L2 2h6.82l4.7 6.22L18.9 2Zm-1.16 17.93h1.83L7.82 3.96H5.86l11.88 15.97Z"
+        />
+      </svg>
+    );
+  }
   if (name === 'LinkedIn') {
     return (
       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -1270,12 +1281,14 @@ function SocialIcon({ name }) {
     Telegram: 'telegram',
     Twitch: 'twitch'
   }[name];
-  return <img src={`https://cdn.simpleicons.org/${slug}/DCF2F7`} alt="" aria-hidden="true" loading="lazy" />;
+  return <img src={`https://cdn.simpleicons.org/${slug}/${color}`} alt="" aria-hidden="true" loading="lazy" />;
 }
 
 const GAME_NAME = 'Monerge';
 const GAME_DURATION_SECONDS = 120;
 const SCOREBOARD_KEY = 'monergeScoreboard';
+const LEADERBOARD_KEY = 'monergeLeaderboard';
+const LEADERBOARD_API = '/api/monerge-leaderboard';
 const LAVA_DIRECTIONS = ['left', 'up', 'right', 'down'];
 const GAME_DIFFICULTIES = {
   chill: {
@@ -1345,17 +1358,43 @@ function MonergeWalletButton({ account, label = 'Connect wallet', onClick }) {
   );
 }
 
-function loadScoreboard() {
+function loadLeaderboard() {
   try {
-    const parsed = JSON.parse(localStorage.getItem(SCOREBOARD_KEY) || '[]');
-    return Array.isArray(parsed) ? parsed.slice(0, 8) : [];
+    const parsed = JSON.parse(localStorage.getItem(LEADERBOARD_KEY) || localStorage.getItem(SCOREBOARD_KEY) || '[]');
+    return Array.isArray(parsed) ? parsed.slice(0, 12) : [];
   } catch (_) {
     return [];
   }
 }
 
-function saveScoreboard(entries) {
-  localStorage.setItem(SCOREBOARD_KEY, JSON.stringify(entries.slice(0, 8)));
+function saveLeaderboard(entries) {
+  localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(entries.slice(0, 12)));
+}
+
+function sortLeaderboard(entries) {
+  return [...entries].sort((a, b) => {
+    const signedDelta = Number(Boolean(b.signature)) - Number(Boolean(a.signature));
+    if (signedDelta) return signedDelta;
+    return (b.score || 0) - (a.score || 0);
+  });
+}
+
+async function fetchPublicLeaderboard() {
+  const response = await fetch(LEADERBOARD_API, { headers: { accept: 'application/json' } });
+  if (!response.ok) throw new Error('leaderboard unavailable');
+  const data = await response.json();
+  return Array.isArray(data?.entries) ? data.entries : [];
+}
+
+async function publishLeaderboardRun(entry) {
+  const response = await fetch(LEADERBOARD_API, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', accept: 'application/json' },
+    body: JSON.stringify(entry)
+  });
+  if (!response.ok) throw new Error('leaderboard publish unavailable');
+  const data = await response.json();
+  return Array.isArray(data?.entries) ? data.entries : [];
 }
 
 function hexFromText(text) {
@@ -1530,7 +1569,7 @@ function MonadGame() {
   const [hazardPulse, setHazardPulse] = useState(0);
   const [scoreGuess, setScoreGuess] = useState('');
   const [scoreReveal, setScoreReveal] = useState(null);
-  const [scoreboard, setScoreboard] = useState(() => loadScoreboard());
+  const [leaderboard, setLeaderboard] = useState(() => loadLeaderboard());
   const [gameMessage, setGameMessage] = useState('Score is hidden. Track the merges in your head.');
   const [gameStarted, setGameStarted] = useState(false);
   const [gameMenuOpen, setGameMenuOpen] = useState(false);
@@ -1565,14 +1604,45 @@ function MonadGame() {
   }, [currentDifficulty.timed, gameStarted, gameOver, scoreReveal]);
 
   useEffect(() => {
+    let active = true;
+    fetchPublicLeaderboard()
+      .then((entries) => {
+        if (!active || !entries.length) return;
+        const next = sortLeaderboard([...entries, ...loadLeaderboard()]).slice(0, 12);
+        setLeaderboard(next);
+        saveLeaderboard(next);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!isGameApp) return undefined;
     const previousBodyOverflow = document.body.style.overflow;
+    const previousBodyPosition = document.body.style.position;
+    const previousBodyWidth = document.body.style.width;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
     const previousHtmlOverscroll = document.documentElement.style.overscrollBehavior;
+    const preventPageMove = (event) => {
+      const dynamicHost = event.target?.closest?.('.dynamic-shadow-dom');
+      if (dynamicHost) return;
+      event.preventDefault();
+    };
     document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
+    document.documentElement.style.overflow = 'hidden';
     document.documentElement.style.overscrollBehavior = 'none';
+    window.addEventListener('touchmove', preventPageMove, { passive: false });
     return () => {
       document.body.style.overflow = previousBodyOverflow;
+      document.body.style.position = previousBodyPosition;
+      document.body.style.width = previousBodyWidth;
+      document.documentElement.style.overflow = previousHtmlOverflow;
       document.documentElement.style.overscrollBehavior = previousHtmlOverscroll;
+      window.removeEventListener('touchmove', preventPageMove);
     };
   }, [isGameApp]);
 
@@ -1823,7 +1893,9 @@ function MonadGame() {
     const baseAfterGuess = Math.max(0, score - miss + timeBonus);
     const difficultyBonusValue = Math.max(0, Math.round(baseAfterGuess * (currentDifficulty.multiplier - 1)));
     const final = baseAfterGuess + difficultyBonusValue;
+    const runId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const reveal = {
+      id: runId,
       actual: score,
       guess,
       miss,
@@ -1833,6 +1905,28 @@ function MonadGame() {
       final
     };
     setScoreReveal(reveal);
+    const revealedEntry = {
+      id: runId,
+      wallet: account || '',
+      score: final,
+      actual: score,
+      difficulty: currentDifficulty.label,
+      maxTile,
+      moves,
+      signature: '',
+      signedAt: '',
+      revealedAt: new Date().toISOString()
+    };
+    const nextBoard = sortLeaderboard([revealedEntry, ...leaderboard]).slice(0, 12);
+    setLeaderboard(nextBoard);
+    saveLeaderboard(nextBoard);
+    publishLeaderboardRun(revealedEntry)
+      .then((entries) => {
+        const merged = sortLeaderboard([...entries, ...nextBoard]).slice(0, 12);
+        setLeaderboard(merged);
+        saveLeaderboard(merged);
+      })
+      .catch(() => {});
     if (final > best) {
       setBest(final);
       localStorage.setItem('monergeBlindBest', String(final));
@@ -1893,7 +1987,7 @@ function MonadGame() {
       }
       setSignedResult(signature || 'signed');
       const nextEntry = {
-        id: `${Date.now()}`,
+        id: scoreReveal.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
         wallet: account,
         score: finalScore,
         actual: score,
@@ -1903,13 +1997,18 @@ function MonadGame() {
         signature: signature || 'signed',
         signedAt: new Date().toISOString()
       };
-      const nextBoard = [nextEntry, ...scoreboard]
-        .sort((a, b) => (b.score || 0) - (a.score || 0))
-        .slice(0, 8);
-      setScoreboard(nextBoard);
-      saveScoreboard(nextBoard);
+      const nextBoard = sortLeaderboard([nextEntry, ...leaderboard]).slice(0, 12);
+      setLeaderboard(nextBoard);
+      saveLeaderboard(nextBoard);
+      publishLeaderboardRun(nextEntry)
+        .then((entries) => {
+          const merged = sortLeaderboard([...entries, ...nextBoard]).slice(0, 12);
+          setLeaderboard(merged);
+          saveLeaderboard(merged);
+        })
+        .catch(() => {});
       setWalletState('Run signed');
-      setGameMessage(`Signed ${currentDifficulty.label} run added to the scoreboard.`);
+      setGameMessage(`Signed ${currentDifficulty.label} run added to the leaderboard.`);
     } catch (error) {
       setWalletState(error?.message || 'Run not signed.');
     }
@@ -2018,7 +2117,7 @@ function MonadGame() {
           <span>{moves} moves</span>
               {signedResult && <span>Result signed</span>}
             </div>
-            <Scoreboard entries={scoreboard} />
+            <Leaderboard entries={leaderboard} />
           </div>
         </div>}
         <div className="game-shell-actions" aria-label="Wallet and run controls">
@@ -2089,19 +2188,19 @@ function MonadGame() {
         <div className="game-prompt">
           <strong>{scoreReveal ? `Final ${scoreReveal.final}` : gameOver ? 'Board locked. Guess before you reveal.' : maxTile >= 2048 ? 'Emonad unlocked.' : gameMessage}</strong>
           <span>{moves} moves · max tile {maxTile} · {currentDifficulty.note}</span>
-          <Scoreboard entries={scoreboard} compact />
+          <Leaderboard entries={leaderboard} compact />
         </div>
       </div>
     </section>);
 }
 
-function Scoreboard({ entries, compact = false }) {
+function Leaderboard({ entries, compact = false }) {
   const boardEntries = entries?.length ? entries.slice(0, compact ? 3 : 6) : [];
   return (
-    <div className={`scoreboard ${compact ? 'compact' : ''}`} aria-label="Signed run scoreboard">
-      <div className="scoreboard-head">
-        <span>Signed runs</span>
-        <strong>Scoreboard</strong>
+    <div className={`leaderboard ${compact ? 'compact' : ''}`} aria-label="Monerge leaderboard">
+      <div className="leaderboard-head">
+        <span>Public runs</span>
+        <strong>Leaderboard</strong>
       </div>
       {boardEntries.length ? (
         <ol>
@@ -2109,13 +2208,13 @@ function Scoreboard({ entries, compact = false }) {
             <li key={entry.id || `${entry.wallet}-${index}`}>
               <span>{String(index + 1).padStart(2, '0')}</span>
               <strong>{entry.score}</strong>
-              <em>{entry.difficulty}</em>
-              <small>{shortWallet(entry.wallet)} · {entry.maxTile}</small>
+              <em>{entry.signature ? 'Signed' : 'Revealed'} · {entry.difficulty}</em>
+              <small>{entry.wallet ? shortWallet(entry.wallet) : 'No wallet yet'} · max {entry.maxTile}</small>
             </li>
           ))}
         </ol>
       ) : (
-        <p>No signed runs yet. Reveal a score, sign it, and your wallet-backed run appears here.</p>
+        <p>No runs yet. Reveal a score and it appears here; signing upgrades it.</p>
       )}
     </div>
   );
@@ -2386,6 +2485,20 @@ function App() {
     document.documentElement.style.setProperty('--display-font', `"${tweaks.displayFont}"`);
     document.documentElement.style.setProperty('--accent-hue', tweaks.accentHue);
   }, [tweaks.displayFont, tweaks.accentHue]);
+
+  useEffect(() => {
+    const appleIcon = document.querySelector('link[rel="apple-touch-icon"]');
+    const favicon = document.querySelector('link[rel="icon"]');
+    if (isGameApp) {
+      document.title = 'Monerge · Gerry Stephen';
+      appleIcon?.setAttribute('href', 'assets/monerge-app-icon.svg');
+      favicon?.setAttribute('href', 'assets/monerge-app-icon.svg');
+      return;
+    }
+    document.title = 'Gerry Stephen · Business, Web3, and the Iglu';
+    appleIcon?.setAttribute('href', 'assets/pudgy-penguin-cutout.png');
+    favicon?.setAttribute('href', 'assets/pudgy-penguin-cutout.png');
+  }, [isGameApp]);
 
   useEffect(() => {
     if (!window.location.hash) return;

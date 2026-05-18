@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Monerge">
+  <defs>
+    <linearGradient id="bg" x1="92" y1="38" x2="426" y2="476" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7E5BFF"/>
+      <stop offset="0.48" stop-color="#25154F"/>
+      <stop offset="1" stop-color="#7FD2E7"/>
+    </linearGradient>
+    <linearGradient id="m" x1="152" y1="266" x2="360" y2="386" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.58" stop-color="#DCF2F7"/>
+      <stop offset="1" stop-color="#8CF7F0"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.50 0 0 0 0 0.38 0 0 0 0 1 0 0 0 0.7 0"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <path d="M66 358c72-38 137-45 196-22 70 28 130 20 184-24v134H66V358Z" fill="#DCEEF7" opacity=".16"/>
+  <g filter="url(#glow)">
+    <path d="M128 215c0-72 58-130 130-130s130 58 130 130h-48c0-46-37-83-82-83s-82 37-82 83h-48Z" fill="#FFFFFF"/>
+    <rect x="108" y="208" width="296" height="36" rx="18" fill="#DCF2F7"/>
+    <rect x="139" y="176" width="238" height="38" rx="19" fill="#0E1F2C"/>
+  </g>
+  <path d="M150 284h70l37 48 37-48h68v116h-58v-52l-47 54-48-54v52h-59V284Z" fill="url(#m)"/>
+  <path d="M150 284h70l37 48 37-48h68" fill="none" stroke="#FFFFFF" stroke-opacity=".28" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
