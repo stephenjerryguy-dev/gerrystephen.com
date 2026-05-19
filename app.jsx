@@ -586,7 +586,7 @@ function Timeline({ y = 0, intensity = 60 }) {
   const readHold = isCompactTimeline ? 0 : 0.08;
   const releaseHold = isCompactTimeline ? 0 : 0.04;
   const scrollDistance = isCompactTimeline
-    ? Math.max(viewport * 0.94, effectiveRailTravel * 0.82)
+    ? Math.max(viewport * 0.68, effectiveRailTravel * 0.58)
     : Math.max(viewport * 1.8, (effectiveRailTravel * 1.08) / (1 - readHold - releaseHold));
   const timelineHeight = viewport + scrollDistance;
   const sectionTop = section ? section.getBoundingClientRect().top : 0;

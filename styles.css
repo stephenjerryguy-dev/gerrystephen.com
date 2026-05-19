@@ -599,7 +599,24 @@ a { color: inherit; text-decoration: none; }
   pointer-events: auto;
   backdrop-filter: blur(12px);
   overflow: hidden;
+  isolation: isolate;
   transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.abstract-veteran-card::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  left: 7%;
+  bottom: 8%;
+  width: 49%;
+  height: 29%;
+  border-radius: 999px;
+  background:
+    radial-gradient(ellipse at 42% 50%, rgba(225,198,113,0.72) 0 34%, rgba(225,198,113,0.34) 58%, rgba(225,198,113,0) 76%);
+  filter: blur(14px);
+  opacity: 0.56;
+  pointer-events: none;
+  mix-blend-mode: multiply;
 }
 .abstract-veteran-card:hover {
   transform: translateY(-2px);
@@ -612,22 +629,28 @@ a { color: inherit; text-decoration: none; }
   object-fit: cover;
   border-radius: 6px;
   box-shadow: 0 8px 24px rgba(103,77,18,0.12);
+  position: relative;
+  z-index: 0;
 }
 .abstract-tier-label {
   position: absolute;
-  left: 22px;
-  bottom: 28px;
+  z-index: 2;
+  left: 11.5%;
+  bottom: 17.5%;
   display: inline-flex;
   align-items: center;
-  color: rgba(129, 98, 26, 0.76);
+  background: transparent !important;
+  box-shadow: none !important;
+  color: rgba(128, 96, 24, 0.82);
   font-family: Inter, system-ui, sans-serif;
-  font-weight: 700;
-  font-size: clamp(19px, 2.25vw, 27px);
+  font-weight: 650;
+  font-size: clamp(18px, 2.05vw, 25px);
   line-height: 1;
-  letter-spacing: -0.015em;
-  text-shadow: 0 1px 0 rgba(255,255,255,0.24);
-  mix-blend-mode: normal;
-  opacity: 1;
+  letter-spacing: -0.025em;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.18);
+  mix-blend-mode: multiply;
+  opacity: 0.9;
+  filter: saturate(0.92);
 }
 
 .scroll-hint {
@@ -4405,11 +4428,13 @@ body:has(.game-app-page) {
   border-radius: 8px;
 }
 .abstract-tier-label {
-  left: 24px;
-  bottom: 33px;
-  background: transparent;
+  left: 11.5%;
+  bottom: 17.5%;
+  background: transparent !important;
+  box-shadow: none !important;
   color: #9b7d21;
-  text-shadow: 0 1px 0 rgba(255,255,255,0.2);
+  text-shadow: 0 1px 0 rgba(255,255,255,0.16);
+  mix-blend-mode: multiply;
 }
 .nb-x-mark {
   background: rgba(14,31,44,0.1);
@@ -4565,9 +4590,9 @@ body:has(.game-app-page) {
     padding: 0;
   }
   .abstract-tier-label {
-    left: 22px;
-    bottom: 28px;
-    font-size: clamp(18px, 5.2vw, 23px);
+    left: 11.5%;
+    bottom: 17.5%;
+    font-size: clamp(17px, 5vw, 22px);
   }
   .monad-game.app-mode .game-shell {
     padding: 7px;
