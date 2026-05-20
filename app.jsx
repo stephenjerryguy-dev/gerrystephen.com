@@ -22,7 +22,7 @@ import {
 } from './tweaks-panel.jsx';
 import './styles.css';
 
-const SITE_BUILD_VERSION = 'ecosystems-app-72';
+const SITE_BUILD_VERSION = 'ecosystems-app-73';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -538,7 +538,7 @@ const TIMELINE = [
 function Timeline({ y = 0, intensity = 60 }) {
   const sectionRef = useRef(null);
   const railRef = useRef(null);
-  const [railTravel, setRailTravel] = useState(0);
+  const [railMetrics, setRailMetrics] = useState({ fullTravel: 0, compactTravel: 0 });
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
   const depth = intensity / 100;
   useEffect(() => {
@@ -552,7 +552,12 @@ function Timeline({ y = 0, intensity = 60 }) {
         width: window.innerWidth || viewportWidth,
         height: window.innerHeight || 800
       });
-      setRailTravel(Math.max(0, rail.scrollWidth - viewportWidth));
+      const fullTravel = Math.max(0, rail.scrollWidth - viewportWidth);
+      const lastItem = rail.querySelector('.rail-item:last-child');
+      const compactTravel = lastItem
+        ? Math.max(0, Math.min(fullTravel, lastItem.offsetLeft + lastItem.offsetWidth - viewportWidth))
+        : fullTravel;
+      setRailMetrics({ fullTravel, compactTravel });
     };
     frame = requestAnimationFrame(updateTravel);
     settleTimer = window.setTimeout(updateTravel, 350);
@@ -577,18 +582,19 @@ function Timeline({ y = 0, intensity = 60 }) {
   const viewport = viewportSize.height || (typeof window !== 'undefined' ? window.innerHeight || 800 : 800);
   const viewportWidth = viewportSize.width || (typeof window !== 'undefined' ? window.innerWidth || 390 : 390);
   const isCompactTimeline = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 900px), (max-height: 560px)').matches;
-  const mobileCardWidth = Math.min(viewportWidth * 0.78, 300);
+  const mobileCardWidth = Math.min(viewportWidth * 0.74, 286);
   const mobileRailWidth = TIMELINE.length * mobileCardWidth + Math.max(0, TIMELINE.length - 1) * 16;
   const mobileViewportWidth = Math.max(0, viewportWidth - 40);
   const mobileFallbackTravel = Math.max(0, mobileRailWidth - mobileViewportWidth);
-  const effectiveRailTravel = isCompactTimeline ? Math.max(railTravel, mobileFallbackTravel) : railTravel;
+  const measuredTravel = isCompactTimeline ? railMetrics.compactTravel : railMetrics.fullTravel;
+  const effectiveRailTravel = measuredTravel || (isCompactTimeline ? mobileFallbackTravel : 0);
   const startOffset = isCompactTimeline ? 0 : viewport * 0.08;
   const readHold = isCompactTimeline ? 0 : 0.08;
   const releaseHold = isCompactTimeline ? 0 : 0.04;
   const scrollDistance = isCompactTimeline
-    ? Math.max(viewport * 0.48, Math.min(viewport * 0.68, effectiveRailTravel * 0.24))
+    ? Math.max(viewport * 1.18, Math.min(viewport * 1.58, effectiveRailTravel * 0.72))
     : Math.max(viewport * 1.8, (effectiveRailTravel * 1.08) / (1 - readHold - releaseHold));
-  const timelineHeight = isCompactTimeline ? scrollDistance + viewport * 0.98 : viewport + scrollDistance;
+  const timelineHeight = viewport + scrollDistance;
   const sectionTop = section ? section.getBoundingClientRect().top : 0;
   const sectionPageTop = section ? sectionTop + y : 0;
   const pinProgress = section
@@ -672,7 +678,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-72`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-73`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
@@ -1361,8 +1367,8 @@ function cleanProfile(profile = {}) {
   const username = String(profile.username || '')
     .replace(/[^a-zA-Z0-9_.-]/g, '')
     .slice(0, 24);
-  const rawPfp = String(profile.pfp || '').trim().slice(0, 360);
-  const pfp = /^https?:\/\//i.test(rawPfp) ? rawPfp : '';
+  const rawPfp = String(profile.pfp || '').trim();
+  const pfp = /^https?:\/\//i.test(rawPfp) || /^data:image\//i.test(rawPfp) ? rawPfp.slice(0, 1200000) : '';
   return { username, pfp };
 }
 
@@ -1467,14 +1473,14 @@ const MONAD_TILE_CHARACTERS = {
 const MONAD_CHARACTER_IMAGES = {
   Chog: 'assets/monanimals/chog-official-sprite.png',
   Molandak: 'assets/monanimals/molandak-official-sprite.png',
-  Mouch: 'assets/monanimals/mouch-clean.svg',
+  Mouch: 'assets/monanimals/mouch-sprite-tight.png',
   Mosferatu: 'assets/monanimals/mosferatu-clean.svg',
   Moyaki: 'assets/monanimals/moyaki-clean.svg',
   Shramp: 'assets/monanimals/shramp-clean.svg',
   Moka: 'assets/monanimals/mokadel-clean.svg',
-  Mokadel: 'assets/monanimals/mokadel-clean.svg',
+  Mokadel: 'assets/monanimals/mokadel-sprite-tight.png',
   Nadbot: 'assets/monanimals/nadbot-clean.svg',
-  Salmonad: 'assets/monanimals/salmonad-clean.svg',
+  Salmonad: 'assets/monanimals/salmonad-sprite-tight.png',
   Mondana: 'assets/monanimals/mondana-clean.svg',
   Hypernad: 'assets/monanimals/hypernad-clean.svg',
   Emonad: 'assets/monanimals/emonad-sprite.png'
@@ -1626,10 +1632,22 @@ function MonadGame() {
   function updateProfile(nextProfile) {
     const next = {
       username: String(nextProfile.username || '').replace(/[^a-zA-Z0-9_.-]/g, '').slice(0, 24),
-      pfp: String(nextProfile.pfp || '').trim().slice(0, 360)
+      pfp: String(nextProfile.pfp || '').trim().slice(0, 1200000)
     };
     setProfile(next);
     localStorage.setItem(PROFILE_KEY, JSON.stringify(next));
+  }
+
+  function handlePfpUpload(event) {
+    const file = event.target.files?.[0];
+    if (!file || !file.type?.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        updateProfile({ ...profile, pfp: reader.result });
+      }
+    };
+    reader.readAsDataURL(file);
   }
 
   useEffect(() => {
@@ -1983,6 +2001,7 @@ function MonadGame() {
   }
 
   function handleTouchEnd(event) {
+    if (event.target.closest('input, button, textarea, label, a')) return;
     event.preventDefault();
     if (!touchStart) return;
     const touch = event.changedTouches[0];
@@ -2090,22 +2109,24 @@ function MonadGame() {
           {account && <button type="button" className="btn ghost" onClick={disconnectWallet}>Sign out</button>}
           <button type="button" className="btn ghost" onClick={newGame}>New run</button>
         </div>
-        {!isGameApp && <div className="difficulty-select embed-difficulty" aria-label="Embed difficulty">
-          {DIFFICULTY_ORDER.map((key) =>
-            <button key={key} type="button" className={difficulty === key ? 'active' : ''} onClick={() => setDifficulty(key)}>
-              <strong>{GAME_DIFFICULTIES[key].label}</strong>
-              <span>{GAME_DIFFICULTIES[key].tag}</span>
-            </button>
-          )}
+        {!isGameApp && <div className="desktop-game-details">
+          <div className="difficulty-select embed-difficulty" aria-label="Embed difficulty">
+            {DIFFICULTY_ORDER.map((key) =>
+              <button key={key} type="button" className={difficulty === key ? 'active' : ''} onClick={() => setDifficulty(key)}>
+                <strong>{GAME_DIFFICULTIES[key].label}</strong>
+                <span>{GAME_DIFFICULTIES[key].tag}</span>
+              </button>
+            )}
+          </div>
+          <div className="game-status">
+            <span>{walletState}</span>
+            <span>{isMonad ? 'Monad mainnet' : 'Wrong network'}</span>
+            <span>{dynamicStatus}</span>
+            <span>PWA ready</span>
+            {signedResult && <span>Result signed</span>}
+          </div>
+          <Leaderboard entries={leaderboard} compact />
         </div>}
-        <div className="game-status">
-          <span>{walletState}</span>
-          <span>{isMonad ? 'Monad mainnet' : 'Wrong network'}</span>
-          <span>{dynamicStatus}</span>
-          <span>PWA ready</span>
-          {signedResult && <span>Result signed</span>}
-        </div>
-        {!isGameApp && <Leaderboard entries={leaderboard} compact />}
       </div>
       <div className="game-shell" role="application" aria-label={`${GAME_NAME} game`}>
         {isGameApp && !gameStarted && <div className="game-start-screen">
@@ -2168,15 +2189,14 @@ function MonadGame() {
                     autoComplete="nickname"
                   />
                 </label>
-                <label>
-                  <span>PFP URL</span>
+                <label className="profile-upload">
+                  <span>Profile photo</span>
                   <input
-                    value={profile.pfp}
-                    onChange={(event) => updateProfile({ ...profile, pfp: event.target.value })}
-                    placeholder="https://..."
-                    inputMode="url"
-                    autoComplete="url"
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePfpUpload}
                   />
+                  <b>{cleanPlayerProfile.pfp ? 'Change photo' : 'Upload, photo, or camera'}</b>
                 </label>
               </div>
             </div>
@@ -2240,10 +2260,14 @@ function MonadGame() {
           role="grid"
           aria-label={`${GAME_NAME} board`}
           onTouchStart={(event) => {
+            if (event.target.closest('input, button, textarea, label, a')) return;
             event.preventDefault();
             setTouchStart({ x: event.touches[0].clientX, y: event.touches[0].clientY });
           }}
-          onTouchMove={(event) => event.preventDefault()}
+          onTouchMove={(event) => {
+            if (event.target.closest('input, button, textarea, label, a')) return;
+            event.preventDefault();
+          }}
           onTouchEnd={handleTouchEnd}>
           <div className={`freeze-wall ${freezeDirection ? `show freeze-${freezeDirection}` : ''}`} aria-hidden="true" />
           <div className={`hazard-burst ${hazardHit ? `show ${hazardHit}` : ''}`} aria-hidden="true" />
@@ -2256,7 +2280,7 @@ function MonadGame() {
               {value ? <>{MONAD_TILE_CHARACTERS[value] && MONAD_CHARACTER_IMAGES[MONAD_TILE_CHARACTERS[value]] ? <img className={`tile-character character-${MONAD_TILE_CHARACTERS[value].toLowerCase()}`} src={MONAD_CHARACTER_IMAGES[MONAD_TILE_CHARACTERS[value]]} alt="" aria-hidden="true" /> : null}<strong>{value}</strong><span>{MONAD_TILE_NAMES[value] || 'MON'}</span>{MONAD_TILE_CHARACTERS[value] && <em>{MONAD_TILE_CHARACTERS[value]}</em>}</> : null}
             </div>
           )}
-          {gameOver && <form className="game-over" onSubmit={revealBlindScore}>
+          {gameOver && <form className="game-over" onSubmit={revealBlindScore} onTouchStart={(event) => event.stopPropagation()} onTouchMove={(event) => event.stopPropagation()} onTouchEnd={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()}>
             <strong>{scoreReveal ? 'Score revealed' : 'Guess your score'}</strong>
             {scoreReveal
               ? <span>Actual {scoreReveal.actual} · off by {scoreReveal.miss} · time {scoreReveal.timeBonus} · mode {scoreReveal.difficultyBonus} · final {scoreReveal.final}</span>

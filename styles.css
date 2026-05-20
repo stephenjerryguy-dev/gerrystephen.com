@@ -1642,6 +1642,9 @@ a { color: inherit; text-decoration: none; }
 .monad-game:not(.app-mode) .game-status {
   margin-top: 14px;
 }
+.desktop-game-details {
+  display: block;
+}
 .monanimal-strip span {
   position: relative;
   overflow: hidden;
@@ -1837,6 +1840,7 @@ a { color: inherit; text-decoration: none; }
   border-radius: 8px;
   background: rgba(8,7,24,0.68);
   backdrop-filter: blur(16px);
+  touch-action: manipulation;
 }
 .game-menu-card {
   width: min(100%, 540px);
@@ -1849,6 +1853,8 @@ a { color: inherit; text-decoration: none; }
     radial-gradient(340px 220px at 100% 0%, rgba(127,210,231,0.22), transparent 70%),
     linear-gradient(145deg, rgba(28,19,72,0.96), rgba(10,8,28,0.96));
   box-shadow: 0 24px 70px rgba(0,0,0,0.42);
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }
 .game-menu-head {
   display: flex;
@@ -2028,9 +2034,36 @@ a { color: inherit; text-decoration: none; }
   color: #EEF6FB;
   font: 700 13px/1 var(--body);
   outline: none;
+  touch-action: manipulation;
+  user-select: text;
+  -webkit-user-select: text;
 }
 .profile-fields input::placeholder {
   color: rgba(238,246,251,0.36);
+}
+.profile-upload {
+  position: relative;
+}
+.profile-upload input[type="file"] {
+  position: absolute;
+  inset: 22px 0 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.profile-upload b {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  border: 1px solid rgba(238,246,251,0.16);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: linear-gradient(135deg, rgba(159,124,255,0.24), rgba(127,210,231,0.18));
+  color: rgba(238,246,251,0.9);
+  font: 800 9px/1.1 var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
 }
 .game-menu-characters {
   display: grid;
@@ -2292,6 +2325,11 @@ a { color: inherit; text-decoration: none; }
 .tile-ladder-card .character-molandak,
 .tile-ladder-card .character-salmonad {
   scale: 1.08;
+}
+.tile-ladder-card .character-emonad {
+  height: 70px;
+  scale: 0.9;
+  object-position: center top;
 }
 .tile-ladder-card span,
 .tile-ladder-card small {
@@ -2620,6 +2658,12 @@ a { color: inherit; text-decoration: none; }
 .tile-character.character-salmonad {
   scale: 1.14;
 }
+.tile-character.character-emonad {
+  top: 0;
+  width: clamp(44px, 5.8vw, 70px);
+  height: clamp(74px, 9.8vw, 118px);
+  object-position: center top;
+}
 .tile-2 { background:
   radial-gradient(circle at 82% 22%, rgba(255,255,255,0.92) 0 12%, transparent 30%),
   linear-gradient(135deg, #F7F0FF, #D7C4FF); }
@@ -2735,6 +2779,9 @@ a { color: inherit; text-decoration: none; }
   font: 700 16px/1 var(--mono);
   text-align: center;
   outline: none;
+  touch-action: manipulation;
+  user-select: text;
+  -webkit-user-select: text;
 }
 .game-over input::placeholder,
 .score-guess input::placeholder {
@@ -3324,6 +3371,9 @@ a { color: inherit; text-decoration: none; }
     margin-top: 12px;
     max-height: 180px;
     overflow: hidden;
+  }
+  .monad-game:not(.app-mode) .desktop-game-details {
+    display: none;
   }
   .game-shell {
     justify-self: stretch;
