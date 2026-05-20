@@ -22,7 +22,7 @@ import {
 } from './tweaks-panel.jsx';
 import './styles.css';
 
-const SITE_BUILD_VERSION = 'ecosystems-app-81';
+const SITE_BUILD_VERSION = 'ecosystems-app-82';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -849,7 +849,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-81`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-82`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
@@ -1661,14 +1661,14 @@ function MonergeProfileEditor({ profile, account, onProfileChange, onPfpUpload, 
 function loadLeaderboard() {
   try {
     const parsed = JSON.parse(localStorage.getItem(LEADERBOARD_KEY) || localStorage.getItem(SCOREBOARD_KEY) || '[]');
-    return Array.isArray(parsed) ? parsed.slice(0, 50) : [];
+    return Array.isArray(parsed) ? dedupeLeaderboard(parsed).slice(0, 50) : [];
   } catch (_) {
     return [];
   }
 }
 
 function saveLeaderboard(entries) {
-  localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(entries.slice(0, 50)));
+  localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(dedupeLeaderboard(entries).slice(0, 50)));
 }
 
 function sortLeaderboard(entries) {
@@ -1706,7 +1706,7 @@ async function fetchPublicLeaderboard() {
   const response = await fetch(LEADERBOARD_API, { headers: { accept: 'application/json' } });
   if (!response.ok) throw new Error('leaderboard unavailable');
   const data = await response.json();
-  return Array.isArray(data?.entries) ? data.entries : [];
+  return Array.isArray(data?.entries) ? dedupeLeaderboard(data.entries).slice(0, 50) : [];
 }
 
 async function publishLeaderboardRun(entry) {
@@ -1717,7 +1717,7 @@ async function publishLeaderboardRun(entry) {
   });
   if (!response.ok) throw new Error('leaderboard publish unavailable');
   const data = await response.json();
-  return Array.isArray(data?.entries) ? data.entries : [];
+  return Array.isArray(data?.entries) ? dedupeLeaderboard(data.entries).slice(0, 50) : [];
 }
 
 function hexFromText(text) {
@@ -2350,7 +2350,7 @@ function MonadGame() {
     saveLeaderboard(nextBoard);
     publishLeaderboardRun(revealedEntry)
       .then((entries) => {
-        const merged = sortLeaderboard([...entries, ...nextBoard]).slice(0, 50);
+        const merged = dedupeLeaderboard([...entries, ...nextBoard]).slice(0, 50);
         setLeaderboard(merged);
         saveLeaderboard(merged);
       })
@@ -2965,13 +2965,13 @@ function App() {
     const favicon = document.querySelector('link[rel="icon"]');
     if (isGameApp) {
       document.title = 'Monerge · Gerry Stephen';
-      appleIcon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-81');
-      favicon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-81');
+      appleIcon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-82');
+      favicon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-82');
       return;
     }
     document.title = 'Gerry Stephen · Business, Web3, and the Iglu';
-    appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-81');
-    favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-81');
+    appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-82');
+    favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-82');
   }, [isGameApp]);
 
   useEffect(() => {
