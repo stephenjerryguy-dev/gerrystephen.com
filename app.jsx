@@ -22,7 +22,7 @@ import {
 } from './tweaks-panel.jsx';
 import './styles.css';
 
-const SITE_BUILD_VERSION = 'ecosystems-app-71';
+const SITE_BUILD_VERSION = 'ecosystems-app-72';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -586,9 +586,9 @@ function Timeline({ y = 0, intensity = 60 }) {
   const readHold = isCompactTimeline ? 0 : 0.08;
   const releaseHold = isCompactTimeline ? 0 : 0.04;
   const scrollDistance = isCompactTimeline
-    ? Math.max(viewport * 0.32, effectiveRailTravel * 0.3)
+    ? Math.max(viewport * 0.48, Math.min(viewport * 0.68, effectiveRailTravel * 0.24))
     : Math.max(viewport * 1.8, (effectiveRailTravel * 1.08) / (1 - readHold - releaseHold));
-  const timelineHeight = viewport + scrollDistance;
+  const timelineHeight = isCompactTimeline ? scrollDistance + viewport * 0.98 : viewport + scrollDistance;
   const sectionTop = section ? section.getBoundingClientRect().top : 0;
   const sectionPageTop = section ? sectionTop + y : 0;
   const pinProgress = section
@@ -672,7 +672,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-71`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-72`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
@@ -2076,7 +2076,7 @@ function MonadGame() {
     <section className={`monad-game ${isGameApp ? 'app-mode' : ''} ${isGameApp && !gameStarted ? 'start-mode' : ''}`} id="monad-game">
       <div className="game-copy">
         <Chapter num="04" kicker="Built on Monad" title={<span className="monerge-logo">Monerge.</span>} />
-        <p className="lede">A wallet-backed focus game for BuildAnything: merge Monad-coded tiles, choose your difficulty, remember your hidden points, then reveal to post your run. Connected wallets are asked to sign automatically.</p>
+        <p className="lede">A wallet-backed focus game for BuildAnything. Merge Monad-coded tiles, choose your difficulty, remember the hidden points, then reveal and sign the run.</p>
         <div className="monanimal-strip" aria-label="Monad character inspirations">
           {MONAD_CHARACTERS.map((character) =>
           <span key={character.name} className={`monanimal-chip tile-${character.value}`}>

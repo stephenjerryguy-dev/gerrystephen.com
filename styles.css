@@ -51,6 +51,7 @@ body {
   width: 100%;
   max-width: 100%;
   overflow-x: clip;
+  overflow-x: hidden;
 }
 ::selection { background: var(--ink); color: var(--sky); }
 a { color: inherit; text-decoration: none; }
@@ -864,7 +865,7 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 900px), (max-height: 560px) {
   .game-hud { grid-template-columns: repeat(2, 1fr); }
   .timeline {
-    min-height: var(--timeline-height, 210vh);
+    min-height: var(--timeline-height, 148vh);
     padding: 0 20px;
     overflow-y: visible;
     overflow-x: clip;
@@ -874,13 +875,13 @@ a { color: inherit; text-decoration: none; }
     top: 0;
     height: 100svh;
     justify-content: center;
-    padding: 64px 0 34px;
+    padding: 52px 0 24px;
     overflow: hidden;
   }
   .rail-viewport {
     width: calc(100vw - 40px);
     max-width: none;
-    margin: 30px auto 0;
+    margin: 22px auto 0;
     overflow: hidden;
     mask-image: none;
   }
@@ -893,8 +894,8 @@ a { color: inherit; text-decoration: none; }
     transition: none;
   }
   .rail-item {
-    flex: 0 0 min(78vw, 300px);
-    min-height: 236px;
+    flex: 0 0 min(74vw, 286px);
+    min-height: 220px;
   }
   .rail-card {
     height: 100%;
@@ -909,7 +910,7 @@ a { color: inherit; text-decoration: none; }
   }
   .timeline-sticky {
     height: 100dvh;
-    padding: 48px 0 18px;
+    padding: 38px 0 14px;
     justify-content: center;
   }
   .timeline .chapter-title {
@@ -921,15 +922,15 @@ a { color: inherit; text-decoration: none; }
   }
   .rail-viewport {
     width: calc(100vw - 32px);
-    margin-top: 16px;
+    margin-top: 12px;
   }
   .rail {
     gap: 12px;
     padding: 22px 2px 8px;
   }
   .rail-item {
-    flex-basis: min(54vw, 300px);
-    min-height: 188px;
+    flex-basis: min(48vw, 280px);
+    min-height: 174px;
   }
   .rail-card {
     padding: 15px 16px;
@@ -3260,11 +3261,69 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 760px) {
   .monad-game {
     grid-template-columns: 1fr;
-    padding: 78px 24px;
-    gap: 24px;
+    padding: 58px 18px;
+    gap: 18px;
   }
   .monad-game:not(.app-mode) .game-copy {
     max-width: 680px;
+    min-width: 0;
+  }
+  .monad-game:not(.app-mode) .chapter {
+    margin-bottom: 14px;
+  }
+  .monad-game:not(.app-mode) .chapter-title {
+    font-size: clamp(52px, 17vw, 78px);
+    line-height: 0.9;
+  }
+  .monad-game:not(.app-mode) .lede {
+    font-size: 17px;
+    line-height: 1.42;
+    max-width: 100%;
+    margin-bottom: 18px;
+  }
+  .monad-game:not(.app-mode) .game-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 0;
+  }
+  .monad-game:not(.app-mode) .game-actions .dynamic-widget-wrap {
+    min-width: 0;
+  }
+  .monad-game:not(.app-mode) .game-actions .btn {
+    width: 100%;
+    min-height: 54px;
+    padding: 0 12px;
+    justify-content: center;
+    white-space: normal;
+    text-align: center;
+  }
+  .monad-game:not(.app-mode) .game-status {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .monad-game:not(.app-mode) .game-status span {
+    min-width: 0;
+    justify-content: center;
+    text-align: center;
+    font-size: 9px;
+    padding: 8px 9px;
+  }
+  .monad-game:not(.app-mode) .embed-difficulty {
+    margin-top: 12px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .monad-game:not(.app-mode) .embed-difficulty button {
+    min-height: 74px;
+    padding: 14px 16px;
+  }
+  .monad-game:not(.app-mode) .leaderboard.compact {
+    margin-top: 12px;
+    max-height: 180px;
+    overflow: hidden;
   }
   .game-shell {
     justify-self: stretch;
@@ -3400,6 +3459,9 @@ a { color: inherit; text-decoration: none; }
   .game-actions .btn {
     width: 100%;
     justify-content: center;
+  }
+  .monad-game:not(.app-mode) .game-actions .btn {
+    width: 100%;
   }
   .game-board {
     gap: 8px;
