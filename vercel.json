@@ -5,11 +5,20 @@
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/dynamic-api/:path*", "destination": "https://app.dynamicauth.com/api/v0/:path*" },
+    { "source": "/fresh", "destination": "/" },
+    { "source": "/reset-app", "destination": "/" },
     { "source": "/monerge", "destination": "/" },
     { "source": "/monerge/:path*", "destination": "/" },
     { "source": "/:path*", "destination": "/" }
   ],
   "headers": [
+    {
+      "source": "/(fresh|reset-app)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
+        { "key": "Clear-Site-Data", "value": "\"cache\", \"storage\", \"executionContexts\"" }
+      ]
+    },
     {
       "source": "/",
       "headers": [
