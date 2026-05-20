@@ -22,6 +22,7 @@ import {
 } from './tweaks-panel.jsx';
 import './styles.css';
 
+const SITE_BUILD_VERSION = 'ecosystems-app-68';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -2670,6 +2671,7 @@ createRoot(document.getElementById('root')).render(
       <WagmiProvider config={wagmiConfig}>
         <QueryClientProvider client={queryClient}>
           <DynamicWagmiConnector>
+            <span className="build-version" aria-hidden="true">{SITE_BUILD_VERSION}</span>
             <MonergeDynamicBridge />
             <App />
           </DynamicWagmiConnector>
