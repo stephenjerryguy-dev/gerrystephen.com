@@ -22,7 +22,7 @@ import {
 } from './tweaks-panel.jsx';
 import './styles.css';
 
-const SITE_BUILD_VERSION = 'ecosystems-app-77';
+const SITE_BUILD_VERSION = 'ecosystems-app-78';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -840,7 +840,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-77`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-78`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
@@ -1706,7 +1706,7 @@ const MONAD_TILE_CHARACTERS = {
 const MONAD_CHARACTER_IMAGES = {
   Chog: 'assets/monanimals/chog-official-sprite.png',
   Molandak: 'assets/monanimals/molandak-official-sprite.png',
-  Mouch: 'assets/monanimals/mouch-sprite.png',
+  Mouch: 'assets/monanimals/mouch-sprite-tight.png',
   Mosferatu: 'assets/monanimals/mosferatu-clean.svg',
   Moyaki: 'assets/monanimals/moyaki-clean.svg',
   Shramp: 'assets/monanimals/shramp-clean.svg',
@@ -2380,9 +2380,12 @@ function MonadGame() {
         </button>}
         {isGameApp && !gameStarted && <div className="game-start-screen">
           <div className="start-orbit" aria-hidden="true">
-            <span className="tile-2">2</span>
-            <span className="tile-4">4</span>
-            <span className="tile-8">8</span>
+            {MONAD_TILE_LADDER.slice(0, 3).map((tile) =>
+              <span key={tile.value} className={`tile-${tile.value} start-monanimal`}>
+                <img src={MONAD_CHARACTER_IMAGES[tile.character]} alt="" aria-hidden="true" />
+                <strong>{tile.character}</strong>
+              </span>
+            )}
           </div>
           <div className="start-brand">
             <span>Built on Monad</span>
