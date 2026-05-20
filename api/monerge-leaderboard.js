@@ -70,9 +70,9 @@ async function readPostgresEntries() {
     SELECT id, wallet, username, pfp, score, actual, difficulty, max_tile, moves, signature, revealed_at, signed_at
     FROM monerge_leaderboard
     ORDER BY (signature <> '') DESC, score DESC, revealed_at DESC
-    LIMIT 12
+    LIMIT 200
   `;
-  return rows.map(rowToEntry).filter(Boolean);
+  return dedupeEntries(rows.map(rowToEntry).filter(Boolean)).slice(0, MAX_ENTRIES);
 }
 
 async function writePostgresEntry(entry) {
@@ -197,6 +197,24 @@ function sortEntries(entries) {
   });
 }
 
+function playerKey(entry = {}) {
+  const wallet = String(entry.wallet || '').trim().toLowerCase();
+  if (wallet) return `wallet:${wallet}`;
+  const username = String(entry.username || '').trim().toLowerCase();
+  if (username) return `user:${username}`;
+  return `id:${entry.id || Math.random()}`;
+}
+
+function dedupeEntries(entries = []) {
+  const bestByPlayer = new Map();
+  sortEntries(entries).forEach((entry) => {
+    const key = playerKey(entry);
+    const current = bestByPlayer.get(key);
+    if (!current || (entry.score || 0) > (current.score || 0)) bestByPlayer.set(key, entry);
+  });
+  return sortEntries([...bestByPlayer.values()]);
+}
+
 async function readJsonBody(request) {
   if (request.body && typeof request.body === 'object') return request.body;
   const chunks = [];
@@ -228,12 +246,12 @@ export default async function handler(request, response) {
     }
     const currentEntries = await readStoredEntries();
     const withoutSameRun = currentEntries.filter((item) => item.id !== entry.id);
-    await writeStoredEntries([entry, ...withoutSameRun]);
+    await writeStoredEntries(dedupeEntries([entry, ...withoutSameRun]));
   }
 
   const entries = await readStoredEntries();
   response.status(200).json({
-    entries: sortEntries(entries).slice(0, 12),
+    entries: dedupeEntries(entries).slice(0, MAX_ENTRIES),
     storage: postgresUrl() ? 'neon-postgres' : kvConfig() ? 'kv-database' : 'memory-fallback'
   });
 }

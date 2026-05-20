@@ -22,7 +22,7 @@ import {
 } from './tweaks-panel.jsx';
 import './styles.css';
 
-const SITE_BUILD_VERSION = 'ecosystems-app-80';
+const SITE_BUILD_VERSION = 'ecosystems-app-81';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -849,7 +849,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-80`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-81`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
@@ -1679,9 +1679,27 @@ function sortLeaderboard(entries) {
   });
 }
 
+function leaderboardPlayerKey(entry = {}) {
+  const wallet = String(entry.wallet || '').trim().toLowerCase();
+  if (wallet) return `wallet:${wallet}`;
+  const username = String(entry.username || '').trim().toLowerCase();
+  if (username) return `user:${username}`;
+  return `id:${entry.id || Math.random()}`;
+}
+
+function dedupeLeaderboard(entries = []) {
+  const byPlayer = new Map();
+  sortLeaderboard(entries).forEach((entry) => {
+    const key = leaderboardPlayerKey(entry);
+    const current = byPlayer.get(key);
+    if (!current || (entry.score || 0) > (current.score || 0)) byPlayer.set(key, entry);
+  });
+  return sortLeaderboard([...byPlayer.values()]);
+}
+
 function mergeLeaderboardEntry(entries, entry) {
   const withoutSameRun = entries.filter((item) => item.id !== entry.id);
-  return sortLeaderboard([entry, ...withoutSameRun]).slice(0, 50);
+  return dedupeLeaderboard([entry, ...withoutSameRun]).slice(0, 50);
 }
 
 async function fetchPublicLeaderboard() {
@@ -1884,6 +1902,7 @@ function MonadGame() {
   const [sfxEnabled, setSfxEnabled] = useState(true);
   const [installPromptEvent, setInstallPromptEvent] = useState(null);
   const [installPromptDismissed, setInstallPromptDismissed] = useState(false);
+  const [installGuideOpen, setInstallGuideOpen] = useState(false);
   const [pressedDirection, setPressedDirection] = useState('');
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION_SECONDS);
   const profileSignAttemptRef = useRef('');
@@ -1956,7 +1975,7 @@ function MonadGame() {
       setInstallPromptDismissed(true);
       return;
     }
-    setGameMessage('On iPhone, tap Share, then Add to Home Screen. On Android, use the browser menu to install Monerge.');
+    setInstallGuideOpen(true);
   }
 
   useEffect(() => {
@@ -2446,7 +2465,7 @@ function MonadGame() {
         {isGameApp && <button type="button" className="game-hamburger" onClick={() => setGameMenuOpen(true)} aria-label="Open Monerge menu">
           <span></span><span></span><span></span>
         </button>}
-        {isGameApp && <button type="button" className="leaderboard-toggle" onClick={() => setLeaderboardOpen(true)} aria-label="Open Monerge leaderboard">
+        {isGameApp && gameStarted && <button type="button" className="leaderboard-toggle" onClick={() => setLeaderboardOpen(true)} aria-label="Open Monerge leaderboard">
           <span>Leaderboard</span>
           <strong>{leaderboard.length || 0}</strong>
         </button>}
@@ -2476,8 +2495,8 @@ function MonadGame() {
             <button type="button" onClick={newGame}>Play</button>
             <MonergeWalletButton account={account} label="Connect" onClick={connectMonad} onSignOut={disconnectWallet} />
           </div>
-          {canPromptInstall && <button type="button" className="install-prompt" onClick={promptInstallApp}>Add to Home Screen</button>}
           <small>{account ? `${profileSigned ? 'Profile signed' : 'Signature needed'} as ${cleanPlayerProfile.username || shortWallet(account)}` : 'Connect before reveal to save your run'}</small>
+          <button type="button" className="install-note" onClick={promptInstallApp}>Add to Home Screen instructions</button>
         </div>}
         <div className="game-shell-head">
           <div>
@@ -2543,6 +2562,28 @@ function MonadGame() {
               <button type="button" onClick={() => setLeaderboardOpen(false)} aria-label="Close leaderboard">×</button>
             </div>
             <Leaderboard entries={leaderboard} limit={50} />
+          </div>
+        </div>}
+        {installGuideOpen && <div className="install-panel" role="dialog" aria-modal="true" aria-label="Add Monerge to home screen">
+          <div className="install-card">
+            <div className="game-menu-head">
+              <div>
+                <span>Mobile app</span>
+                <strong>Add Monerge</strong>
+              </div>
+              <button type="button" onClick={() => setInstallGuideOpen(false)} aria-label="Close install instructions">×</button>
+            </div>
+            <div className="install-steps">
+              <div>
+                <strong>iPhone</strong>
+                <p>Open this page in Safari, tap Share, then choose Add to Home Screen. Name it Monerge and tap Add.</p>
+              </div>
+              <div>
+                <strong>Android</strong>
+                <p>Open this page in Chrome, tap the browser menu, then Install app or Add to Home screen.</p>
+              </div>
+            </div>
+            <button type="button" className="install-primary" onClick={() => setInstallGuideOpen(false)}>Got it</button>
           </div>
         </div>}
         <div className="game-shell-actions" aria-label="Wallet and run controls">
@@ -2625,7 +2666,7 @@ function MonadGame() {
 
 function Leaderboard({ entries, compact = false, limit }) {
   const maxEntries = limit ?? (compact ? 3 : 50);
-  const boardEntries = entries?.length ? entries.slice(0, maxEntries) : [];
+  const boardEntries = entries?.length ? dedupeLeaderboard(entries).slice(0, maxEntries) : [];
   return (
     <div className={`leaderboard ${compact ? 'compact' : ''} ${maxEntries > 3 ? 'scrollable' : ''}`} aria-label="Monerge leaderboard">
       <div className="leaderboard-head">
@@ -2924,13 +2965,13 @@ function App() {
     const favicon = document.querySelector('link[rel="icon"]');
     if (isGameApp) {
       document.title = 'Monerge · Gerry Stephen';
-      appleIcon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-80');
-      favicon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-80');
+      appleIcon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-81');
+      favicon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-81');
       return;
     }
     document.title = 'Gerry Stephen · Business, Web3, and the Iglu';
-    appleIcon?.setAttribute('href', '/assets/pudgy-penguin-cutout.png?v=ecosystems-app-80');
-    favicon?.setAttribute('href', '/assets/pudgy-penguin-cutout.png?v=ecosystems-app-80');
+    appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-81');
+    favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-81');
   }, [isGameApp]);
 
   useEffect(() => {

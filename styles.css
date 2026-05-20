@@ -1896,6 +1896,18 @@ a { color: inherit; text-decoration: none; }
   touch-action: pan-y;
   overscroll-behavior: contain;
 }
+.install-panel {
+  position: absolute;
+  inset: 12px;
+  z-index: 84;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(8,7,24,0.72);
+  backdrop-filter: blur(18px);
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+}
 .leaderboard-card {
   width: min(100%, 560px);
   max-height: 100%;
@@ -1908,6 +1920,55 @@ a { color: inherit; text-decoration: none; }
     radial-gradient(340px 220px at 100% 0%, rgba(127,210,231,0.22), transparent 70%),
     linear-gradient(145deg, rgba(28,19,72,0.96), rgba(10,8,28,0.96));
   box-shadow: 0 24px 70px rgba(0,0,0,0.42);
+}
+.install-card {
+  width: min(100%, 540px);
+  max-height: 100%;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid rgba(238,246,251,0.22);
+  border-radius: 8px;
+  padding: 18px;
+  background:
+    radial-gradient(320px 220px at 0% 0%, rgba(159,124,255,0.28), transparent 70%),
+    radial-gradient(360px 240px at 100% 100%, rgba(127,210,231,0.26), transparent 72%),
+    linear-gradient(145deg, rgba(28,19,72,0.96), rgba(10,8,28,0.96));
+  box-shadow: 0 24px 70px rgba(0,0,0,0.42);
+}
+.install-steps {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 16px 0;
+}
+.install-steps div {
+  border: 1px solid rgba(238,246,251,0.14);
+  border-radius: 8px;
+  padding: 14px;
+  background: rgba(255,255,255,0.08);
+}
+.install-steps strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 18px;
+}
+.install-steps p {
+  margin: 0;
+  color: rgba(238,246,251,0.76);
+  line-height: 1.45;
+}
+.install-primary {
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid rgba(238,246,251,0.22);
+  border-radius: 8px;
+  background: linear-gradient(135deg, #9F7CFF, #7AC9E8);
+  color: #120B2E;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
 }
 .game-menu-head {
   display: flex;
@@ -3500,7 +3561,7 @@ a { color: inherit; text-decoration: none; }
     align-content: center;
   }
   .monad-game.app-mode.start-mode .game-copy,
-  .monad-game.app-mode.start-mode .game-shell > :not(.game-start-screen):not(.game-hamburger):not(.game-menu-panel):not(.leaderboard-panel):not(.leaderboard-toggle) {
+  .monad-game.app-mode.start-mode .game-shell > :not(.game-start-screen):not(.game-hamburger):not(.game-menu-panel):not(.leaderboard-panel):not(.install-panel) {
     display: none !important;
   }
   .monad-game.app-mode.start-mode .game-start-screen {
@@ -5707,7 +5768,7 @@ body:has(.game-app-page) {
   font: 900 10px/1 var(--mono);
 }
 
-.monad-game.app-mode.start-mode .game-shell > :not(.game-start-screen):not(.game-hamburger):not(.game-menu-panel):not(.leaderboard-panel):not(.leaderboard-toggle) {
+.monad-game.app-mode.start-mode .game-shell > :not(.game-start-screen):not(.game-hamburger):not(.game-menu-panel):not(.leaderboard-panel):not(.install-panel) {
   display: none !important;
 }
 
@@ -6078,6 +6139,20 @@ body:has(.game-app-page) {
   letter-spacing: 0.16em;
   text-transform: uppercase;
   backdrop-filter: blur(14px);
+}
+
+.install-note {
+  display: block;
+  margin: 10px auto 0;
+  border: 0;
+  background: transparent;
+  color: rgba(238,246,251,0.58);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  text-decoration: underline;
+  text-underline-offset: 5px;
 }
 
 .monad-game.app-mode .game-menu-text {

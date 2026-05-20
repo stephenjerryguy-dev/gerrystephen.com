@@ -1,22 +1,22 @@
 {
-  "name": "Monerge",
-  "short_name": "Monerge",
-  "description": "Monerge, a Monad merge game from gerrystephen.com.",
-  "start_url": "/monerge",
+  "name": "Gerry's Iglu",
+  "short_name": "Gerry's Iglu",
+  "description": "Gerry Stephen's one-page home for business, Web3, family, and the iglu.",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
+  "orientation": "any",
   "background_color": "#DCEEF7",
   "theme_color": "#0E1F2C",
   "icons": [
     {
-      "src": "/assets/monerge-icon-512.png?v=ecosystems-app-80",
+      "src": "/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-81",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/assets/monerge-icon.png?v=ecosystems-app-80",
+      "src": "/assets/gerrys-iglu-icon.png?v=ecosystems-app-81",
       "sizes": "1024x1024",
       "type": "image/png",
       "purpose": "any maskable"
