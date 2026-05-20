@@ -5620,16 +5620,6 @@ body:has(.game-app-page) {
   box-shadow: 0 20px 50px rgba(0,0,0,0.32), 0 0 0 6px rgba(159,124,255,0.06), inset 0 1px 0 rgba(255,255,255,0.22);
   backdrop-filter: blur(16px);
 }
-.monad-game.app-mode .game-hamburger::before {
-  content: "MENU";
-  position: absolute;
-  left: 50%;
-  bottom: 7px;
-  transform: translateX(-50%);
-  font: 800 7px/1 var(--mono);
-  letter-spacing: 0.18em;
-  color: rgba(238,246,251,0.58);
-}
 .monad-game.app-mode .game-hamburger::after {
   content: "";
   position: absolute;
@@ -5640,7 +5630,7 @@ body:has(.game-app-page) {
 }
 .monad-game.app-mode .game-hamburger .hamburger-lines {
   gap: 5px;
-  transform: translateY(-5px);
+  transform: none;
 }
 .monad-game.app-mode .game-hamburger span {
   width: 24px;
