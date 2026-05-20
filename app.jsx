@@ -586,13 +586,13 @@ function Timeline({ y = 0, intensity = 60 }) {
   const readHold = isCompactTimeline ? 0 : 0.08;
   const releaseHold = isCompactTimeline ? 0 : 0.04;
   const scrollDistance = isCompactTimeline
-    ? Math.max(viewport * 0.68, effectiveRailTravel * 0.58)
+    ? Math.max(viewport * 0.5, effectiveRailTravel * 0.46)
     : Math.max(viewport * 1.8, (effectiveRailTravel * 1.08) / (1 - readHold - releaseHold));
   const timelineHeight = viewport + scrollDistance;
   const sectionTop = section ? section.getBoundingClientRect().top : 0;
   const pinProgress = section ? clamp((startOffset - sectionTop) / scrollDistance, 0, 1) : 0;
   const rawProgress = clamp((pinProgress - readHold) / (1 - readHold - releaseHold), 0, 1);
-  const easedProgress = rawProgress * rawProgress * (3 - 2 * rawProgress);
+  const easedProgress = isCompactTimeline ? rawProgress : rawProgress * rawProgress * (3 - 2 * rawProgress);
   return (
     <section ref={sectionRef} className="timeline" id="journey" style={{ '--scroll': y, '--timeline-depth': depth, '--timeline-progress': easedProgress, '--timeline-height': `${timelineHeight}px` }}>
       <div className="timeline-sticky">

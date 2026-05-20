@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="Monerge" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <title>Gerry Stephen · Business, Web3, and the Iglu</title>
-<link rel="manifest" href="/manifest.webmanifest?v=ecosystems-app-64" />
+<link rel="manifest" href="/manifest.webmanifest?v=ecosystems-app-65" />
 <link rel="icon" type="image/png" href="assets/pudgy-penguin-cutout.png" />
 <link rel="apple-touch-icon" href="assets/pudgy-penguin-cutout.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -17,9 +17,9 @@
 </head>
 <body>
 <div id="root"></div>
-<script type="module" src="/app.jsx?v=ecosystems-app-64"></script>
+<script type="module" src="/app.jsx?v=ecosystems-app-65"></script>
 <script>
-const GERRY_SHELL_VERSION = 'ecosystems-app-64';
+const GERRY_SHELL_VERSION = 'ecosystems-app-65';
 async function resetOldGerryShell() {
   try {
     const currentVersion = localStorage.getItem('gerry-shell-version');
@@ -48,7 +48,7 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     resetOldGerryShell().then((didReload) => {
       if (didReload) return;
-      navigator.serviceWorker.register('/service-worker.js?v=ecosystems-app-64')
+      navigator.serviceWorker.register('/service-worker.js?v=ecosystems-app-65')
         .then((registration) => {
           registration.update();
           if (registration.waiting) registration.waiting.postMessage({ type: 'SKIP_WAITING' });
