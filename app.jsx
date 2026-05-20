@@ -22,7 +22,7 @@ import {
 } from './tweaks-panel.jsx';
 import './styles.css';
 
-const SITE_BUILD_VERSION = 'ecosystems-app-73';
+const SITE_BUILD_VERSION = 'ecosystems-app-74';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -182,6 +182,94 @@ function useAmbientScrollSound(y, enabled = true) {
     audio.beachGain.gain.setTargetAtTime(beachLevel, now, 0.45);
     audio.snowGain.gain.setTargetAtTime(snowLevel, now, 0.55);
   }, [y, enabled]);
+
+  return ready;
+}
+
+function useMonergeMusic(active = false) {
+  const musicRef = useRef(null);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    if (!active) {
+      if (musicRef.current) {
+        const music = musicRef.current;
+        const now = music.ctx.currentTime;
+        music.master.gain.setTargetAtTime(0, now, 0.12);
+      }
+      setReady(false);
+      return undefined;
+    }
+
+    function startMusic() {
+      if (musicRef.current) {
+        const music = musicRef.current;
+        music.ctx.resume?.();
+        music.master.gain.setTargetAtTime(0.055, music.ctx.currentTime, 0.6);
+        setReady(true);
+        return;
+      }
+
+      const AudioCtor = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtor) return;
+      const ctx = new AudioCtor();
+      const master = ctx.createGain();
+      const delay = ctx.createDelay(0.55);
+      const feedback = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+      const notes = [196, 246.94, 293.66, 392, 329.63, 246.94];
+      let step = 0;
+
+      master.gain.value = 0;
+      filter.type = 'lowpass';
+      filter.frequency.value = 1250;
+      delay.delayTime.value = 0.22;
+      feedback.gain.value = 0.18;
+      delay.connect(feedback).connect(delay);
+      delay.connect(filter).connect(master).connect(ctx.destination);
+
+      const tick = () => {
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = step % 3 === 0 ? 'triangle' : 'sine';
+        osc.frequency.setValueAtTime(notes[step % notes.length], now);
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.09, now + 0.018);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+        osc.connect(gain).connect(delay);
+        osc.start(now);
+        osc.stop(now + 0.32);
+        step += 1;
+      };
+
+      tick();
+      const interval = window.setInterval(tick, 360);
+      musicRef.current = { ctx, master, interval };
+      ctx.resume?.().then?.(() => {
+        master.gain.setTargetAtTime(0.055, ctx.currentTime, 0.6);
+        setReady(true);
+      });
+    }
+
+    const startOnce = () => startMusic();
+    window.addEventListener('pointerdown', startOnce, { once: true, passive: true });
+    window.addEventListener('keydown', startOnce, { once: true });
+    startMusic();
+
+    return () => {
+      window.removeEventListener('pointerdown', startOnce);
+      window.removeEventListener('keydown', startOnce);
+    };
+  }, [active]);
+
+  useEffect(() => () => {
+    const music = musicRef.current;
+    if (!music) return;
+    window.clearInterval(music.interval);
+    music.ctx.close?.();
+    musicRef.current = null;
+  }, []);
 
   return ready;
 }
@@ -678,7 +766,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-73`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-74`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
@@ -1301,6 +1389,8 @@ const GAME_DURATION_SECONDS = 120;
 const SCOREBOARD_KEY = 'monergeScoreboard';
 const LEADERBOARD_KEY = 'monergeLeaderboard';
 const PROFILE_KEY = 'monergeProfile';
+const PROFILE_SIGNATURE_KEY = 'monergeProfileSignature';
+const PROFILE_SIGNATURE_WALLET_KEY = 'monergeProfileSignatureWallet';
 const LEADERBOARD_API = '/api/monerge-leaderboard';
 const LAVA_DIRECTIONS = ['left', 'up', 'right', 'down'];
 const GAME_DIFFICULTIES = {
@@ -1372,12 +1462,49 @@ function cleanProfile(profile = {}) {
   return { username, pfp };
 }
 
+function loadProfileSignature() {
+  try {
+    return localStorage.getItem(PROFILE_SIGNATURE_KEY) || '';
+  } catch (_) {
+    return '';
+  }
+}
+
 function loadProfile() {
   try {
     return cleanProfile(JSON.parse(localStorage.getItem(PROFILE_KEY) || '{}'));
   } catch (_) {
     return { username: '', pfp: '' };
   }
+}
+
+function resizeProfileImage(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const size = 320;
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      canvas.width = size;
+      canvas.height = size;
+      const scale = Math.max(size / img.width, size / img.height);
+      const width = img.width * scale;
+      const height = img.height * scale;
+      const x = (size - width) / 2;
+      const y = (size - height) / 2;
+      context.fillStyle = '#1d1740';
+      context.fillRect(0, 0, size, size);
+      context.drawImage(img, x, y, width, height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/jpeg', 0.82));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Profile image could not be read.'));
+    };
+    img.src = url;
+  });
 }
 
 function playerName(entry = {}) {
@@ -1389,6 +1516,38 @@ function MonergeWalletButton({ account, label = 'Connect wallet', onClick }) {
     <button type="button" className="monerge-dynamic-btn" onClick={onClick}>
       <span>{account ? shortWallet(account) : label}</span>
     </button>
+  );
+}
+
+function MonergeProfileEditor({ profile, account, onProfileChange, onPfpUpload, compact = false }) {
+  const cleanPlayerProfile = cleanProfile(profile);
+  return (
+    <div className={`monerge-profile ${compact ? 'compact' : ''}`} aria-label="Player profile">
+      <div className="profile-preview">
+        {cleanPlayerProfile.pfp ? <img src={cleanPlayerProfile.pfp} alt="" /> : <span>{(cleanPlayerProfile.username || account || 'M').slice(0, 1).toUpperCase()}</span>}
+      </div>
+      <div className="profile-fields">
+        <label>
+          <span>Username</span>
+          <input
+            value={profile.username}
+            onChange={(event) => onProfileChange({ ...profile, username: event.target.value })}
+            placeholder="gerrydoteth"
+            maxLength={24}
+            autoComplete="nickname"
+          />
+        </label>
+        <label className="profile-upload">
+          <span>Profile photo</span>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={onPfpUpload}
+          />
+          <b>{cleanPlayerProfile.pfp ? 'Change photo' : 'Upload, photo, or camera'}</b>
+        </label>
+      </div>
+    </div>
   );
 }
 
@@ -1473,7 +1632,7 @@ const MONAD_TILE_CHARACTERS = {
 const MONAD_CHARACTER_IMAGES = {
   Chog: 'assets/monanimals/chog-official-sprite.png',
   Molandak: 'assets/monanimals/molandak-official-sprite.png',
-  Mouch: 'assets/monanimals/mouch-sprite-tight.png',
+  Mouch: 'assets/monanimals/mouch-sprite.png',
   Mosferatu: 'assets/monanimals/mosferatu-clean.svg',
   Moyaki: 'assets/monanimals/moyaki-clean.svg',
   Shramp: 'assets/monanimals/shramp-clean.svg',
@@ -1599,7 +1758,7 @@ function MonadGame() {
   const [moves, setMoves] = useState(0);
   const [gameOver, setGameOver] = useState(false);
   const [touchStart, setTouchStart] = useState(null);
-  const [signedResult, setSignedResult] = useState('');
+  const [profileSignature, setProfileSignature] = useState(() => loadProfileSignature());
   const [difficulty, setDifficulty] = useState('classic');
   const [lavaDirection, setLavaDirection] = useState(() => LAVA_DIRECTIONS[Math.floor(Math.random() * LAVA_DIRECTIONS.length)]);
   const [freezeDirection, setFreezeDirection] = useState(() => randomDirection(lavaDirection));
@@ -1613,13 +1772,15 @@ function MonadGame() {
   const [gameMessage, setGameMessage] = useState('Score is hidden. Track the merges in your head.');
   const [gameStarted, setGameStarted] = useState(false);
   const [gameMenuOpen, setGameMenuOpen] = useState(false);
+  const [gameMusic, setGameMusic] = useState(true);
   const [pressedDirection, setPressedDirection] = useState('');
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION_SECONDS);
-  const autoSignRunRef = useRef('');
+  const profileSignAttemptRef = useRef('');
   const isMonad = chainId?.toLowerCase() === MONAD_NETWORK.chainId;
   const maxTile = Math.max(...board);
   const appMode = getAppMode();
   const isGameApp = appMode === 'monerge' || appMode === 'iglu-merge';
+  const musicReady = useMonergeMusic(isGameApp && gameMusic);
   const currentDifficulty = GAME_DIFFICULTIES[difficulty] || GAME_DIFFICULTIES.classic;
   const hazardsEnabled = Boolean(currentDifficulty.hazards);
   const finalScore = scoreReveal?.final ?? null;
@@ -1628,6 +1789,7 @@ function MonadGame() {
   const dynamicReady = Boolean(sdkHasLoaded);
   const dynamicStatus = dynamicReady ? 'Dynamic ready' : dynamicTimedOut ? 'Dynamic settings blocked' : 'Dynamic loading';
   const cleanPlayerProfile = cleanProfile(profile);
+  const profileSigned = Boolean(account && profileSignature);
 
   function updateProfile(nextProfile) {
     const next = {
@@ -1638,16 +1800,23 @@ function MonadGame() {
     localStorage.setItem(PROFILE_KEY, JSON.stringify(next));
   }
 
-  function handlePfpUpload(event) {
+  async function handlePfpUpload(event) {
     const file = event.target.files?.[0];
     if (!file || !file.type?.startsWith('image/')) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        updateProfile({ ...profile, pfp: reader.result });
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      const image = await resizeProfileImage(file);
+      updateProfile({ ...profile, pfp: image });
+    } catch (_) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          updateProfile({ ...profile, pfp: reader.result.slice(0, 1200000) });
+        }
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      event.target.value = '';
+    }
   }
 
   useEffect(() => {
@@ -1745,6 +1914,16 @@ function MonadGame() {
       })
       .catch(() => {});
   }, [primaryWallet]);
+
+  useEffect(() => {
+    if (!account) return;
+    const savedWallet = localStorage.getItem(PROFILE_SIGNATURE_WALLET_KEY) || '';
+    if (profileSignature && (!savedWallet || savedWallet.toLowerCase() !== account.toLowerCase())) {
+      setProfileSignature('');
+      localStorage.removeItem(PROFILE_SIGNATURE_KEY);
+      localStorage.removeItem(PROFILE_SIGNATURE_WALLET_KEY);
+    }
+  }, [account, profileSignature]);
 
   useEffect(() => {
     if (!window.ethereum) return undefined;
@@ -1847,6 +2026,7 @@ function MonadGame() {
         if (network) setChainId(`0x${Number(network).toString(16)}`);
         setAccount(primaryWallet.address || account);
         setWalletState('Dynamic wallet on Monad');
+        await signProfile(primaryWallet.address || account, true);
       } catch (error) {
         setWalletState(error?.message || 'Open Dynamic to finish wallet setup.');
         setShowAuthFlow?.(true, DYNAMIC_AUTH_OPTIONS);
@@ -1865,17 +2045,17 @@ function MonadGame() {
     setAccount('');
     setChainId('');
     setWalletState('Wallet disconnected');
-    setSignedResult('');
+    setProfileSignature('');
+    localStorage.removeItem(PROFILE_SIGNATURE_KEY);
+    localStorage.removeItem(PROFILE_SIGNATURE_WALLET_KEY);
   }
 
   function newGame() {
-    autoSignRunRef.current = '';
     setGameStarted(true);
     setBoard(makeBoard());
     setScore(0);
     setMoves(0);
     setGameOver(false);
-    setSignedResult('');
     setScoreGuess('');
     setScoreReveal(null);
     setFrozenTurns(0);
@@ -1979,8 +2159,8 @@ function MonadGame() {
       difficulty: currentDifficulty.label,
       maxTile,
       moves,
-      signature: '',
-      signedAt: '',
+      signature: profileSignature || '',
+      signedAt: profileSignature ? new Date().toISOString() : '',
       revealedAt: new Date().toISOString()
     };
     const nextBoard = mergeLeaderboardEntry(leaderboard, revealedEntry);
@@ -1997,7 +2177,7 @@ function MonadGame() {
       setBest(final);
       localStorage.setItem('monergeBlindBest', String(final));
     }
-    setGameMessage(`Actual ${score}. Off by ${miss}. ${currentDifficulty.label} bonus ${difficultyBonusValue}. Final score ${final}.`);
+    setGameMessage(`Actual ${score}. Off by ${miss}. ${currentDifficulty.label} bonus ${difficultyBonusValue}. Final score ${final}. Run uploaded${profileSigned ? ' with your profile.' : '.'}`);
   }
 
   function handleTouchEnd(event) {
@@ -2012,33 +2192,24 @@ function MonadGame() {
     makeMove(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
   }
 
-  async function signResult() {
-    if (!scoreReveal) {
-      setGameMessage('Reveal your hidden score before signing the run.');
-      return;
-    }
-    if (!account) {
+  async function signProfile(address = account, assumeMonad = false) {
+    const signingAddress = address || account;
+    if (!signingAddress) {
       await connectMonad();
       return;
     }
-    if (!isMonad) {
+    if (!assumeMonad && !isMonad) {
       await connectMonad();
       return;
     }
     try {
-      setWalletState('Awaiting wallet signature');
+      setWalletState('Sign profile to save player');
       const message = [
-        `gerrystephen.com ${GAME_NAME}`,
-        `player=${cleanPlayerProfile.username || shortWallet(account)}`,
-        `mode=${currentDifficulty.label}`,
-        `final=${finalScore}`,
-        `actual=${score}`,
-        `guess=${scoreReveal.guess}`,
-        `miss=${scoreReveal.miss}`,
-        `timeBonus=${timeBonus}`,
-        `difficultyBonus=${difficultyBonus}`,
-        `maxTile=${maxTile}`,
-        `moves=${moves}`
+        `gerrystephen.com ${GAME_NAME} profile`,
+        `wallet=${signingAddress}`,
+        `username=${cleanPlayerProfile.username || shortWallet(signingAddress)}`,
+        `pfp=${cleanPlayerProfile.pfp ? 'custom' : 'default'}`,
+        `issued=${new Date().toISOString()}`
       ].join('\n');
       let signature = '';
       if (primaryWallet?.connector?.signMessage) {
@@ -2048,54 +2219,35 @@ function MonadGame() {
       } else if (window.ethereum) {
         signature = await window.ethereum.request({
           method: 'personal_sign',
-          params: [hexFromText(message), account]
+          params: [hexFromText(message), signingAddress]
         });
       } else {
         throw new Error('Wallet signer unavailable.');
       }
-      setSignedResult(signature || 'signed');
-      const nextEntry = {
-        id: scoreReveal.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        wallet: account,
-        username: cleanPlayerProfile.username,
-        pfp: cleanPlayerProfile.pfp,
-        score: finalScore,
-        actual: score,
-        difficulty: currentDifficulty.label,
-        maxTile,
-        moves,
-        signature: signature || 'signed',
-        signedAt: new Date().toISOString()
-      };
-      const nextBoard = mergeLeaderboardEntry(leaderboard, nextEntry);
-      setLeaderboard(nextBoard);
-      saveLeaderboard(nextBoard);
-      publishLeaderboardRun(nextEntry)
-        .then((entries) => {
-          const merged = sortLeaderboard([...entries, ...nextBoard]).slice(0, 12);
-          setLeaderboard(merged);
-          saveLeaderboard(merged);
-        })
-        .catch(() => {});
-      setWalletState('Run signed');
-      setGameMessage(`Signed ${currentDifficulty.label} run added to the leaderboard.`);
+      const nextSignature = signature || 'signed';
+      setProfileSignature(nextSignature);
+      localStorage.setItem(PROFILE_SIGNATURE_KEY, nextSignature);
+      localStorage.setItem(PROFILE_SIGNATURE_WALLET_KEY, signingAddress);
+      setWalletState('Profile signed');
+      setGameMessage('Profile signed. Revealed runs upload automatically.');
     } catch (error) {
-      setWalletState(error?.message || 'Run not signed.');
+      setWalletState(error?.message || 'Profile not signed.');
     }
   }
 
   useEffect(() => {
-    if (!scoreReveal?.id || !account || !isMonad || signedResult) return;
-    if (autoSignRunRef.current === scoreReveal.id) return;
-    autoSignRunRef.current = scoreReveal.id;
-    signResult();
-  }, [scoreReveal?.id, account, isMonad, signedResult]);
+    if (!account || !isMonad || profileSignature || showAuthFlow) return;
+    const attemptKey = `${account}-${cleanPlayerProfile.username}-${Boolean(cleanPlayerProfile.pfp)}`;
+    if (profileSignAttemptRef.current === attemptKey) return;
+    profileSignAttemptRef.current = attemptKey;
+    signProfile(account);
+  }, [account, isMonad, profileSignature, showAuthFlow, cleanPlayerProfile.username, cleanPlayerProfile.pfp]);
 
   return (
     <section className={`monad-game ${isGameApp ? 'app-mode' : ''} ${isGameApp && !gameStarted ? 'start-mode' : ''}`} id="monad-game">
       <div className="game-copy">
         <Chapter num="04" kicker="Built on Monad" title={<span className="monerge-logo">Monerge.</span>} />
-        <p className="lede">A wallet-backed focus game for BuildAnything. Merge Monad-coded tiles, choose your difficulty, remember the hidden points, then reveal and sign the run.</p>
+        <p className="lede">A wallet-backed focus game for BuildAnything. Merge Monad-coded tiles, choose your difficulty, remember the hidden points, then reveal your run. Connect once and sign your profile so scores upload automatically.</p>
         <div className="monanimal-strip" aria-label="Monad character inspirations">
           {MONAD_CHARACTERS.map((character) =>
           <span key={character.name} className={`monanimal-chip tile-${character.value}`}>
@@ -2110,6 +2262,13 @@ function MonadGame() {
           <button type="button" className="btn ghost" onClick={newGame}>New run</button>
         </div>
         {!isGameApp && <div className="desktop-game-details">
+          <MonergeProfileEditor
+            profile={profile}
+            account={account}
+            onProfileChange={updateProfile}
+            onPfpUpload={handlePfpUpload}
+            compact
+          />
           <div className="difficulty-select embed-difficulty" aria-label="Embed difficulty">
             {DIFFICULTY_ORDER.map((key) =>
               <button key={key} type="button" className={difficulty === key ? 'active' : ''} onClick={() => setDifficulty(key)}>
@@ -2123,12 +2282,15 @@ function MonadGame() {
             <span>{isMonad ? 'Monad mainnet' : 'Wrong network'}</span>
             <span>{dynamicStatus}</span>
             <span>PWA ready</span>
-            {signedResult && <span>Result signed</span>}
+            {profileSigned && <span>Profile signed</span>}
           </div>
           <Leaderboard entries={leaderboard} compact />
         </div>}
       </div>
       <div className="game-shell" role="application" aria-label={`${GAME_NAME} game`}>
+        {isGameApp && <button type="button" className="game-hamburger" onClick={() => setGameMenuOpen(true)} aria-label="Open Monerge menu">
+          <span></span><span></span><span></span>
+        </button>}
         {isGameApp && !gameStarted && <div className="game-start-screen">
           <div className="start-orbit" aria-hidden="true">
             <span className="tile-2">2</span>
@@ -2152,7 +2314,7 @@ function MonadGame() {
             <button type="button" onClick={newGame}>Play</button>
             <MonergeWalletButton account={account} label="Connect" onClick={connectMonad} />
           </div>
-          <small>{account ? `Signing as ${cleanPlayerProfile.username || shortWallet(account)}` : 'Connect before reveal to auto-sign your run'}</small>
+          <small>{account ? `${profileSigned ? 'Profile signed' : 'Signature needed'} as ${cleanPlayerProfile.username || shortWallet(account)}` : 'Connect before reveal to save your run'}</small>
         </div>}
         <div className="game-shell-head">
           <div>
@@ -2160,7 +2322,7 @@ function MonadGame() {
             <strong className="monerge-wordmark">Monerge</strong>
           </div>
           <div className="game-shell-menu-actions">
-            <button type="button" onClick={() => setGameMenuOpen(true)}>Menu</button>
+            <button type="button" className="game-menu-text" onClick={() => setGameMenuOpen(true)}>Menu</button>
             {!isGameApp && <a href={MONERGE_APP_PATH} target="_blank" rel="noopener">Open app</a>}
           </div>
         </div>
@@ -2173,33 +2335,8 @@ function MonadGame() {
               </div>
               <button type="button" onClick={() => setGameMenuOpen(false)} aria-label="Close menu">×</button>
             </div>
-            <p>Choose the intensity, keep the hidden score in your head, reveal it at the end, and let Monerge publish the run. Connected wallets get a signature prompt automatically.</p>
-            <div className="monerge-profile" aria-label="Player profile">
-              <div className="profile-preview">
-                {cleanPlayerProfile.pfp ? <img src={cleanPlayerProfile.pfp} alt="" /> : <span>{(cleanPlayerProfile.username || account || 'M').slice(0, 1).toUpperCase()}</span>}
-              </div>
-              <div className="profile-fields">
-                <label>
-                  <span>Username</span>
-                  <input
-                    value={profile.username}
-                    onChange={(event) => updateProfile({ ...profile, username: event.target.value })}
-                    placeholder="gerrydoteth"
-                    maxLength={24}
-                    autoComplete="nickname"
-                  />
-                </label>
-                <label className="profile-upload">
-                  <span>Profile photo</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handlePfpUpload}
-                  />
-                  <b>{cleanPlayerProfile.pfp ? 'Change photo' : 'Upload, photo, or camera'}</b>
-                </label>
-              </div>
-            </div>
+            <p>Choose the intensity, keep the hidden score in your head, reveal it at the end, and let Monerge publish the run. Connected wallets sign the player profile once.</p>
+            <MonergeProfileEditor profile={profile} account={account} onProfileChange={updateProfile} onPfpUpload={handlePfpUpload} />
             <div className="difficulty-select" aria-label="Difficulty">
               {DIFFICULTY_ORDER.map((key) =>
                 <button key={key} type="button" className={difficulty === key ? 'active' : ''} onClick={() => setDifficulty(key)}>
@@ -2212,7 +2349,7 @@ function MonadGame() {
               <MonergeWalletButton account={account} label="Connect wallet" onClick={connectMonad} />
               {account && <button type="button" onClick={disconnectWallet}>Sign out</button>}
               <button type="button" onClick={() => { newGame(); setGameMenuOpen(false); }}>New run</button>
-              {scoreReveal && !signedResult && <button type="button" onClick={signResult}>Sign now</button>}
+              {isGameApp && <button type="button" onClick={() => setGameMusic((value) => !value)}>{gameMusic && musicReady ? 'Music off' : 'Music on'}</button>}
             </div>
             <div className="game-menu-characters" aria-label="Monad character progression">
               {MONAD_TILE_LADDER.map((tile) =>
@@ -2228,7 +2365,7 @@ function MonadGame() {
           <span>{isMonad ? 'Monad mainnet' : 'Wrong network'}</span>
           <span>{dynamicStatus}</span>
           <span>{moves} moves</span>
-              {signedResult && <span>Result signed</span>}
+              {profileSigned && <span>Profile signed</span>}
             </div>
             <Leaderboard entries={leaderboard} />
           </div>
@@ -2327,13 +2464,13 @@ function Leaderboard({ entries, compact = false }) {
                 {entry.pfp ? <img src={entry.pfp} alt="" /> : <i>{playerName(entry).slice(0, 1).toUpperCase()}</i>}
               </div>
               <strong>{entry.score}</strong>
-              <em>{entry.signature ? 'Signed' : 'Revealed'} · {entry.difficulty}</em>
+              <em>{entry.signature ? 'Profile' : 'Revealed'} · {entry.difficulty}</em>
               <small><b>{playerName(entry)}</b> · {entry.wallet ? shortWallet(entry.wallet) : 'No wallet yet'} · max {entry.maxTile}</small>
             </li>
           ))}
         </ol>
       ) : (
-        <p>No runs yet. Reveal a score and it appears here; signing upgrades it.</p>
+        <p>No runs yet. Reveal a score and it appears here.</p>
       )}
     </div>
   );

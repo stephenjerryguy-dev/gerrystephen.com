@@ -1645,6 +1645,18 @@ a { color: inherit; text-decoration: none; }
 .desktop-game-details {
   display: block;
 }
+.desktop-game-details .monerge-profile.compact {
+  margin-top: 16px;
+  margin-bottom: 14px;
+  background: rgba(255,255,255,0.055);
+}
+.desktop-game-details .monerge-profile.compact .profile-preview {
+  width: 54px;
+  height: 54px;
+}
+.desktop-game-details .monerge-profile.compact {
+  grid-template-columns: 54px minmax(0, 1fr);
+}
 .monanimal-strip span {
   position: relative;
   overflow: hidden;
@@ -1830,6 +1842,21 @@ a { color: inherit; text-decoration: none; }
 }
 .game-shell-menu-actions button {
   cursor: pointer;
+}
+.game-hamburger {
+  display: none;
+}
+.hamburger-lines {
+  display: grid;
+  gap: 4px;
+}
+.hamburger-lines span,
+.game-hamburger span {
+  display: block;
+  width: 18px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
 }
 .game-menu-panel {
   position: absolute;
@@ -2319,8 +2346,9 @@ a { color: inherit; text-decoration: none; }
   background: transparent;
 }
 .tile-ladder-card .character-mouch {
-  object-position: center 42%;
-  scale: 1.12;
+  width: 68px;
+  object-position: center 50%;
+  scale: 1;
 }
 .tile-ladder-card .character-molandak,
 .tile-ladder-card .character-salmonad {
@@ -2649,8 +2677,10 @@ a { color: inherit; text-decoration: none; }
   scale: 1.1;
 }
 .tile-character.character-mouch {
-  object-position: center 42%;
-  scale: 1.2;
+  width: clamp(88px, 12.2vw, 132px);
+  height: clamp(60px, 8.6vw, 94px);
+  object-position: center 50%;
+  scale: 1;
 }
 .tile-character.character-mokadel {
   scale: 1.2;
@@ -5477,6 +5507,303 @@ body:has(.game-app-page) {
   }
   .monad-game.app-mode .game-prompt {
     min-height: 104px;
+  }
+}
+
+/* Final Monerge stability pass: full-screen app, fixed controls, mobile-first menu. */
+.monad-game.app-mode {
+  width: 100vw;
+  height: 100dvh;
+  min-height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  padding: max(16px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+}
+
+.monad-game.app-mode .game-shell {
+  position: relative;
+  width: 100%;
+  max-width: 1560px;
+  height: 100%;
+  min-height: 0;
+  margin: 0 auto;
+  grid-template-columns: minmax(210px, 280px) minmax(420px, 1fr) minmax(230px, 320px);
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  grid-template-areas:
+    "head head actions"
+    "hud board side"
+    "legend board side"
+    "controls board side"
+    "prompt prompt side";
+  align-content: stretch;
+  gap: clamp(10px, 1.1vw, 16px);
+}
+
+.monad-game.app-mode .game-shell-head { grid-area: head; }
+.monad-game.app-mode .game-shell-actions { grid-area: actions; align-self: start; }
+.monad-game.app-mode .game-hud {
+  grid-area: hud;
+  grid-template-columns: 1fr;
+}
+.monad-game.app-mode .tile-ladder { grid-area: side; }
+.monad-game.app-mode .game-board {
+  grid-area: board;
+  align-self: center;
+  justify-self: center;
+  width: min(100%, calc(100dvh - 210px), 620px);
+}
+.monad-game.app-mode .hazard-legend { grid-area: legend; }
+.monad-game.app-mode .game-controls { grid-area: controls; }
+.monad-game.app-mode .game-prompt { grid-area: prompt; }
+
+.monad-game.app-mode .game-hamburger {
+  position: absolute;
+  left: max(10px, env(safe-area-inset-left));
+  top: max(10px, env(safe-area-inset-top));
+  z-index: 45;
+  display: none;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(238,246,251,0.18);
+  border-radius: 999px;
+  background: rgba(18, 11, 46, 0.62);
+  color: #EEF6FB;
+  box-shadow: 0 18px 44px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.12);
+  backdrop-filter: blur(16px);
+}
+
+.monad-game.app-mode.start-mode .game-shell > :not(.game-start-screen):not(.game-hamburger) {
+  display: none !important;
+}
+
+.monad-game.app-mode.start-mode .game-hamburger {
+  display: grid;
+}
+
+.monad-game.app-mode.start-mode .game-start-screen {
+  display: block;
+  position: fixed;
+  left: 50vw;
+  top: 50dvh;
+  width: min(calc(100vw - 36px), 380px);
+  transform: translate(-50%, -50%);
+  z-index: 4;
+}
+
+.monad-game.app-mode .game-menu-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.monad-game.app-mode .game-menu-card {
+  width: min(720px, calc(100vw - 24px));
+  margin: max(18px, env(safe-area-inset-top)) auto max(18px, env(safe-area-inset-bottom));
+}
+
+.tile-character.character-mouch,
+.ladder-character.character-mouch {
+  object-fit: contain;
+  object-position: center center;
+  transform: none;
+}
+
+.tile-ladder-card .character-emonad,
+.tile-character.character-emonad {
+  object-fit: contain;
+  object-position: center top;
+}
+
+@media (max-width: 760px) {
+  .monad-game.app-mode {
+    padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+  }
+
+  .monad-game.app-mode .game-hamburger {
+    display: grid;
+  }
+
+  .monad-game.app-mode .game-shell-head {
+    padding-left: 48px;
+  }
+
+  .monad-game.app-mode .game-menu-text {
+    display: none;
+  }
+
+  .monad-game.app-mode .game-shell {
+    max-width: 520px;
+    height: calc(100dvh - max(16px, env(safe-area-inset-top) + env(safe-area-inset-bottom)));
+    padding: 8px;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto auto auto;
+    grid-template-areas:
+      "head"
+      "actions"
+      "hud"
+      "board"
+      "legend"
+      "controls"
+      "prompt";
+    gap: 8px;
+  }
+
+  .monad-game.app-mode .game-shell-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .monad-game.app-mode .game-shell-actions button:nth-child(3) {
+    grid-column: 1 / -1;
+  }
+
+  .monad-game.app-mode .game-hud {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .monad-game.app-mode .game-hud div {
+    height: 56px;
+    min-height: 56px;
+    padding: 8px;
+  }
+
+  .monad-game.app-mode .game-hud strong {
+    min-height: 28px;
+    display: flex;
+    align-items: center;
+    font-size: clamp(19px, 6vw, 28px);
+    line-height: 0.96;
+  }
+
+  .monad-game.app-mode .tile-ladder {
+    display: none;
+  }
+
+  .monad-game.app-mode .game-board {
+    width: min(100%, calc(100dvh - 342px), 440px);
+    min-width: 0;
+  }
+
+  .monad-game.app-mode .hazard-legend {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .monad-game.app-mode .hazard-legend span {
+    height: 36px;
+    min-height: 36px;
+    padding-inline: 8px;
+    white-space: normal;
+    line-height: 1.15;
+  }
+
+  .monad-game.app-mode .game-controls {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .monad-game.app-mode .game-controls button {
+    min-height: 46px;
+  }
+
+  .monad-game.app-mode .game-prompt {
+    min-height: 76px;
+    max-height: 96px;
+    overflow: hidden;
+    padding: 10px;
+  }
+
+  .monad-game.app-mode .game-prompt .leaderboard {
+    display: none;
+  }
+
+  .monad-game.app-mode.start-mode .game-shell {
+    height: calc(100dvh - 16px);
+    max-width: 420px;
+  }
+
+  .monad-game.app-mode.start-mode .game-start-screen {
+    width: min(calc(100vw - 28px), 340px);
+  }
+}
+
+@media (orientation: landscape) and (max-height: 620px) {
+  .monad-game.app-mode {
+    padding: max(6px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+  }
+
+  .monad-game.app-mode .game-hamburger {
+    display: grid;
+    width: 38px;
+    height: 38px;
+  }
+
+  .monad-game.app-mode .game-shell {
+    max-width: none;
+    height: calc(100dvh - 12px);
+    padding: 8px 8px 8px 52px;
+    grid-template-columns: minmax(130px, 190px) minmax(270px, min(58dvh, 430px)) minmax(170px, 250px);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "hud board actions"
+      "legend board prompt"
+      "controls board prompt";
+    gap: 8px;
+  }
+
+  .monad-game.app-mode .game-shell-head,
+  .monad-game.app-mode .tile-ladder {
+    display: none;
+  }
+
+  .monad-game.app-mode .game-shell-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .monad-game.app-mode .game-shell-actions .monerge-dynamic-btn,
+  .monad-game.app-mode .game-shell-actions button {
+    min-height: 34px !important;
+  }
+
+  .monad-game.app-mode .game-hud {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .monad-game.app-mode .game-hud div {
+    height: auto;
+    min-height: 48px;
+  }
+
+  .monad-game.app-mode .game-board {
+    width: min(100%, calc(100dvh - 30px), 430px);
+  }
+
+  .monad-game.app-mode .hazard-legend {
+    grid-template-columns: 1fr;
+  }
+
+  .monad-game.app-mode .game-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .monad-game.app-mode .game-controls button {
+    min-height: 38px;
+  }
+
+  .monad-game.app-mode .game-prompt {
+    min-height: 0;
+    max-height: none;
+    align-self: stretch;
+  }
+
+  .monad-game.app-mode.start-mode .game-shell {
+    padding-left: 52px;
+    place-items: center;
   }
 }
 

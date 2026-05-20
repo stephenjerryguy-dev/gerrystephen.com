@@ -162,8 +162,10 @@ async function writeStoredEntries(entries) {
 }
 
 function sanitizeProfileUrl(value = '') {
-  const url = String(value || '').trim().slice(0, 360);
-  return /^https?:\/\//i.test(url) ? url : '';
+  const url = String(value || '').trim();
+  if (/^https?:\/\//i.test(url)) return url.slice(0, 360);
+  if (/^data:image\/(?:png|jpe?g|webp);base64,/i.test(url)) return url.slice(0, 140000);
+  return '';
 }
 
 function sanitizeEntry(input = {}) {
