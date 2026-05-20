@@ -22,7 +22,7 @@ import {
 } from './tweaks-panel.jsx';
 import './styles.css';
 
-const SITE_BUILD_VERSION = 'ecosystems-app-68';
+const SITE_BUILD_VERSION = 'ecosystems-app-69';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -485,7 +485,9 @@ function Hero({ y, mouse, intensity }) {
           <div className="bt-title">THE IGLU</div>
           <div className="bt-sub">a small home on the internet · gerrystephen.eth</div>
           <a className="abstract-veteran-card" href="https://abscan.org/address/0x382556A543aAd855C07678E7F8e820d0d90429BB" target="_blank" rel="noopener" aria-label="Abstract Gold tier 1 veteran wallet">
-            <img src="assets/abstract-gold-veteran.png" alt="Abstract wallet gold tier 1" />
+            <span className="abstract-wallet-word">Wallet</span>
+            <span className="abstract-mark" aria-hidden="true">A</span>
+            <span className="abstract-rank" aria-hidden="true"><i /><i /><i /></span>
             <span className="abstract-tier-label">Gold Tier I</span>
           </a>
         </div>
@@ -583,15 +585,16 @@ function Timeline({ y = 0, intensity = 60 }) {
   const mobileViewportWidth = Math.max(0, viewportWidth - 40);
   const mobileFallbackTravel = Math.max(0, mobileRailWidth - mobileViewportWidth);
   const effectiveRailTravel = isCompactTimeline ? Math.max(railTravel, mobileFallbackTravel) : railTravel;
-  const startOffset = isCompactTimeline ? 0 : viewport * 0.08;
+  const startOffset = isCompactTimeline ? viewport * 0.18 : viewport * 0.08;
   const readHold = isCompactTimeline ? 0 : 0.08;
   const releaseHold = isCompactTimeline ? 0 : 0.04;
   const scrollDistance = isCompactTimeline
-    ? Math.max(viewport * 0.5, effectiveRailTravel * 0.46)
+    ? Math.max(viewport * 0.28, effectiveRailTravel * 0.34)
     : Math.max(viewport * 1.8, (effectiveRailTravel * 1.08) / (1 - readHold - releaseHold));
   const timelineHeight = viewport + scrollDistance;
   const sectionTop = section ? section.getBoundingClientRect().top : 0;
-  const pinProgress = section ? clamp((startOffset - sectionTop) / scrollDistance, 0, 1) : 0;
+  const progressDistance = isCompactTimeline ? scrollDistance + startOffset : scrollDistance;
+  const pinProgress = section ? clamp((startOffset - sectionTop) / progressDistance, 0, 1) : 0;
   const rawProgress = clamp((pinProgress - readHold) / (1 - readHold - releaseHold), 0, 1);
   const easedProgress = isCompactTimeline ? rawProgress : rawProgress * rawProgress * (3 - 2 * rawProgress);
   return (
@@ -668,7 +671,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-59`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-69`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();

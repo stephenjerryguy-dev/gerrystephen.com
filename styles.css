@@ -595,19 +595,20 @@ a { color: inherit; text-decoration: none; }
 }
 .abstract-veteran-card {
   width: min(276px, 72vw);
+  aspect-ratio: 489 / 291;
   margin-top: 18px;
   display: block;
   position: relative;
-  padding: 7px;
-  border: 1px solid rgba(214,184,108,0.34);
-  border-radius: 8px;
+  padding: 0;
+  border: 1px solid rgba(255,250,220,0.62);
+  border-radius: 14px;
   background:
-    linear-gradient(145deg, rgba(255,247,219,0.46), rgba(160,125,36,0.14)),
-    rgba(255,255,255,0.34);
-  box-shadow: 0 18px 44px rgba(14,31,44,0.18), 0 0 0 1px rgba(255,255,255,0.32) inset;
+    radial-gradient(120px 90px at 10% 72%, rgba(255,255,255,0.38), transparent 72%),
+    radial-gradient(140px 110px at 84% 18%, rgba(255,255,255,0.28), transparent 70%),
+    linear-gradient(135deg, #f8e8a8 0%, #e7cc73 48%, #d5b85a 100%);
+  box-shadow: 0 18px 44px rgba(14,31,44,0.18), 0 0 0 1px rgba(255,255,255,0.42) inset;
   text-decoration: none;
   pointer-events: auto;
-  backdrop-filter: blur(12px);
   overflow: hidden;
   isolation: isolate;
   transition: transform 0.18s ease, box-shadow 0.18s ease;
@@ -615,52 +616,93 @@ a { color: inherit; text-decoration: none; }
 .abstract-veteran-card::before {
   content: "";
   position: absolute;
-  z-index: 1;
-  left: 7%;
-  bottom: 8%;
-  width: 49%;
-  height: 29%;
-  border-radius: 999px;
+  inset: 0;
+  z-index: 0;
   background:
-    radial-gradient(ellipse at 42% 50%, rgba(225,198,113,0.72) 0 34%, rgba(225,198,113,0.34) 58%, rgba(225,198,113,0) 76%);
-  filter: blur(14px);
-  opacity: 0.56;
+    linear-gradient(110deg, rgba(255,255,255,0.14), transparent 36%),
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.08) 0 1px, transparent 1px 42px);
+  opacity: 0.72;
   pointer-events: none;
-  mix-blend-mode: multiply;
+}
+.abstract-veteran-card::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 42%;
+  z-index: 0;
+  background: linear-gradient(0deg, rgba(118,87,17,0.08), transparent);
+  pointer-events: none;
 }
 .abstract-veteran-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 24px 60px rgba(14,31,44,0.22), 0 0 0 1px rgba(255,255,255,0.42) inset;
 }
 .abstract-veteran-card img {
-  display: block;
-  width: 100%;
-  height: auto;
-  object-fit: cover;
-  border-radius: 6px;
-  box-shadow: 0 8px 24px rgba(103,77,18,0.12);
-  position: relative;
-  z-index: 0;
+  display: none;
 }
+.abstract-wallet-word,
+.abstract-mark,
+.abstract-rank,
 .abstract-tier-label {
   position: absolute;
   z-index: 2;
-  left: 11.5%;
-  bottom: 17.5%;
-  display: inline-flex;
-  align-items: center;
+}
+.abstract-wallet-word {
+  left: 6.5%;
+  top: 11%;
+  color: rgba(128,96,24,0.8);
+  font-family: Inter, system-ui, sans-serif;
+  font-size: clamp(17px, 2.05vw, 25px);
+  font-weight: 560;
+  line-height: 1;
+}
+.abstract-mark {
+  top: 8%;
+  right: 8%;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  color: rgba(255,255,255,0.54);
+  font-family: var(--display-font), sans-serif;
+  font-size: 36px;
+  font-weight: 800;
+  line-height: 1;
+  transform: rotate(-38deg);
+  text-shadow: 0 2px 4px rgba(128,96,24,0.16);
+}
+.abstract-rank {
+  right: 8.5%;
+  bottom: 14%;
+  width: 54px;
+  height: 58px;
+  display: grid;
+  align-content: end;
+  gap: 5px;
+}
+.abstract-rank i {
+  display: block;
+  height: 10px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.46), rgba(136,104,29,0.16));
+  clip-path: polygon(50% 0, 100% 64%, 100% 100%, 50% 38%, 0 100%, 0 64%);
+  filter: drop-shadow(0 1px 2px rgba(117,87,18,0.18));
+}
+.abstract-tier-label {
+  left: 9.2%;
+  bottom: 18.2%;
+  display: block;
   background: transparent !important;
   box-shadow: none !important;
   color: rgba(128, 96, 24, 0.82);
   font-family: Inter, system-ui, sans-serif;
-  font-weight: 650;
-  font-size: clamp(18px, 2.05vw, 25px);
+  font-weight: 760;
+  font-size: clamp(20px, 2.6vw, 31px);
   line-height: 1;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.035em;
   text-shadow: 0 1px 0 rgba(255,255,255,0.18);
-  mix-blend-mode: multiply;
-  opacity: 0.9;
-  filter: saturate(0.92);
+  mix-blend-mode: normal;
+  opacity: 1;
+  filter: none;
 }
 
 .scroll-hint {
@@ -4424,30 +4466,8 @@ body:has(.game-app-page) {
 }
 
 /* ---------- Final mobile/game tuning ---------- */
-.abstract-veteran-card {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  box-shadow: 0 18px 44px rgba(14,31,44,0.18);
-  backdrop-filter: none;
-}
-.abstract-veteran-card::before {
-  display: none;
-}
 .abstract-veteran-card:hover {
-  box-shadow: 0 24px 60px rgba(14,31,44,0.22);
-}
-.abstract-veteran-card img {
-  border-radius: 8px;
-}
-.abstract-tier-label {
-  left: 11.5%;
-  bottom: 17.5%;
-  background: transparent !important;
-  box-shadow: none !important;
-  color: #9b7d21;
-  text-shadow: 0 1px 0 rgba(255,255,255,0.16);
-  mix-blend-mode: multiply;
+  box-shadow: 0 24px 60px rgba(14,31,44,0.22), 0 0 0 1px rgba(255,255,255,0.46) inset;
 }
 .nb-x-mark {
   background: rgba(14,31,44,0.1);
@@ -4603,9 +4623,9 @@ body:has(.game-app-page) {
     padding: 0;
   }
   .abstract-tier-label {
-    left: 11.5%;
-    bottom: 17.5%;
-    font-size: clamp(17px, 5vw, 22px);
+    left: 9.2%;
+    bottom: 18.2%;
+    font-size: clamp(18px, 5.4vw, 25px);
   }
   .monad-game.app-mode .game-shell {
     padding: 7px;
