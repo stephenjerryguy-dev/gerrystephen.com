@@ -10,12 +10,6 @@
   "theme_color": "#0E1F2C",
   "icons": [
     {
-      "src": "assets/monerge-app-icon.svg",
-      "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    },
-    {
       "src": "assets/monerge-icon-512.png",
       "sizes": "512x512",
       "type": "image/png",

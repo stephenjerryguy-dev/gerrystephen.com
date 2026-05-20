@@ -22,7 +22,7 @@ import {
 } from './tweaks-panel.jsx';
 import './styles.css';
 
-const SITE_BUILD_VERSION = 'ecosystems-app-74';
+const SITE_BUILD_VERSION = 'ecosystems-app-75';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -272,6 +272,80 @@ function useMonergeMusic(active = false) {
   }, []);
 
   return ready;
+}
+
+function useMonergeSfx(active = true) {
+  const audioRef = useRef(null);
+
+  useEffect(() => {
+    if (!active && audioRef.current) {
+      audioRef.current.master.gain.setTargetAtTime(0, audioRef.current.ctx.currentTime, 0.08);
+      return undefined;
+    }
+
+    function setup() {
+      if (audioRef.current) {
+        audioRef.current.ctx.resume?.();
+        audioRef.current.master.gain.setTargetAtTime(0.18, audioRef.current.ctx.currentTime, 0.18);
+        return;
+      }
+      const AudioCtor = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtor) return;
+      const ctx = new AudioCtor();
+      const master = ctx.createGain();
+      master.gain.value = active ? 0.18 : 0;
+      master.connect(ctx.destination);
+      audioRef.current = { ctx, master };
+      ctx.resume?.();
+    }
+
+    setup();
+    const unlock = () => setup();
+    window.addEventListener('pointerdown', unlock, { once: true, passive: true });
+    window.addEventListener('keydown', unlock, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+  }, [active]);
+
+  useEffect(() => () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.ctx.close?.();
+    audioRef.current = null;
+  }, []);
+
+  return useCallback((type = 'tap') => {
+    if (!active) return;
+    const audio = audioRef.current;
+    if (!audio) return;
+    const { ctx, master } = audio;
+    ctx.resume?.();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+    const settings = {
+      move: { freq: 330, end: 420, dur: 0.09, type: 'triangle', level: 0.06 },
+      merge: { freq: 520, end: 840, dur: 0.16, type: 'sine', level: 0.08 },
+      lava: { freq: 120, end: 58, dur: 0.22, type: 'sawtooth', level: 0.1 },
+      freeze: { freq: 920, end: 420, dur: 0.2, type: 'sine', level: 0.08 },
+      reveal: { freq: 392, end: 784, dur: 0.34, type: 'triangle', level: 0.09 },
+      start: { freq: 246, end: 492, dur: 0.2, type: 'triangle', level: 0.07 }
+    }[type] || { freq: 420, end: 520, dur: 0.1, type: 'sine', level: 0.05 };
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(type === 'lava' ? 560 : 1800, now);
+    osc.type = settings.type;
+    osc.frequency.setValueAtTime(settings.freq, now);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(40, settings.end), now + settings.dur);
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(settings.level, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + settings.dur);
+    osc.connect(gain).connect(filter).connect(master);
+    osc.start(now);
+    osc.stop(now + settings.dur + 0.03);
+  }, [active]);
 }
 
 function useInView(ref, threshold = 0.15) {
@@ -766,7 +840,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-74`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-75`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
@@ -1184,7 +1258,7 @@ function monergeWalletsFilter(options = []) {
 
 const DYNAMIC_SETTINGS = {
   appName: 'Monerge',
-  appLogoUrl: `${window.location.origin}/assets/monerge-app-icon.svg`,
+  appLogoUrl: `${window.location.origin}/assets/monerge-icon-512.png`,
   apiBaseUrl: `${window.location.origin}/dynamic-api`,
   environmentId: DYNAMIC_ENV_ID,
   initialAuthenticationMode: 'connect-only',
@@ -1772,7 +1846,9 @@ function MonadGame() {
   const [gameMessage, setGameMessage] = useState('Score is hidden. Track the merges in your head.');
   const [gameStarted, setGameStarted] = useState(false);
   const [gameMenuOpen, setGameMenuOpen] = useState(false);
+  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [gameMusic, setGameMusic] = useState(true);
+  const [sfxEnabled, setSfxEnabled] = useState(true);
   const [pressedDirection, setPressedDirection] = useState('');
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION_SECONDS);
   const profileSignAttemptRef = useRef('');
@@ -1781,6 +1857,7 @@ function MonadGame() {
   const appMode = getAppMode();
   const isGameApp = appMode === 'monerge' || appMode === 'iglu-merge';
   const musicReady = useMonergeMusic(isGameApp && gameMusic);
+  const playSfx = useMonergeSfx(isGameApp && sfxEnabled);
   const currentDifficulty = GAME_DIFFICULTIES[difficulty] || GAME_DIFFICULTIES.classic;
   const hazardsEnabled = Boolean(currentDifficulty.hazards);
   const finalScore = scoreReveal?.final ?? null;
@@ -1859,7 +1936,9 @@ function MonadGame() {
     const previousHtmlOverscroll = document.documentElement.style.overscrollBehavior;
     const preventPageMove = (event) => {
       const dynamicHost = event.target?.closest?.('.dynamic-shadow-dom');
+      const openPanel = event.target?.closest?.('.game-menu-panel, .leaderboard-panel');
       if (dynamicHost) return;
+      if (openPanel) return;
       event.preventDefault();
     };
     document.body.style.overflow = 'hidden';
@@ -1986,6 +2065,7 @@ function MonadGame() {
   }
 
   function hitHazard(kind) {
+    playSfx(kind === 'freeze' ? 'freeze' : 'lava');
     setHazardHit('');
     window.setTimeout(() => setHazardHit(kind), 20);
     window.setTimeout(() => setHazardHit(''), 420);
@@ -2051,6 +2131,7 @@ function MonadGame() {
   }
 
   function newGame() {
+    playSfx('start');
     setGameStarted(true);
     setBoard(makeBoard());
     setScore(0);
@@ -2102,6 +2183,7 @@ function MonadGame() {
     }
     const result = moveBoard(board, direction);
     if (!result.moved) return;
+    playSfx(result.gained ? 'merge' : 'move');
     const nextBoard = addRandomTile(result.board);
     const nextMoves = moves + 1;
     const streakBonus = result.gained && nextMoves % 4 === 0 ? Math.max(8, maxTile / 4) : 0;
@@ -2149,6 +2231,7 @@ function MonadGame() {
       final
     };
     setScoreReveal(reveal);
+    playSfx('reveal');
     const revealedEntry = {
       id: runId,
       wallet: account || '',
@@ -2291,6 +2374,10 @@ function MonadGame() {
         {isGameApp && <button type="button" className="game-hamburger" onClick={() => setGameMenuOpen(true)} aria-label="Open Monerge menu">
           <span></span><span></span><span></span>
         </button>}
+        {isGameApp && <button type="button" className="leaderboard-toggle" onClick={() => setLeaderboardOpen(true)} aria-label="Open Monerge leaderboard">
+          <span>Leaderboard</span>
+          <strong>{leaderboard.length || 0}</strong>
+        </button>}
         {isGameApp && !gameStarted && <div className="game-start-screen">
           <div className="start-orbit" aria-hidden="true">
             <span className="tile-2">2</span>
@@ -2350,6 +2437,8 @@ function MonadGame() {
               {account && <button type="button" onClick={disconnectWallet}>Sign out</button>}
               <button type="button" onClick={() => { newGame(); setGameMenuOpen(false); }}>New run</button>
               {isGameApp && <button type="button" onClick={() => setGameMusic((value) => !value)}>{gameMusic && musicReady ? 'Music off' : 'Music on'}</button>}
+              {isGameApp && <button type="button" onClick={() => setSfxEnabled((value) => !value)}>{sfxEnabled ? 'SFX off' : 'SFX on'}</button>}
+              {isGameApp && <button type="button" onClick={() => setLeaderboardOpen(true)}>Leaderboard</button>}
             </div>
             <div className="game-menu-characters" aria-label="Monad character progression">
               {MONAD_TILE_LADDER.map((tile) =>
@@ -2366,6 +2455,17 @@ function MonadGame() {
           <span>{dynamicStatus}</span>
           <span>{moves} moves</span>
               {profileSigned && <span>Profile signed</span>}
+            </div>
+          </div>
+        </div>}
+        {leaderboardOpen && <div className="leaderboard-panel" role="dialog" aria-modal="true" aria-label={`${GAME_NAME} leaderboard`}>
+          <div className="leaderboard-card">
+            <div className="game-menu-head">
+              <div>
+                <span>Public runs</span>
+                <strong>Leaderboard</strong>
+              </div>
+              <button type="button" onClick={() => setLeaderboardOpen(false)} aria-label="Close leaderboard">×</button>
             </div>
             <Leaderboard entries={leaderboard} />
           </div>
@@ -2441,7 +2541,6 @@ function MonadGame() {
         <div className="game-prompt">
           <strong>{scoreReveal ? `Final ${scoreReveal.final}` : gameOver ? 'Board locked. Guess before you reveal.' : maxTile >= 2048 ? 'Emonad unlocked.' : gameMessage}</strong>
           <span>{moves} moves · max tile {maxTile} · {currentDifficulty.note}</span>
-          {isGameApp && <Leaderboard entries={leaderboard} compact />}
         </div>
       </div>
     </section>);
@@ -2747,8 +2846,8 @@ function App() {
     const favicon = document.querySelector('link[rel="icon"]');
     if (isGameApp) {
       document.title = 'Monerge · Gerry Stephen';
-      appleIcon?.setAttribute('href', 'assets/monerge-app-icon.svg');
-      favicon?.setAttribute('href', 'assets/monerge-app-icon.svg');
+      appleIcon?.setAttribute('href', 'assets/monerge-icon-512.png');
+      favicon?.setAttribute('href', 'assets/monerge-icon-512.png');
       return;
     }
     document.title = 'Gerry Stephen · Business, Web3, and the Iglu';
