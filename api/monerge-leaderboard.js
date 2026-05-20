@@ -1,6 +1,47 @@
 const MAX_ENTRIES = 50;
+const LEADERBOARD_KEY = 'monerge:leaderboard:v1';
 
 globalThis.__monergeLeaderboard = globalThis.__monergeLeaderboard || [];
+
+function kvConfig() {
+  const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || '';
+  const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || '';
+  return url && token ? { url: url.replace(/\/$/, ''), token } : null;
+}
+
+async function kvCommand(command) {
+  const config = kvConfig();
+  if (!config) return undefined;
+  const response = await fetch(config.url, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${config.token}`,
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify(command)
+  });
+  if (!response.ok) throw new Error('leaderboard database unavailable');
+  const data = await response.json();
+  return data?.result;
+}
+
+async function readStoredEntries() {
+  try {
+    const result = await kvCommand(['GET', LEADERBOARD_KEY]);
+    const entries = typeof result === 'string' ? JSON.parse(result) : result;
+    if (Array.isArray(entries)) return entries.map(sanitizeEntry).filter(Boolean);
+  } catch (_) {}
+  return globalThis.__monergeLeaderboard;
+}
+
+async function writeStoredEntries(entries) {
+  const cleanEntries = sortEntries(entries.map(sanitizeEntry).filter(Boolean)).slice(0, MAX_ENTRIES);
+  globalThis.__monergeLeaderboard = cleanEntries;
+  try {
+    await kvCommand(['SET', LEADERBOARD_KEY, JSON.stringify(cleanEntries)]);
+  } catch (_) {}
+  return cleanEntries;
+}
 
 function sanitizeProfileUrl(value = '') {
   const url = String(value || '').trim().slice(0, 360);
@@ -52,6 +93,7 @@ export default async function handler(request, response) {
   response.setHeader('access-control-allow-origin', '*');
   response.setHeader('access-control-allow-methods', 'GET,POST,OPTIONS');
   response.setHeader('access-control-allow-headers', 'content-type');
+  response.setHeader('cache-control', 'no-store');
 
   if (request.method === 'OPTIONS') {
     response.status(204).end();
@@ -64,11 +106,14 @@ export default async function handler(request, response) {
       response.status(400).json({ error: 'invalid leaderboard entry' });
       return;
     }
-    const withoutSameRun = globalThis.__monergeLeaderboard.filter((item) => item.id !== entry.id);
-    globalThis.__monergeLeaderboard = sortEntries([entry, ...withoutSameRun]).slice(0, MAX_ENTRIES);
+    const currentEntries = await readStoredEntries();
+    const withoutSameRun = currentEntries.filter((item) => item.id !== entry.id);
+    await writeStoredEntries([entry, ...withoutSameRun]);
   }
 
+  const entries = await readStoredEntries();
   response.status(200).json({
-    entries: sortEntries(globalThis.__monergeLeaderboard).slice(0, 12)
+    entries: sortEntries(entries).slice(0, 12),
+    storage: kvConfig() ? 'database' : 'memory-fallback'
   });
 }

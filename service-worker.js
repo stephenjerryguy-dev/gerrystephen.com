@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gerry-iglu-v65';
+const CACHE_NAME = 'gerry-iglu-v66';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting());
@@ -8,7 +8,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
       .then((keys) => Promise.all(keys.filter((key) => key.includes('gerry-iglu')).map((key) => caches.delete(key))))
-      .then(() => self.clients.claim())
+      .then(() => self.registration.unregister())
   );
 });
 

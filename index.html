@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="Monerge" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <title>Gerry Stephen · Business, Web3, and the Iglu</title>
-<link rel="manifest" href="/manifest.webmanifest?v=ecosystems-app-65" />
+<link rel="manifest" href="/manifest.webmanifest?v=ecosystems-app-66" />
 <link rel="icon" type="image/png" href="assets/pudgy-penguin-cutout.png" />
 <link rel="apple-touch-icon" href="assets/pudgy-penguin-cutout.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -17,14 +17,13 @@
 </head>
 <body>
 <div id="root"></div>
-<script type="module" src="/app.jsx?v=ecosystems-app-65"></script>
+<script type="module" src="/app.jsx?v=ecosystems-app-66"></script>
 <script>
-const GERRY_SHELL_VERSION = 'ecosystems-app-65';
+const GERRY_SHELL_VERSION = 'ecosystems-app-66';
 async function resetOldGerryShell() {
   try {
     const currentVersion = localStorage.getItem('gerry-shell-version');
     const forcedReset = new URLSearchParams(window.location.search).has('reset');
-    if (currentVersion === GERRY_SHELL_VERSION && !forcedReset) return false;
     localStorage.setItem('gerry-shell-version', GERRY_SHELL_VERSION);
     if ('caches' in window) {
       const keys = await caches.keys();
@@ -33,7 +32,7 @@ async function resetOldGerryShell() {
     if ('serviceWorker' in navigator) {
       const registrations = await navigator.serviceWorker.getRegistrations();
       await Promise.all(registrations.map((registration) => registration.unregister()));
-      if (navigator.serviceWorker.controller || forcedReset) {
+      if ((currentVersion !== GERRY_SHELL_VERSION && navigator.serviceWorker.controller) || forcedReset) {
         const next = new URL(window.location.href);
         next.searchParams.set('v', GERRY_SHELL_VERSION);
         next.searchParams.delete('reset');
@@ -46,16 +45,7 @@ async function resetOldGerryShell() {
 }
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    resetOldGerryShell().then((didReload) => {
-      if (didReload) return;
-      navigator.serviceWorker.register('/service-worker.js?v=ecosystems-app-65')
-        .then((registration) => {
-          registration.update();
-          if (registration.waiting) registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-        })
-        .catch(() => {});
-      })
-      .catch(() => {});
+    resetOldGerryShell().catch(() => {});
   });
 }
 </script>

@@ -582,7 +582,7 @@ function Timeline({ y = 0, intensity = 60 }) {
   const mobileViewportWidth = Math.max(0, viewportWidth - 40);
   const mobileFallbackTravel = Math.max(0, mobileRailWidth - mobileViewportWidth);
   const effectiveRailTravel = isCompactTimeline ? Math.max(railTravel, mobileFallbackTravel) : railTravel;
-  const startOffset = isCompactTimeline ? viewport * 0.14 : viewport * 0.08;
+  const startOffset = isCompactTimeline ? 0 : viewport * 0.08;
   const readHold = isCompactTimeline ? 0 : 0.08;
   const releaseHold = isCompactTimeline ? 0 : 0.04;
   const scrollDistance = isCompactTimeline
