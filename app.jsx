@@ -2924,13 +2924,13 @@ function App() {
     const favicon = document.querySelector('link[rel="icon"]');
     if (isGameApp) {
       document.title = 'Monerge · Gerry Stephen';
-      appleIcon?.setAttribute('href', 'assets/monerge-icon-512.png');
-      favicon?.setAttribute('href', 'assets/monerge-icon-512.png');
+      appleIcon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-80');
+      favicon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-80');
       return;
     }
     document.title = 'Gerry Stephen · Business, Web3, and the Iglu';
-    appleIcon?.setAttribute('href', 'assets/pudgy-penguin-cutout.png');
-    favicon?.setAttribute('href', 'assets/pudgy-penguin-cutout.png');
+    appleIcon?.setAttribute('href', '/assets/pudgy-penguin-cutout.png?v=ecosystems-app-80');
+    favicon?.setAttribute('href', '/assets/pudgy-penguin-cutout.png?v=ecosystems-app-80');
   }, [isGameApp]);
 
   useEffect(() => {

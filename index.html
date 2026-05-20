@@ -21,8 +21,8 @@
 <title>Gerry Stephen · Business, Web3, and the Iglu</title>
 <link rel="canonical" href="https://gerrystephen.com/" />
 <link rel="manifest" href="/manifest.webmanifest?v=ecosystems-app-80" />
-<link rel="icon" type="image/png" href="assets/pudgy-penguin-cutout.png" />
-<link rel="apple-touch-icon" href="assets/pudgy-penguin-cutout.png" />
+<link rel="icon" type="image/png" href="/assets/pudgy-penguin-cutout.png?v=ecosystems-app-80" />
+<link rel="apple-touch-icon" href="/assets/pudgy-penguin-cutout.png?v=ecosystems-app-80" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Inter+Tight:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Fraunces:ital,wght@0,400;0,600;1,400&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -31,6 +31,9 @@ const bootParams = new URLSearchParams(window.location.search);
 const bootIsGame = window.location.pathname.includes('monerge') || bootParams.get('app') === 'monerge' || bootParams.get('app') === 'iglu-merge';
 document.documentElement.dataset.fileMode = window.location.protocol === 'file:' ? 'true' : 'false';
 document.documentElement.dataset.gameBoot = bootIsGame ? 'true' : 'false';
+const bootIconHref = bootIsGame ? '/assets/monerge-icon-512.png?v=ecosystems-app-80' : '/assets/pudgy-penguin-cutout.png?v=ecosystems-app-80';
+document.querySelector('link[rel="icon"]')?.setAttribute('href', bootIconHref);
+document.querySelector('link[rel="apple-touch-icon"]')?.setAttribute('href', bootIconHref);
 </script>
 <style>
 html, body { margin: 0; min-height: 100%; background: #d9f3f8; color: #102333; }
