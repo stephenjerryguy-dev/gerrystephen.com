@@ -22,7 +22,7 @@ import {
 } from './tweaks-panel.jsx';
 import './styles.css';
 
-const SITE_BUILD_VERSION = 'ecosystems-app-70';
+const SITE_BUILD_VERSION = 'ecosystems-app-71';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -576,22 +576,26 @@ function Timeline({ y = 0, intensity = 60 }) {
   const section = sectionRef.current;
   const viewport = viewportSize.height || (typeof window !== 'undefined' ? window.innerHeight || 800 : 800);
   const viewportWidth = viewportSize.width || (typeof window !== 'undefined' ? window.innerWidth || 390 : 390);
-  const isCompactTimeline = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 800px)').matches;
+  const isCompactTimeline = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 900px), (max-height: 560px)').matches;
   const mobileCardWidth = Math.min(viewportWidth * 0.78, 300);
   const mobileRailWidth = TIMELINE.length * mobileCardWidth + Math.max(0, TIMELINE.length - 1) * 16;
   const mobileViewportWidth = Math.max(0, viewportWidth - 40);
   const mobileFallbackTravel = Math.max(0, mobileRailWidth - mobileViewportWidth);
   const effectiveRailTravel = isCompactTimeline ? Math.max(railTravel, mobileFallbackTravel) : railTravel;
-  const startOffset = isCompactTimeline ? viewport * 0.1 : viewport * 0.08;
+  const startOffset = isCompactTimeline ? 0 : viewport * 0.08;
   const readHold = isCompactTimeline ? 0 : 0.08;
   const releaseHold = isCompactTimeline ? 0 : 0.04;
   const scrollDistance = isCompactTimeline
-    ? Math.max(viewport * 0.18, effectiveRailTravel * 0.22)
+    ? Math.max(viewport * 0.32, effectiveRailTravel * 0.3)
     : Math.max(viewport * 1.8, (effectiveRailTravel * 1.08) / (1 - readHold - releaseHold));
   const timelineHeight = viewport + scrollDistance;
   const sectionTop = section ? section.getBoundingClientRect().top : 0;
-  const progressDistance = isCompactTimeline ? scrollDistance + startOffset : scrollDistance;
-  const pinProgress = section ? clamp((startOffset - sectionTop) / progressDistance, 0, 1) : 0;
+  const sectionPageTop = section ? sectionTop + y : 0;
+  const pinProgress = section
+    ? isCompactTimeline
+      ? clamp((y - sectionPageTop) / scrollDistance, 0, 1)
+      : clamp((startOffset - sectionTop) / scrollDistance, 0, 1)
+    : 0;
   const rawProgress = clamp((pinProgress - readHold) / (1 - readHold - releaseHold), 0, 1);
   const easedProgress = isCompactTimeline ? rawProgress : rawProgress * rawProgress * (3 - 2 * rawProgress);
   return (
@@ -668,7 +672,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-70`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-71`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();

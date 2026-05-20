@@ -861,7 +861,7 @@ a { color: inherit; text-decoration: none; }
   margin: 6px 0 12px;
 }
 .rail-card p { color: var(--ink-soft); font-size: 15px; line-height: 1.55; }
-@media (max-width: 800px) {
+@media (max-width: 900px), (max-height: 560px) {
   .game-hud { grid-template-columns: repeat(2, 1fr); }
   .timeline {
     min-height: var(--timeline-height, 210vh);
@@ -902,6 +902,48 @@ a { color: inherit; text-decoration: none; }
   }
   .rail-card,
   .rail-item:nth-child(even) .rail-card { transform: none; }
+}
+@media (orientation: landscape) and (max-height: 560px) {
+  .timeline {
+    padding: 0 16px;
+  }
+  .timeline-sticky {
+    height: 100dvh;
+    padding: 48px 0 18px;
+    justify-content: center;
+  }
+  .timeline .chapter-title {
+    font-size: clamp(30px, 7.5vh, 44px);
+    max-width: 84vw;
+  }
+  .timeline .chapter-meta {
+    margin-bottom: 12px;
+  }
+  .rail-viewport {
+    width: calc(100vw - 32px);
+    margin-top: 16px;
+  }
+  .rail {
+    gap: 12px;
+    padding: 22px 2px 8px;
+  }
+  .rail-item {
+    flex-basis: min(54vw, 300px);
+    min-height: 188px;
+  }
+  .rail-card {
+    padding: 15px 16px;
+  }
+  .rc-year {
+    font-size: 32px;
+  }
+  .rc-tag {
+    margin: 4px 0 8px;
+  }
+  .rail-card p {
+    font-size: 13px;
+    line-height: 1.42;
+  }
 }
 
 /* ---------- Projects ---------- */
