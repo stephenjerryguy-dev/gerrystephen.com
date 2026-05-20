@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
@@ -22,7 +22,7 @@ import {
 } from './tweaks-panel.jsx';
 import './styles.css';
 
-const SITE_BUILD_VERSION = 'ecosystems-app-76';
+const SITE_BUILD_VERSION = 'ecosystems-app-77';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -840,7 +840,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-76`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-77`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
