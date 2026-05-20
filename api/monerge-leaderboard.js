@@ -1,7 +1,117 @@
+import { neon } from '@neondatabase/serverless';
+
 const MAX_ENTRIES = 50;
 const LEADERBOARD_KEY = 'monerge:leaderboard:v1';
 
 globalThis.__monergeLeaderboard = globalThis.__monergeLeaderboard || [];
+globalThis.__monergeLeaderboardTableReady = globalThis.__monergeLeaderboardTableReady || false;
+
+function postgresUrl() {
+  return process.env.DATABASE_URL
+    || process.env.POSTGRES_URL
+    || process.env.POSTGRES_PRISMA_URL
+    || process.env.POSTGRES_URL_NON_POOLING
+    || process.env.NEON_DATABASE_URL
+    || '';
+}
+
+function sqlClient() {
+  const url = postgresUrl();
+  return url ? neon(url) : null;
+}
+
+async function ensureLeaderboardTable(sql) {
+  if (!sql || globalThis.__monergeLeaderboardTableReady) return;
+  await sql`
+    CREATE TABLE IF NOT EXISTS monerge_leaderboard (
+      id TEXT PRIMARY KEY,
+      wallet TEXT DEFAULT '',
+      username TEXT DEFAULT '',
+      pfp TEXT DEFAULT '',
+      score INTEGER NOT NULL,
+      actual INTEGER NOT NULL,
+      difficulty TEXT DEFAULT 'Classic',
+      max_tile INTEGER DEFAULT 2,
+      moves INTEGER DEFAULT 0,
+      signature TEXT DEFAULT '',
+      revealed_at TIMESTAMPTZ DEFAULT now(),
+      signed_at TIMESTAMPTZ
+    )
+  `;
+  await sql`
+    CREATE INDEX IF NOT EXISTS monerge_leaderboard_rank_idx
+    ON monerge_leaderboard ((signature <> ''), score DESC, revealed_at DESC)
+  `;
+  globalThis.__monergeLeaderboardTableReady = true;
+}
+
+function rowToEntry(row = {}) {
+  return sanitizeEntry({
+    id: row.id,
+    wallet: row.wallet,
+    username: row.username,
+    pfp: row.pfp,
+    score: row.score,
+    actual: row.actual,
+    difficulty: row.difficulty,
+    maxTile: row.max_tile,
+    moves: row.moves,
+    signature: row.signature,
+    revealedAt: row.revealed_at ? new Date(row.revealed_at).toISOString() : '',
+    signedAt: row.signed_at ? new Date(row.signed_at).toISOString() : ''
+  });
+}
+
+async function readPostgresEntries() {
+  const sql = sqlClient();
+  if (!sql) return undefined;
+  await ensureLeaderboardTable(sql);
+  const rows = await sql`
+    SELECT id, wallet, username, pfp, score, actual, difficulty, max_tile, moves, signature, revealed_at, signed_at
+    FROM monerge_leaderboard
+    ORDER BY (signature <> '') DESC, score DESC, revealed_at DESC
+    LIMIT 12
+  `;
+  return rows.map(rowToEntry).filter(Boolean);
+}
+
+async function writePostgresEntry(entry) {
+  const sql = sqlClient();
+  if (!sql) return undefined;
+  await ensureLeaderboardTable(sql);
+  await sql`
+    INSERT INTO monerge_leaderboard (
+      id, wallet, username, pfp, score, actual, difficulty, max_tile, moves, signature, revealed_at, signed_at
+    )
+    VALUES (
+      ${entry.id},
+      ${entry.wallet},
+      ${entry.username},
+      ${entry.pfp},
+      ${entry.score},
+      ${entry.actual},
+      ${entry.difficulty},
+      ${entry.maxTile},
+      ${entry.moves},
+      ${entry.signature},
+      ${entry.revealedAt || new Date().toISOString()},
+      ${entry.signedAt || null}
+    )
+    ON CONFLICT (id) DO UPDATE SET
+      wallet = EXCLUDED.wallet,
+      username = EXCLUDED.username,
+      pfp = EXCLUDED.pfp,
+      score = EXCLUDED.score,
+      actual = EXCLUDED.actual,
+      difficulty = EXCLUDED.difficulty,
+      max_tile = EXCLUDED.max_tile,
+      moves = EXCLUDED.moves,
+      signature = EXCLUDED.signature,
+      revealed_at = EXCLUDED.revealed_at,
+      signed_at = EXCLUDED.signed_at
+  `;
+  return readPostgresEntries();
+}
 
 function kvConfig() {
   const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || '';
@@ -27,6 +137,10 @@ async function kvCommand(command) {
 
 async function readStoredEntries() {
   try {
+    const entries = await readPostgresEntries();
+    if (Array.isArray(entries)) return entries;
+  } catch (_) {}
+  try {
     const result = await kvCommand(['GET', LEADERBOARD_KEY]);
     const entries = typeof result === 'string' ? JSON.parse(result) : result;
     if (Array.isArray(entries)) return entries.map(sanitizeEntry).filter(Boolean);
@@ -37,6 +151,10 @@ async function readStoredEntries() {
 async function writeStoredEntries(entries) {
   const cleanEntries = sortEntries(entries.map(sanitizeEntry).filter(Boolean)).slice(0, MAX_ENTRIES);
   globalThis.__monergeLeaderboard = cleanEntries;
+  try {
+    const persistedEntries = await writePostgresEntry(cleanEntries[0]);
+    if (Array.isArray(persistedEntries)) return persistedEntries;
+  } catch (_) {}
   try {
     await kvCommand(['SET', LEADERBOARD_KEY, JSON.stringify(cleanEntries)]);
   } catch (_) {}
@@ -114,6 +232,6 @@ export default async function handler(request, response) {
   const entries = await readStoredEntries();
   response.status(200).json({
     entries: sortEntries(entries).slice(0, 12),
-    storage: kvConfig() ? 'database' : 'memory-fallback'
+    storage: postgresUrl() ? 'neon-postgres' : kvConfig() ? 'kv-database' : 'memory-fallback'
   });
 }
