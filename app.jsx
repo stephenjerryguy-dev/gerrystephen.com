@@ -1999,7 +1999,7 @@ function MonadGame() {
     fetchPublicLeaderboard()
       .then((entries) => {
         if (!active || !entries.length) return;
-        const next = sortLeaderboard([...entries, ...loadLeaderboard()]).slice(0, 50);
+        const next = dedupeLeaderboard([...entries, ...loadLeaderboard()]).slice(0, 50);
         setLeaderboard(next);
         saveLeaderboard(next);
       })
