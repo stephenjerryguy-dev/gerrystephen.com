@@ -2388,9 +2388,9 @@ a { color: inherit; text-decoration: none; }
   background: transparent;
 }
 .tile-ladder-card .character-mouch {
-  width: 68px;
+  width: 62px;
   object-position: center 50%;
-  scale: 1;
+  scale: 0.96;
 }
 .tile-ladder-card .character-molandak,
 .tile-ladder-card .character-salmonad {
@@ -2719,10 +2719,10 @@ a { color: inherit; text-decoration: none; }
   scale: 1.1;
 }
 .tile-character.character-mouch {
-  width: clamp(88px, 12.2vw, 132px);
-  height: clamp(60px, 8.6vw, 94px);
+  width: clamp(68px, 9vw, 104px);
+  height: clamp(58px, 8vw, 88px);
   object-position: center 50%;
-  scale: 1;
+  scale: 0.98;
 }
 .tile-character.character-mokadel {
   scale: 1.2;
@@ -3500,7 +3500,7 @@ a { color: inherit; text-decoration: none; }
     align-content: center;
   }
   .monad-game.app-mode.start-mode .game-copy,
-  .monad-game.app-mode.start-mode .game-shell > :not(.game-start-screen) {
+  .monad-game.app-mode.start-mode .game-shell > :not(.game-start-screen):not(.game-hamburger):not(.game-menu-panel):not(.leaderboard-panel):not(.leaderboard-toggle) {
     display: none !important;
   }
   .monad-game.app-mode.start-mode .game-start-screen {
@@ -5707,7 +5707,7 @@ body:has(.game-app-page) {
   font: 900 10px/1 var(--mono);
 }
 
-.monad-game.app-mode.start-mode .game-shell > :not(.game-start-screen):not(.game-hamburger) {
+.monad-game.app-mode.start-mode .game-shell > :not(.game-start-screen):not(.game-hamburger):not(.game-menu-panel):not(.leaderboard-panel):not(.leaderboard-toggle) {
   display: none !important;
 }
 
@@ -6023,6 +6023,119 @@ body:has(.game-app-page) {
   .monad-game.app-mode.start-mode .game-shell {
     padding-left: 52px;
     place-items: center;
+  }
+}
+
+.monerge-wallet-menu {
+  position: relative;
+  min-width: 0;
+}
+
+.monerge-wallet-menu .monerge-dynamic-btn {
+  width: 100% !important;
+}
+
+.wallet-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 95;
+  display: grid;
+  gap: 8px;
+  width: max(170px, 100%);
+  padding: 10px;
+  border: 1px solid rgba(238, 246, 251, 0.2);
+  border-radius: 16px;
+  background: rgba(18, 11, 46, 0.88);
+  box-shadow: 0 22px 60px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.12);
+  backdrop-filter: blur(18px);
+}
+
+.wallet-dropdown span {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: rgba(238,246,251,0.72);
+  text-transform: uppercase;
+}
+
+.wallet-dropdown button {
+  min-height: 38px !important;
+  border-radius: 12px !important;
+  background: rgba(255,255,255,0.12) !important;
+}
+
+.install-prompt {
+  margin: 12px auto 0;
+  min-height: 42px;
+  padding: 0 18px;
+  border: 1px solid rgba(238,246,251,0.22);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.12);
+  color: #eef6fb;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  backdrop-filter: blur(14px);
+}
+
+.monad-game.app-mode .game-menu-text {
+  display: none !important;
+}
+
+.monad-game.app-mode .game-hamburger {
+  left: auto;
+  right: max(12px, env(safe-area-inset-right));
+  top: max(12px, env(safe-area-inset-top));
+  display: grid;
+}
+
+.monad-game.app-mode .game-shell-actions {
+  grid-template-columns: repeat(2, minmax(96px, 160px));
+  justify-content: end;
+  margin-right: 76px;
+}
+
+@media (min-width: 761px) {
+  .monad-game.app-mode .leaderboard-toggle {
+    display: none !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .monad-game.app-mode .leaderboard-toggle {
+    display: inline-flex;
+    left: auto;
+    right: calc(max(10px, env(safe-area-inset-right)) + 60px);
+    top: max(13px, env(safe-area-inset-top));
+    bottom: auto;
+    transform: none;
+    min-width: 136px;
+    height: 40px;
+    padding: 0 12px;
+  }
+
+  .monad-game.app-mode .game-hamburger {
+    right: max(10px, env(safe-area-inset-right));
+    top: max(10px, env(safe-area-inset-top));
+    width: 46px;
+    height: 46px;
+    border-radius: 15px;
+  }
+
+  .monad-game.app-mode .game-shell-head {
+    padding-right: 212px;
+  }
+
+  .monad-game.app-mode .game-shell-actions {
+    margin-right: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .wallet-dropdown {
+    right: 0;
+    left: auto;
   }
 }
 

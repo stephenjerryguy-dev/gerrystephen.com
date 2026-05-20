@@ -22,7 +22,7 @@ import {
 } from './tweaks-panel.jsx';
 import './styles.css';
 
-const SITE_BUILD_VERSION = 'ecosystems-app-79';
+const SITE_BUILD_VERSION = 'ecosystems-app-80';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -255,11 +255,13 @@ function useMonergeMusic(active = false) {
     const startOnce = () => startMusic();
     window.addEventListener('pointerdown', startOnce, { once: true, passive: true });
     window.addEventListener('keydown', startOnce, { once: true });
+    window.addEventListener('monerge-audio-unlock', startOnce);
     startMusic();
 
     return () => {
       window.removeEventListener('pointerdown', startOnce);
       window.removeEventListener('keydown', startOnce);
+      window.removeEventListener('monerge-audio-unlock', startOnce);
     };
   }, [active]);
 
@@ -303,9 +305,11 @@ function useMonergeSfx(active = true) {
     const unlock = () => setup();
     window.addEventListener('pointerdown', unlock, { once: true, passive: true });
     window.addEventListener('keydown', unlock, { once: true });
+    window.addEventListener('monerge-audio-unlock', unlock);
     return () => {
       window.removeEventListener('pointerdown', unlock);
       window.removeEventListener('keydown', unlock);
+      window.removeEventListener('monerge-audio-unlock', unlock);
     };
   }, [active]);
 
@@ -346,6 +350,11 @@ function useMonergeSfx(active = true) {
     osc.start(now);
     osc.stop(now + settings.dur + 0.03);
   }, [active]);
+}
+
+function unlockMonergeAudio() {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new Event('monerge-audio-unlock'));
 }
 
 function useInView(ref, threshold = 0.15) {
@@ -433,7 +442,7 @@ function Topbar() {
         <a href="#journey">Journey</a>
         <a href="#nfts">Communities</a>
         <a href="#inkfinity">Inkfinity</a>
-        <a href="#monad-game">Monerge</a>
+        <a href="#monerge">Monerge</a>
         <a href="#now">Now</a>
         <a href="#bluestar">Hospitality</a>
         <a href="#contact">Contact</a>
@@ -840,7 +849,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-79`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-80`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
@@ -1585,10 +1594,34 @@ function playerName(entry = {}) {
   return entry.username || (entry.wallet ? shortWallet(entry.wallet) : 'Guest player');
 }
 
-function MonergeWalletButton({ account, label = 'Connect wallet', onClick }) {
+function MonergeWalletButton({ account, label = 'Connect wallet', onClick, onSignOut }) {
+  const [open, setOpen] = useState(false);
+  if (account) {
+    return (
+      <div className={`monerge-wallet-menu ${open ? 'open' : ''}`}>
+        <button
+          type="button"
+          className="monerge-dynamic-btn"
+          onClick={() => {
+            unlockMonergeAudio();
+            setOpen((value) => !value);
+          }}
+          aria-expanded={open}
+        >
+          <span>{shortWallet(account)}</span>
+        </button>
+        {open && (
+          <div className="wallet-dropdown">
+            <span>{shortWallet(account)}</span>
+            <button type="button" onClick={() => { setOpen(false); onSignOut?.(); }}>Sign out</button>
+          </div>
+        )}
+      </div>
+    );
+  }
   return (
-    <button type="button" className="monerge-dynamic-btn" onClick={onClick}>
-      <span>{account ? shortWallet(account) : label}</span>
+    <button type="button" className="monerge-dynamic-btn" onClick={() => { unlockMonergeAudio(); onClick?.(); }}>
+      <span>{label}</span>
     </button>
   );
 }
@@ -1706,7 +1739,7 @@ const MONAD_TILE_CHARACTERS = {
 const MONAD_CHARACTER_IMAGES = {
   Chog: 'assets/monanimals/chog-official-sprite.png',
   Molandak: 'assets/monanimals/molandak-official-sprite.png',
-  Mouch: 'assets/monanimals/mouch-sprite-tight.png',
+  Mouch: 'assets/monanimals/mouch.png',
   Mosferatu: 'assets/monanimals/mosferatu-clean.svg',
   Moyaki: 'assets/monanimals/moyaki-clean.svg',
   Shramp: 'assets/monanimals/shramp-clean.svg',
@@ -1849,6 +1882,8 @@ function MonadGame() {
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [gameMusic, setGameMusic] = useState(true);
   const [sfxEnabled, setSfxEnabled] = useState(true);
+  const [installPromptEvent, setInstallPromptEvent] = useState(null);
+  const [installPromptDismissed, setInstallPromptDismissed] = useState(false);
   const [pressedDirection, setPressedDirection] = useState('');
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION_SECONDS);
   const profileSignAttemptRef = useRef('');
@@ -1867,6 +1902,22 @@ function MonadGame() {
   const dynamicStatus = dynamicReady ? 'Dynamic ready' : dynamicTimedOut ? 'Dynamic settings blocked' : 'Dynamic loading';
   const cleanPlayerProfile = cleanProfile(profile);
   const profileSigned = Boolean(account && profileSignature);
+  const canPromptInstall = isGameApp
+    && !installPromptDismissed
+    && typeof window !== 'undefined'
+    && window.matchMedia?.('(max-width: 760px)')?.matches
+    && !window.matchMedia?.('(display-mode: standalone)')?.matches;
+
+  useEffect(() => {
+    if (!isGameApp) return undefined;
+    const onBeforeInstall = (event) => {
+      event.preventDefault();
+      setInstallPromptEvent(event);
+      setInstallPromptDismissed(false);
+    };
+    window.addEventListener('beforeinstallprompt', onBeforeInstall);
+    return () => window.removeEventListener('beforeinstallprompt', onBeforeInstall);
+  }, [isGameApp]);
 
   function updateProfile(nextProfile) {
     const next = {
@@ -1894,6 +1945,18 @@ function MonadGame() {
     } finally {
       event.target.value = '';
     }
+  }
+
+  async function promptInstallApp() {
+    unlockMonergeAudio();
+    if (installPromptEvent?.prompt) {
+      installPromptEvent.prompt();
+      await installPromptEvent.userChoice.catch(() => undefined);
+      setInstallPromptEvent(null);
+      setInstallPromptDismissed(true);
+      return;
+    }
+    setGameMessage('On iPhone, tap Share, then Add to Home Screen. On Android, use the browser menu to install Monerge.');
   }
 
   useEffect(() => {
@@ -1985,14 +2048,25 @@ function MonadGame() {
 
   useEffect(() => {
     if (!primaryWallet?.address) return;
-    setAccount(primaryWallet.address);
+    let cancelled = false;
+    const address = primaryWallet.address;
+    setAccount(address);
     setWalletState('Dynamic wallet connected');
-    primaryWallet.getNetwork?.()
-      .then((network) => {
-        if (network) setChainId(`0x${Number(network).toString(16)}`);
-      })
-      .catch(() => {});
-  }, [primaryWallet]);
+    unlockMonergeAudio();
+    (async () => {
+      try {
+        await primaryWallet.switchNetwork?.(143);
+        const network = await primaryWallet.getNetwork?.();
+        if (!cancelled && network) setChainId(`0x${Number(network).toString(16)}`);
+        if (!cancelled && !profileSignature) window.setTimeout(() => signProfile(address, true), 250);
+      } catch (_) {
+        if (!cancelled && !profileSignature) window.setTimeout(() => signProfile(address, true), 250);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [primaryWallet, profileSignature]);
 
   useEffect(() => {
     if (!account) return;
@@ -2022,7 +2096,11 @@ function MonadGame() {
     const syncDynamicWallet = (event) => {
       const address = event.detail?.address || '';
       setAccount(address);
-      if (address) setWalletState('Dynamic wallet connected');
+      if (address) {
+        unlockMonergeAudio();
+        setWalletState('Dynamic wallet connected');
+        if (!profileSignature) window.setTimeout(() => signProfile(address, true), 250);
+      }
     };
     const syncDynamicStatus = (event) => {
       const status = event.detail?.status;
@@ -2034,7 +2112,7 @@ function MonadGame() {
       window.removeEventListener('monerge-wallet', syncDynamicWallet);
       window.removeEventListener('monerge-wallet-status', syncDynamicStatus);
     };
-  }, []);
+  }, [profileSignature]);
 
   useEffect(() => {
     const onKey = (event) => {
@@ -2098,6 +2176,7 @@ function MonadGame() {
   }
 
   async function connectMonad() {
+    unlockMonergeAudio();
     setAuthMode?.('connect-only');
     if (primaryWallet) {
       try {
@@ -2131,6 +2210,7 @@ function MonadGame() {
   }
 
   function newGame() {
+    unlockMonergeAudio();
     playSfx('start');
     setGameStarted(true);
     setBoard(makeBoard());
@@ -2327,7 +2407,7 @@ function MonadGame() {
   }, [account, isMonad, profileSignature, showAuthFlow, cleanPlayerProfile.username, cleanPlayerProfile.pfp]);
 
   return (
-    <section className={`monad-game ${isGameApp ? 'app-mode' : ''} ${isGameApp && !gameStarted ? 'start-mode' : ''}`} id="monad-game">
+    <section className={`monad-game ${isGameApp ? 'app-mode' : ''} ${isGameApp && !gameStarted ? 'start-mode' : ''}`} id="monerge">
       <div className="game-copy">
         <Chapter num="04" kicker="Built on Monad" title={<span className="monerge-logo">Monerge.</span>} />
         <p className="lede">A wallet-backed focus game for BuildAnything. Merge Monad-coded tiles, choose your difficulty, remember the hidden points, then reveal your run. Connect once and sign your profile so scores upload automatically.</p>
@@ -2340,8 +2420,7 @@ function MonadGame() {
           )}
         </div>
         <div className="game-actions">
-          <MonergeWalletButton account={account} label="Connect wallet" onClick={connectMonad} />
-          {account && <button type="button" className="btn ghost" onClick={disconnectWallet}>Sign out</button>}
+          <MonergeWalletButton account={account} label="Connect wallet" onClick={connectMonad} onSignOut={disconnectWallet} />
           <button type="button" className="btn ghost" onClick={newGame}>New run</button>
         </div>
         {!isGameApp && <div className="desktop-game-details">
@@ -2359,13 +2438,6 @@ function MonadGame() {
                 <span>{GAME_DIFFICULTIES[key].tag}</span>
               </button>
             )}
-          </div>
-          <div className="game-status">
-            <span>{walletState}</span>
-            <span>{isMonad ? 'Monad mainnet' : 'Wrong network'}</span>
-            <span>{dynamicStatus}</span>
-            <span>PWA ready</span>
-            {profileSigned && <span>Profile signed</span>}
           </div>
           <Leaderboard entries={leaderboard} compact />
         </div>}
@@ -2402,8 +2474,9 @@ function MonadGame() {
           </div>
           <div className="start-actions">
             <button type="button" onClick={newGame}>Play</button>
-            <MonergeWalletButton account={account} label="Connect" onClick={connectMonad} />
+            <MonergeWalletButton account={account} label="Connect" onClick={connectMonad} onSignOut={disconnectWallet} />
           </div>
+          {canPromptInstall && <button type="button" className="install-prompt" onClick={promptInstallApp}>Add to Home Screen</button>}
           <small>{account ? `${profileSigned ? 'Profile signed' : 'Signature needed'} as ${cleanPlayerProfile.username || shortWallet(account)}` : 'Connect before reveal to save your run'}</small>
         </div>}
         <div className="game-shell-head">
@@ -2412,7 +2485,6 @@ function MonadGame() {
             <strong className="monerge-wordmark">Monerge</strong>
           </div>
           <div className="game-shell-menu-actions">
-            <button type="button" className="game-menu-text" onClick={() => setGameMenuOpen(true)}>Menu</button>
             {!isGameApp && <a href={MONERGE_APP_PATH} target="_blank" rel="noopener">Open app</a>}
           </div>
         </div>
@@ -2436,12 +2508,12 @@ function MonadGame() {
               )}
             </div>
             <div className="game-menu-actions">
-              <MonergeWalletButton account={account} label="Connect wallet" onClick={connectMonad} />
-              {account && <button type="button" onClick={disconnectWallet}>Sign out</button>}
+              <MonergeWalletButton account={account} label="Connect wallet" onClick={connectMonad} onSignOut={disconnectWallet} />
               <button type="button" onClick={() => { newGame(); setGameMenuOpen(false); }}>New run</button>
-              {isGameApp && <button type="button" onClick={() => setGameMusic((value) => !value)}>{gameMusic && musicReady ? 'Music off' : 'Music on'}</button>}
-              {isGameApp && <button type="button" onClick={() => setSfxEnabled((value) => !value)}>{sfxEnabled ? 'SFX off' : 'SFX on'}</button>}
-              {isGameApp && <button type="button" onClick={() => setLeaderboardOpen(true)}>Leaderboard</button>}
+              {isGameApp && <button type="button" onClick={() => { unlockMonergeAudio(); setGameMusic((value) => !value); }}>{gameMusic && musicReady ? 'Music off' : 'Music on'}</button>}
+              {isGameApp && <button type="button" onClick={() => { unlockMonergeAudio(); setSfxEnabled((value) => !value); }}>{sfxEnabled ? 'SFX off' : 'SFX on'}</button>}
+              {isGameApp && canPromptInstall && <button type="button" onClick={promptInstallApp}>Add to Home Screen</button>}
+              {isGameApp && <button type="button" onClick={() => { unlockMonergeAudio(); setLeaderboardOpen(true); }}>Leaderboard</button>}
             </div>
             <div className="game-menu-characters" aria-label="Monad character progression">
               {MONAD_TILE_LADDER.map((tile) =>
@@ -2474,8 +2546,7 @@ function MonadGame() {
           </div>
         </div>}
         <div className="game-shell-actions" aria-label="Wallet and run controls">
-          <MonergeWalletButton account={account} label="Connect" onClick={connectMonad} />
-          {account && <button type="button" onClick={disconnectWallet}>Out</button>}
+          <MonergeWalletButton account={account} label="Connect" onClick={connectMonad} onSignOut={disconnectWallet} />
           <button type="button" onClick={newGame}>New</button>
         </div>
         <div className="game-hud">
@@ -2864,7 +2935,11 @@ function App() {
 
   useEffect(() => {
     if (!window.location.hash) return;
-    const id = window.location.hash.slice(1);
+    const rawId = window.location.hash.slice(1);
+    const id = rawId === 'monad-game' ? 'monerge' : rawId;
+    if (rawId === 'monad-game') {
+      window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#monerge`);
+    }
     const scrollToHash = () => {
       const target = document.getElementById(id);
       if (target) target.scrollIntoView({ block: 'start' });
