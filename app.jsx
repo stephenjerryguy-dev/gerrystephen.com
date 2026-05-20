@@ -22,7 +22,7 @@ import {
 } from './tweaks-panel.jsx';
 import './styles.css';
 
-const SITE_BUILD_VERSION = 'ecosystems-app-78';
+const SITE_BUILD_VERSION = 'ecosystems-app-79';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -840,7 +840,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-78`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-79`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
@@ -1628,14 +1628,14 @@ function MonergeProfileEditor({ profile, account, onProfileChange, onPfpUpload, 
 function loadLeaderboard() {
   try {
     const parsed = JSON.parse(localStorage.getItem(LEADERBOARD_KEY) || localStorage.getItem(SCOREBOARD_KEY) || '[]');
-    return Array.isArray(parsed) ? parsed.slice(0, 12) : [];
+    return Array.isArray(parsed) ? parsed.slice(0, 50) : [];
   } catch (_) {
     return [];
   }
 }
 
 function saveLeaderboard(entries) {
-  localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(entries.slice(0, 12)));
+  localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(entries.slice(0, 50)));
 }
 
 function sortLeaderboard(entries) {
@@ -1648,7 +1648,7 @@ function sortLeaderboard(entries) {
 
 function mergeLeaderboardEntry(entries, entry) {
   const withoutSameRun = entries.filter((item) => item.id !== entry.id);
-  return sortLeaderboard([entry, ...withoutSameRun]).slice(0, 12);
+  return sortLeaderboard([entry, ...withoutSameRun]).slice(0, 50);
 }
 
 async function fetchPublicLeaderboard() {
@@ -1917,7 +1917,7 @@ function MonadGame() {
     fetchPublicLeaderboard()
       .then((entries) => {
         if (!active || !entries.length) return;
-        const next = sortLeaderboard([...entries, ...loadLeaderboard()]).slice(0, 12);
+        const next = sortLeaderboard([...entries, ...loadLeaderboard()]).slice(0, 50);
         setLeaderboard(next);
         saveLeaderboard(next);
       })
@@ -2251,7 +2251,7 @@ function MonadGame() {
     saveLeaderboard(nextBoard);
     publishLeaderboardRun(revealedEntry)
       .then((entries) => {
-        const merged = sortLeaderboard([...entries, ...nextBoard]).slice(0, 12);
+        const merged = sortLeaderboard([...entries, ...nextBoard]).slice(0, 50);
         setLeaderboard(merged);
         saveLeaderboard(merged);
       })
@@ -2470,7 +2470,7 @@ function MonadGame() {
               </div>
               <button type="button" onClick={() => setLeaderboardOpen(false)} aria-label="Close leaderboard">×</button>
             </div>
-            <Leaderboard entries={leaderboard} />
+            <Leaderboard entries={leaderboard} limit={50} />
           </div>
         </div>}
         <div className="game-shell-actions" aria-label="Wallet and run controls">
@@ -2484,15 +2484,18 @@ function MonadGame() {
           <div className="hud-lava"><span>{hazardsEnabled ? 'Lava' : 'Mode'}</span><strong>{hazardsEnabled ? DIRECTION_LABELS[lavaDirection] : currentDifficulty.label}</strong></div>
           <div><span>Time</span><strong>{currentDifficulty.timed ? `${Math.floor(timeLeft / 60)}:${String(timeLeft % 60).padStart(2, '0')}` : 'Open'}</strong></div>
         </div>
-        <div className="tile-ladder" aria-label="Monad tile progression">
-          {MONAD_TILE_LADDER.map((tile) =>
-          <div key={tile.value} className={`tile-ladder-card tile-${tile.value} ${maxTile >= tile.value ? 'unlocked' : ''}`}>
-              {tile.character && MONAD_CHARACTER_IMAGES[tile.character] ? <img className={`ladder-character character-${tile.character.toLowerCase()}`} src={MONAD_CHARACTER_IMAGES[tile.character]} alt="" aria-hidden="true" /> : <i aria-hidden="true" />}
-              <span>{tile.value}</span>
-              <strong>{tile.character || tile.code}</strong>
-              <small>{tile.code}</small>
-            </div>
-          )}
+        <div className="game-side-panel">
+          <div className="tile-ladder" aria-label="Monad tile progression">
+            {MONAD_TILE_LADDER.map((tile) =>
+            <div key={tile.value} className={`tile-ladder-card tile-${tile.value} ${maxTile >= tile.value ? 'unlocked' : ''}`}>
+                {tile.character && MONAD_CHARACTER_IMAGES[tile.character] ? <img className={`ladder-character character-${tile.character.toLowerCase()}`} src={MONAD_CHARACTER_IMAGES[tile.character]} alt="" aria-hidden="true" /> : <i aria-hidden="true" />}
+                <span>{tile.value}</span>
+                <strong>{tile.character || tile.code}</strong>
+                <small>{tile.code}</small>
+              </div>
+            )}
+          </div>
+          {isGameApp && <Leaderboard entries={leaderboard} compact limit={50} />}
         </div>
         <div
           className={`game-board merge-board ${hazardsEnabled ? `lava-${lavaDirection} ${freezeDirection ? `freeze-${freezeDirection}` : ''}` : 'no-hazards'} ${hazardHit ? `hit-${hazardHit}` : ''}`}
@@ -2549,10 +2552,11 @@ function MonadGame() {
     </section>);
 }
 
-function Leaderboard({ entries, compact = false }) {
-  const boardEntries = entries?.length ? entries.slice(0, 3) : [];
+function Leaderboard({ entries, compact = false, limit }) {
+  const maxEntries = limit ?? (compact ? 3 : 50);
+  const boardEntries = entries?.length ? entries.slice(0, maxEntries) : [];
   return (
-    <div className={`leaderboard ${compact ? 'compact' : ''}`} aria-label="Monerge leaderboard">
+    <div className={`leaderboard ${compact ? 'compact' : ''} ${maxEntries > 3 ? 'scrollable' : ''}`} aria-label="Monerge leaderboard">
       <div className="leaderboard-head">
         <span>Public runs</span>
         <strong>Leaderboard</strong>
