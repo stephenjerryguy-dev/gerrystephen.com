@@ -22,7 +22,7 @@ import {
 } from './tweaks-panel.jsx';
 import './styles.css';
 
-const SITE_BUILD_VERSION = 'ecosystems-app-84';
+const SITE_BUILD_VERSION = 'ecosystems-app-85';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -849,7 +849,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-84`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-85`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
@@ -1599,7 +1599,7 @@ function playerName(entry = {}) {
   return entry.username || (entry.wallet ? shortWallet(entry.wallet) : 'Guest player');
 }
 
-function MonergeWalletButton({ account, label = 'Connect wallet', onClick, onSignOut }) {
+function MonergeWalletButton({ account, label = 'Connect wallet', onClick, onSignOut, onSign }) {
   const [open, setOpen] = useState(false);
   if (account) {
     return (
@@ -1618,6 +1618,7 @@ function MonergeWalletButton({ account, label = 'Connect wallet', onClick, onSig
         {open && (
           <div className="wallet-dropdown">
             <span>{shortWallet(account)}</span>
+            <button type="button" onClick={() => { setOpen(false); onSign?.(); }}>Sign profile</button>
             <button type="button" onClick={() => { setOpen(false); onSignOut?.(); }}>Sign out</button>
           </div>
         )}
@@ -1910,7 +1911,7 @@ function MonadGame() {
   const [installGuideOpen, setInstallGuideOpen] = useState(false);
   const [pressedDirection, setPressedDirection] = useState('');
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION_SECONDS);
-  const profileSignAttemptRef = useRef('');
+  const pendingProfileSignRef = useRef(false);
   const isMonad = chainId?.toLowerCase() === MONAD_NETWORK.chainId;
   const maxTile = Math.max(...board);
   const appMode = getAppMode();
@@ -1955,7 +1956,7 @@ function MonadGame() {
       setProfileSignature('');
       localStorage.removeItem(PROFILE_SIGNATURE_KEY);
       localStorage.removeItem(PROFILE_SIGNATURE_WALLET_KEY);
-      setWalletState('Profile updated. Sign once to save it.');
+      setWalletState('Profile updated. Tap your wallet to sign when ready.');
     }
   }
 
@@ -2089,9 +2090,15 @@ function MonadGame() {
         await primaryWallet.switchNetwork?.(143);
         const network = await primaryWallet.getNetwork?.();
         if (!cancelled && network) setChainId(`0x${Number(network).toString(16)}`);
-        if (!cancelled && !profileSignature) window.setTimeout(() => signProfile(address, true), 250);
+        if (!cancelled && pendingProfileSignRef.current && !profileSignature) {
+          pendingProfileSignRef.current = false;
+          window.setTimeout(() => signProfile(address, true), 250);
+        }
       } catch (_) {
-        if (!cancelled && !profileSignature) window.setTimeout(() => signProfile(address, true), 250);
+        if (!cancelled && pendingProfileSignRef.current && !profileSignature) {
+          pendingProfileSignRef.current = false;
+          window.setTimeout(() => signProfile(address, true), 250);
+        }
       }
     })();
     return () => {
@@ -2143,7 +2150,10 @@ function MonadGame() {
       if (address) {
         unlockMonergeAudio();
         setWalletState('Dynamic wallet connected');
-        if (!profileSignature) window.setTimeout(() => signProfile(address, true), 250);
+        if (pendingProfileSignRef.current && !profileSignature) {
+          pendingProfileSignRef.current = false;
+          window.setTimeout(() => signProfile(address, true), 250);
+        }
       }
     };
     const syncDynamicStatus = (event) => {
@@ -2222,6 +2232,7 @@ function MonadGame() {
   async function connectMonad() {
     unlockMonergeAudio();
     setAuthMode?.('connect-only');
+    pendingProfileSignRef.current = true;
     if (primaryWallet) {
       try {
         await primaryWallet.switchNetwork?.(143);
@@ -2451,14 +2462,6 @@ function MonadGame() {
     }
   }
 
-  useEffect(() => {
-    if (!account || !isMonad || profileSignature || showAuthFlow) return;
-    const attemptKey = `${account}-${cleanPlayerProfile.username}-${Boolean(cleanPlayerProfile.pfp)}`;
-    if (profileSignAttemptRef.current === attemptKey) return;
-    profileSignAttemptRef.current = attemptKey;
-    signProfile(account);
-  }, [account, isMonad, profileSignature, showAuthFlow, cleanPlayerProfile.username, cleanPlayerProfile.pfp]);
-
   return (
     <section className={`monad-game ${isGameApp ? 'app-mode' : ''} ${isGameApp && !gameStarted ? 'start-mode' : ''}`} id="monerge">
       <div className="game-copy">
@@ -2473,7 +2476,7 @@ function MonadGame() {
           )}
         </div>
         <div className="game-actions">
-          <MonergeWalletButton account={account} label="Connect wallet" onClick={connectMonad} onSignOut={disconnectWallet} />
+          <MonergeWalletButton account={account} label="Connect wallet" onClick={connectMonad} onSignOut={disconnectWallet} onSign={() => signProfile(account)} />
           <button type="button" className="btn ghost" onClick={newGame}>New run</button>
         </div>
         {!isGameApp && <div className="desktop-game-details">
@@ -2527,7 +2530,7 @@ function MonadGame() {
           </div>
           <div className="start-actions">
             <button type="button" onClick={newGame}>Play</button>
-            <MonergeWalletButton account={account} label="Connect" onClick={connectMonad} onSignOut={disconnectWallet} />
+            <MonergeWalletButton account={account} label="Connect" onClick={connectMonad} onSignOut={disconnectWallet} onSign={() => signProfile(account)} />
           </div>
           <small>{account ? `${profileSigned ? 'Profile signed' : 'Signature needed'} as ${cleanPlayerProfile.username || shortWallet(account)}` : 'Connect before reveal to save your run'}</small>
           <p className="wallet-safety-note">Wallet connect is read-only. Monerge asks for a profile signature, never token approvals.</p>
@@ -2565,7 +2568,7 @@ function MonadGame() {
               )}
             </div>
             <div className="game-menu-actions">
-              <MonergeWalletButton account={account} label="Connect wallet" onClick={connectMonad} onSignOut={disconnectWallet} />
+              <MonergeWalletButton account={account} label="Connect wallet" onClick={connectMonad} onSignOut={disconnectWallet} onSign={() => signProfile(account)} />
               {isGameApp && gameStarted && <button type="button" onClick={returnToMonergeHome}>Home</button>}
               <button type="button" onClick={() => { newGame(); setGameMenuOpen(false); }}>New run</button>
               {isGameApp && <button type="button" onClick={() => { unlockMonergeAudio(); setGameMusic((value) => !value); }}>{gameMusic && musicReady ? 'Music off' : 'Music on'}</button>}
@@ -2626,7 +2629,7 @@ function MonadGame() {
           </div>
         </div>}
         <div className="game-shell-actions" aria-label="Wallet controls">
-          <MonergeWalletButton account={account} label="Connect" onClick={connectMonad} onSignOut={disconnectWallet} />
+          <MonergeWalletButton account={account} label="Connect" onClick={connectMonad} onSignOut={disconnectWallet} onSign={() => signProfile(account)} />
         </div>
         <div className="game-hud">
           <div><span>Hidden score</span><strong>{scoreReveal ? score : '???'}</strong></div>
@@ -3004,13 +3007,13 @@ function App() {
     const favicon = document.querySelector('link[rel="icon"]');
     if (isGameApp) {
       document.title = 'Monerge · Gerry Stephen';
-      appleIcon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-84');
-      favicon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-84');
+      appleIcon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-85');
+      favicon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-85');
       return;
     }
     document.title = 'Gerry Stephen · Business, Web3, and the Iglu';
-    appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-84');
-    favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-84');
+    appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-85');
+    favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-85');
   }, [isGameApp]);
 
   useEffect(() => {
