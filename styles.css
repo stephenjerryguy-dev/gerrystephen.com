@@ -2988,6 +2988,14 @@ a { color: inherit; text-decoration: none; }
   text-transform: uppercase;
   text-align: center;
 }
+.wallet-safety-note {
+  max-width: 340px;
+  margin: 12px auto 0 !important;
+  color: rgba(238,246,251,0.64) !important;
+  font-size: 12px !important;
+  line-height: 1.35 !important;
+  text-align: center;
+}
 .hazard-legend span::before {
   content: "";
   width: 9px;
@@ -6247,6 +6255,12 @@ body:has(.game-app-page) {
   font-size: 13px;
   line-height: 1.15;
   color: rgba(238,246,251,0.72);
+}
+.monad-game.app-mode.start-mode .game-start-screen {
+  padding-bottom: 88px;
+}
+.install-float-banner.home-only {
+  bottom: max(14px, env(safe-area-inset-bottom));
 }
 
 .monad-game.app-mode .game-menu-text {

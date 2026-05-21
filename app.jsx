@@ -22,7 +22,7 @@ import {
 } from './tweaks-panel.jsx';
 import './styles.css';
 
-const SITE_BUILD_VERSION = 'ecosystems-app-83';
+const SITE_BUILD_VERSION = 'ecosystems-app-84';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -849,7 +849,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-83`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-84`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
@@ -1545,6 +1545,11 @@ function cleanProfile(profile = {}) {
   return { username, pfp };
 }
 
+function walletProfileKey(wallet = '') {
+  const normalized = String(wallet || '').trim().toLowerCase();
+  return normalized ? `${PROFILE_KEY}:${normalized}` : PROFILE_KEY;
+}
+
 function loadProfileSignature() {
   try {
     return localStorage.getItem(PROFILE_SIGNATURE_KEY) || '';
@@ -1945,6 +1950,13 @@ function MonadGame() {
     };
     setProfile(next);
     localStorage.setItem(PROFILE_KEY, JSON.stringify(next));
+    if (account) localStorage.setItem(walletProfileKey(account), JSON.stringify(next));
+    if (account && profileSignature) {
+      setProfileSignature('');
+      localStorage.removeItem(PROFILE_SIGNATURE_KEY);
+      localStorage.removeItem(PROFILE_SIGNATURE_WALLET_KEY);
+      setWalletState('Profile updated. Sign once to save it.');
+    }
   }
 
   async function handlePfpUpload(event) {
@@ -2089,13 +2101,26 @@ function MonadGame() {
 
   useEffect(() => {
     if (!account) return;
+    let walletProfile = { username: '', pfp: '' };
+    try {
+      walletProfile = cleanProfile(JSON.parse(localStorage.getItem(walletProfileKey(account)) || '{}'));
+    } catch (_) {
+      walletProfile = { username: '', pfp: '' };
+    }
+    if ((walletProfile.username || walletProfile.pfp) && (
+      walletProfile.username !== cleanPlayerProfile.username ||
+      walletProfile.pfp !== cleanPlayerProfile.pfp
+    )) {
+      setProfile(walletProfile);
+      localStorage.setItem(PROFILE_KEY, JSON.stringify(walletProfile));
+    }
     const savedWallet = localStorage.getItem(PROFILE_SIGNATURE_WALLET_KEY) || '';
     if (profileSignature && (!savedWallet || savedWallet.toLowerCase() !== account.toLowerCase())) {
       setProfileSignature('');
       localStorage.removeItem(PROFILE_SIGNATURE_KEY);
       localStorage.removeItem(PROFILE_SIGNATURE_WALLET_KEY);
     }
-  }, [account, profileSignature]);
+  }, [account, profileSignature, cleanPlayerProfile.username, cleanPlayerProfile.pfp]);
 
   useEffect(() => {
     if (!window.ethereum) return undefined;
@@ -2505,7 +2530,11 @@ function MonadGame() {
             <MonergeWalletButton account={account} label="Connect" onClick={connectMonad} onSignOut={disconnectWallet} />
           </div>
           <small>{account ? `${profileSigned ? 'Profile signed' : 'Signature needed'} as ${cleanPlayerProfile.username || shortWallet(account)}` : 'Connect before reveal to save your run'}</small>
-          <button type="button" className="install-note" onClick={promptInstallApp}>Add to Home Screen instructions</button>
+          <p className="wallet-safety-note">Wallet connect is read-only. Monerge asks for a profile signature, never token approvals.</p>
+          <div className="install-float-banner home-only" role="note">
+            <button type="button" onClick={promptInstallApp}>Add Monerge to Home Screen</button>
+            <span>Swipe the board or tap arrows to move.</span>
+          </div>
         </div>}
         <div className="game-shell-head">
           <div>
@@ -2670,10 +2699,6 @@ function MonadGame() {
           <strong>{scoreReveal ? `Final ${scoreReveal.final}` : gameOver ? 'Board locked. Guess before you reveal.' : maxTile >= 2048 ? 'Emonad unlocked.' : gameMessage}</strong>
           <span>{moves} moves · max tile {maxTile} · {currentDifficulty.note}</span>
         </div>
-        {isGameApp && <div className="install-float-banner" role="note">
-          <button type="button" onClick={promptInstallApp}>Add Monerge to Home Screen</button>
-          <span>Swipe the board or tap arrows to move.</span>
-        </div>}
       </div>
     </section>);
 }
@@ -2979,13 +3004,13 @@ function App() {
     const favicon = document.querySelector('link[rel="icon"]');
     if (isGameApp) {
       document.title = 'Monerge · Gerry Stephen';
-      appleIcon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-83');
-      favicon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-83');
+      appleIcon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-84');
+      favicon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-84');
       return;
     }
     document.title = 'Gerry Stephen · Business, Web3, and the Iglu';
-    appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-83');
-    favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-83');
+    appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-84');
+    favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-84');
   }, [isGameApp]);
 
   useEffect(() => {
