@@ -6511,8 +6511,8 @@ body:has(.game-app-page) {
 
   .monad-game.app-mode.start-mode .game-start-screen {
     left: 50%;
-    width: min(calc(100vw - 48px), 322px);
-    max-width: calc(100vw - 48px);
+    width: min(calc(100vw - 64px), 306px);
+    max-width: calc(100vw - 64px);
     max-height: calc(100dvh - 22px);
     overflow: auto;
     overflow-x: hidden;
@@ -6526,21 +6526,24 @@ body:has(.game-app-page) {
   }
 
   .monad-game.app-mode.start-mode .start-orbit {
-    width: min(62vw, 218px);
+    width: min(56vw, 196px);
+    margin-bottom: 10px;
   }
 
   .monad-game.app-mode.start-mode .start-orbit span {
-    width: clamp(64px, 20vw, 74px);
-    height: clamp(64px, 20vw, 74px);
+    width: clamp(58px, 18vw, 68px);
+    height: clamp(58px, 18vw, 68px);
   }
 
   .monad-game.app-mode.start-mode .start-brand strong {
     max-width: 100%;
-    font-size: clamp(40px, 13.2vw, 52px);
+    font-size: clamp(38px, 12.6vw, 50px);
   }
 
   .monad-game.app-mode.start-mode .game-start-screen p {
     max-width: min(100%, 256px);
+    margin-top: 10px;
+    font-size: 13px;
   }
 
   .monad-game.app-mode.start-mode .start-difficulty {
@@ -6559,6 +6562,7 @@ body:has(.game-app-page) {
   .monad-game.app-mode.start-mode .start-actions {
     width: 100%;
     max-width: 292px;
+    margin-top: 14px;
   }
 
   .monad-game.app-mode.start-mode .wallet-safety-note {
@@ -6567,8 +6571,8 @@ body:has(.game-app-page) {
   }
 
   .monad-game.app-mode.start-mode .install-float-banner.home-only {
-    width: min(calc(100vw - 34px), 322px);
-    max-width: calc(100vw - 34px);
+    width: min(calc(100vw - 46px), 306px);
+    max-width: calc(100vw - 46px);
     grid-template-columns: 1fr;
     justify-items: center;
     border-radius: 24px;
@@ -6579,6 +6583,42 @@ body:has(.game-app-page) {
     width: 100%;
     min-width: 0;
     white-space: normal;
+  }
+}
+
+@media (max-width: 380px), (max-height: 700px) {
+  .monad-game.app-mode.start-mode .game-start-screen {
+    width: min(calc(100vw - 72px), 292px);
+    max-width: calc(100vw - 72px);
+  }
+
+  .monad-game.app-mode.start-mode .start-orbit {
+    width: min(50vw, 168px);
+    margin-bottom: 8px;
+  }
+
+  .monad-game.app-mode.start-mode .start-orbit span {
+    width: clamp(50px, 16vw, 60px);
+    height: clamp(50px, 16vw, 60px);
+    border-radius: 16px;
+  }
+
+  .monad-game.app-mode.start-mode .start-orbit span img {
+    height: 40px;
+  }
+
+  .monad-game.app-mode.start-mode .start-brand strong {
+    font-size: clamp(34px, 11.8vw, 44px);
+  }
+
+  .monad-game.app-mode.start-mode .start-difficulty button {
+    min-height: 50px;
+    padding: 8px;
+  }
+
+  .monad-game.app-mode.start-mode .game-start-screen small,
+  .monad-game.app-mode.start-mode .wallet-safety-note {
+    font-size: 8px;
   }
 }
 

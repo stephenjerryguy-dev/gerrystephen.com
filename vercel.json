@@ -7,8 +7,8 @@
     { "source": "/dynamic-api/:path*", "destination": "https://app.dynamicauth.com/api/v0/:path*" },
     { "source": "/fresh", "destination": "/" },
     { "source": "/reset-app", "destination": "/" },
-    { "source": "/monerge", "destination": "/" },
-    { "source": "/monerge/:path*", "destination": "/" },
+    { "source": "/monerge", "destination": "/monerge.html" },
+    { "source": "/monerge/:path*", "destination": "/monerge.html" },
     { "source": "/:path*", "destination": "/" }
   ],
   "headers": [
@@ -26,7 +26,7 @@
       ]
     },
     {
-      "source": "/(index.html|service-worker.js|manifest.webmanifest|monerge.webmanifest|monerge)",
+      "source": "/(index.html|monerge.html|service-worker.js|manifest.webmanifest|monerge.webmanifest|monerge)",
       "headers": [
         { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
       ]
