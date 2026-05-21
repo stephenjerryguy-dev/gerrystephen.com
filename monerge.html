@@ -8,33 +8,47 @@
 <meta name="apple-mobile-web-app-title" content="Monerge" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="description" content="Monerge is a wallet-backed Monad focus game by Gerry Stephen. Merge Monanimal tiles, choose difficulty, and post your public run." />
+<meta name="robots" content="index,follow,max-image-preview:large" />
+<meta name="author" content="Gerry Stephen" />
+<meta name="keywords" content="Monerge, Monad game, Monad, Monanimals, Web3 game, wallet game, Gerry Stephen, BuildAnything" />
 <meta property="og:type" content="website" />
+<meta property="og:site_name" content="Monerge" />
+<meta property="og:locale" content="en_US" />
 <meta property="og:url" content="https://gerrystephen.com/monerge" />
 <meta property="og:title" content="Monerge · Built on Monad" />
 <meta property="og:description" content="A wallet-backed focus game: merge Monanimal tiles, remember your hidden points, and reveal your run." />
-<meta property="og:image" content="https://gerrystephen.com/assets/monerge-icon-512.png" />
-<meta property="og:image:alt" content="Monerge game icon" />
+<meta property="og:image" content="https://gerrystephen.com/assets/og-monerge.png?v=ecosystems-app-88" />
+<meta property="og:image:secure_url" content="https://gerrystephen.com/assets/og-monerge.png?v=ecosystems-app-88" />
+<meta property="og:image:type" content="image/png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Monerge preview card with Monad game branding" />
 <meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:site" content="@gerrydoteth" />
+<meta name="twitter:creator" content="@gerrydoteth" />
 <meta name="twitter:title" content="Monerge · Built on Monad" />
 <meta name="twitter:description" content="Merge Monanimal tiles, remember your hidden points, and reveal your run." />
-<meta name="twitter:image" content="https://gerrystephen.com/assets/monerge-icon-512.png" />
+<meta name="twitter:image" content="https://gerrystephen.com/assets/og-monerge.png?v=ecosystems-app-88" />
 <title>Monerge · Built on Monad</title>
 <link rel="canonical" href="https://gerrystephen.com/monerge" />
-<link rel="manifest" href="/monerge.webmanifest?v=ecosystems-app-87" />
-<link rel="icon" type="image/png" href="/assets/monerge-icon-512.png?v=ecosystems-app-87" />
-<link rel="apple-touch-icon" href="/assets/monerge-icon-512.png?v=ecosystems-app-87" />
+<link rel="manifest" href="/monerge.webmanifest?v=ecosystems-app-88" />
+<link rel="icon" type="image/png" href="/assets/monerge-icon-512.png?v=ecosystems-app-88" />
+<link rel="apple-touch-icon" href="/assets/monerge-icon-512.png?v=ecosystems-app-88" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Inter+Tight:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Fraunces:ital,wght@0,400;0,600;1,400&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"VideoGame","name":"Monerge","url":"https://gerrystephen.com/monerge","description":"A wallet-backed Monad focus game by Gerry Stephen. Merge Monanimal tiles, choose difficulty, remember hidden points, and reveal public runs.","applicationCategory":"GameApplication","operatingSystem":"Web, iOS, Android","genre":["Puzzle","Strategy","Focus game"],"image":"https://gerrystephen.com/assets/og-monerge.png","publisher":{"@type":"Person","name":"Gerry Stephen","url":"https://gerrystephen.com/"}}
+</script>
 <script>
 const bootParams = new URLSearchParams(window.location.search);
 const bootIsGame = window.location.pathname.includes('monerge') || bootParams.get('app') === 'monerge' || bootParams.get('app') === 'iglu-merge';
 document.documentElement.dataset.fileMode = window.location.protocol === 'file:' ? 'true' : 'false';
 document.documentElement.dataset.gameBoot = bootIsGame ? 'true' : 'false';
-const bootIconHref = bootIsGame ? '/assets/monerge-icon-512.png?v=ecosystems-app-87' : '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-87';
+const bootIconHref = bootIsGame ? '/assets/monerge-icon-512.png?v=ecosystems-app-88' : '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-88';
 document.querySelector('link[rel="icon"]')?.setAttribute('href', bootIconHref);
 document.querySelector('link[rel="apple-touch-icon"]')?.setAttribute('href', bootIconHref);
-if (bootIsGame) document.querySelector('link[rel="manifest"]')?.setAttribute('href', '/monerge.webmanifest?v=ecosystems-app-87');
+if (bootIsGame) document.querySelector('link[rel="manifest"]')?.setAttribute('href', '/monerge.webmanifest?v=ecosystems-app-88');
 document.querySelector('meta[name="apple-mobile-web-app-title"]')?.setAttribute('content', bootIsGame ? 'Monerge' : "Gerry's Iglu");
 </script>
 <style>
@@ -85,9 +99,9 @@ html[data-file-mode="true"] .file-hint { display: block; }
     </section>
   </main>
 </div>
-<script type="module" src="/app.jsx?v=ecosystems-app-87"></script>
+<script type="module" src="/app.jsx?v=ecosystems-app-88"></script>
 <script>
-const GERRY_SHELL_VERSION = 'ecosystems-app-87';
+const GERRY_SHELL_VERSION = 'ecosystems-app-88';
 async function resetOldGerryShell() {
   try {
     const currentVersion = localStorage.getItem('gerry-shell-version');
