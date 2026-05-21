@@ -20,9 +20,9 @@
 <meta name="twitter:image" content="https://gerrystephen.com/assets/gerrys-iglu-icon.png" />
 <title>Gerry Stephen · Business, Web3, and the Iglu</title>
 <link rel="canonical" href="https://gerrystephen.com/" />
-<link rel="manifest" href="/manifest.webmanifest?v=ecosystems-app-85" />
-<link rel="icon" type="image/png" href="/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-85" />
-<link rel="apple-touch-icon" href="/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-85" />
+<link rel="manifest" href="/manifest.webmanifest?v=ecosystems-app-86" />
+<link rel="icon" type="image/png" href="/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-86" />
+<link rel="apple-touch-icon" href="/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-86" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Inter+Tight:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Fraunces:ital,wght@0,400;0,600;1,400&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -31,10 +31,10 @@ const bootParams = new URLSearchParams(window.location.search);
 const bootIsGame = window.location.pathname.includes('monerge') || bootParams.get('app') === 'monerge' || bootParams.get('app') === 'iglu-merge';
 document.documentElement.dataset.fileMode = window.location.protocol === 'file:' ? 'true' : 'false';
 document.documentElement.dataset.gameBoot = bootIsGame ? 'true' : 'false';
-const bootIconHref = bootIsGame ? '/assets/monerge-icon-512.png?v=ecosystems-app-85' : '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-85';
+const bootIconHref = bootIsGame ? '/assets/monerge-icon-512.png?v=ecosystems-app-86' : '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-86';
 document.querySelector('link[rel="icon"]')?.setAttribute('href', bootIconHref);
 document.querySelector('link[rel="apple-touch-icon"]')?.setAttribute('href', bootIconHref);
-if (bootIsGame) document.querySelector('link[rel="manifest"]')?.setAttribute('href', '/monerge.webmanifest?v=ecosystems-app-85');
+if (bootIsGame) document.querySelector('link[rel="manifest"]')?.setAttribute('href', '/monerge.webmanifest?v=ecosystems-app-86');
 document.querySelector('meta[name="apple-mobile-web-app-title"]')?.setAttribute('content', bootIsGame ? 'Monerge' : "Gerry's Iglu");
 </script>
 <style>
@@ -85,9 +85,9 @@ html[data-file-mode="true"] .file-hint { display: block; }
     </section>
   </main>
 </div>
-<script type="module" src="/app.jsx?v=ecosystems-app-85"></script>
+<script type="module" src="/app.jsx?v=ecosystems-app-86"></script>
 <script>
-const GERRY_SHELL_VERSION = 'ecosystems-app-85';
+const GERRY_SHELL_VERSION = 'ecosystems-app-86';
 async function resetOldGerryShell() {
   try {
     const currentVersion = localStorage.getItem('gerry-shell-version');

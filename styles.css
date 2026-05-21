@@ -6510,9 +6510,75 @@ body:has(.game-app-page) {
   }
 
   .monad-game.app-mode.start-mode .game-start-screen {
-    width: min(calc(100vw - 22px), 340px);
-    max-height: calc(100dvh - 18px);
+    left: 50%;
+    width: min(calc(100vw - 48px), 322px);
+    max-width: calc(100vw - 48px);
+    max-height: calc(100dvh - 22px);
     overflow: auto;
+    overflow-x: hidden;
+    padding-inline: 2px;
+    box-sizing: border-box;
+    scrollbar-width: none;
+  }
+
+  .monad-game.app-mode.start-mode .game-start-screen::-webkit-scrollbar {
+    display: none;
+  }
+
+  .monad-game.app-mode.start-mode .start-orbit {
+    width: min(62vw, 218px);
+  }
+
+  .monad-game.app-mode.start-mode .start-orbit span {
+    width: clamp(64px, 20vw, 74px);
+    height: clamp(64px, 20vw, 74px);
+  }
+
+  .monad-game.app-mode.start-mode .start-brand strong {
+    max-width: 100%;
+    font-size: clamp(40px, 13.2vw, 52px);
+  }
+
+  .monad-game.app-mode.start-mode .game-start-screen p {
+    max-width: min(100%, 256px);
+  }
+
+  .monad-game.app-mode.start-mode .start-difficulty {
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .monad-game.app-mode.start-mode .start-difficulty button,
+  .monad-game.app-mode.start-mode .start-actions button,
+  .monad-game.app-mode.start-mode .start-actions .monerge-dynamic-btn {
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .monad-game.app-mode.start-mode .start-actions {
+    width: 100%;
+    max-width: 292px;
+  }
+
+  .monad-game.app-mode.start-mode .wallet-safety-note {
+    max-width: 100%;
+    overflow-wrap: break-word;
+  }
+
+  .monad-game.app-mode.start-mode .install-float-banner.home-only {
+    width: min(calc(100vw - 34px), 322px);
+    max-width: calc(100vw - 34px);
+    grid-template-columns: 1fr;
+    justify-items: center;
+    border-radius: 24px;
+    text-align: center;
+  }
+
+  .monad-game.app-mode.start-mode .install-float-banner.home-only button {
+    width: 100%;
+    min-width: 0;
+    white-space: normal;
   }
 }
 

@@ -10,13 +10,13 @@
   "theme_color": "#0E1F2C",
   "icons": [
     {
-      "src": "/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-85",
+      "src": "/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-86",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/assets/gerrys-iglu-icon.png?v=ecosystems-app-85",
+      "src": "/assets/gerrys-iglu-icon.png?v=ecosystems-app-86",
       "sizes": "1024x1024",
       "type": "image/png",
       "purpose": "any maskable"
