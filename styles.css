@@ -6679,6 +6679,111 @@ body:has(.game-app-page) {
   }
 }
 
+/* ---------- Monerge mobile home polish ---------- */
+@media (max-width: 760px) {
+  .monad-game.app-mode.start-mode {
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .monad-game.app-mode.start-mode::before,
+  .monad-game.app-mode.start-mode::after {
+    content: "";
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    width: clamp(28px, 9vw, 52px);
+    z-index: 3;
+    pointer-events: none;
+  }
+
+  .monad-game.app-mode.start-mode::before {
+    left: 0;
+    background: linear-gradient(90deg, rgba(16, 9, 48, 0.92), rgba(16, 9, 48, 0));
+  }
+
+  .monad-game.app-mode.start-mode::after {
+    right: 0;
+    background: linear-gradient(270deg, rgba(106, 129, 152, 0.88), rgba(106, 129, 152, 0));
+  }
+
+  .monad-game.app-mode.start-mode .game-shell {
+    width: 100vw;
+    max-width: 100vw;
+    min-height: 100dvh;
+    padding-inline: max(14px, env(safe-area-inset-left)) max(14px, env(safe-area-inset-right));
+    overflow: hidden;
+  }
+
+  .monad-game.app-mode.start-mode .game-start-screen {
+    left: 50%;
+    width: min(calc(100vw - 32px), 390px);
+    max-width: calc(100vw - 32px);
+    max-height: calc(100dvh - 20px);
+    padding: 8px clamp(12px, 4vw, 20px) 96px;
+    overflow-y: auto;
+    overflow-x: clip;
+    border-radius: 28px;
+    box-sizing: border-box;
+    scrollbar-width: none;
+  }
+
+  .monad-game.app-mode.start-mode .game-start-screen::-webkit-scrollbar {
+    display: none;
+  }
+
+  .monad-game.app-mode.start-mode .start-orbit {
+    width: clamp(168px, 55vw, 232px);
+    margin-bottom: 12px;
+    overflow: visible;
+  }
+
+  .monad-game.app-mode.start-mode .start-orbit span {
+    width: clamp(58px, 17.5vw, 74px);
+    height: clamp(58px, 17.5vw, 74px);
+  }
+
+  .monad-game.app-mode.start-mode .start-brand strong {
+    max-width: 100%;
+    font-size: clamp(42px, 13.4vw, 58px);
+    line-height: 0.95;
+  }
+
+  .monad-game.app-mode.start-mode .game-start-screen p {
+    max-width: 290px;
+    margin-top: 10px;
+  }
+
+  .monad-game.app-mode.start-mode .install-float-banner.home-only {
+    width: min(calc(100vw - 32px), 370px);
+    max-width: calc(100vw - 32px);
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}
+
+@media (max-width: 380px), (max-height: 700px) {
+  .monad-game.app-mode.start-mode .game-start-screen {
+    width: min(calc(100vw - 28px), 350px);
+    max-width: calc(100vw - 28px);
+    padding-inline: 12px;
+  }
+
+  .monad-game.app-mode.start-mode .start-orbit {
+    width: clamp(148px, 48vw, 184px);
+    margin-bottom: 8px;
+  }
+
+  .monad-game.app-mode.start-mode .start-orbit span {
+    width: clamp(50px, 15.5vw, 62px);
+    height: clamp(50px, 15.5vw, 62px);
+  }
+
+  .monad-game.app-mode.start-mode .start-brand strong {
+    font-size: clamp(36px, 12vw, 48px);
+  }
+}
+
 /* ---------- Foot ---------- */
 .foot {
   display: flex; justify-content: space-between;
