@@ -2780,22 +2780,59 @@ a { color: inherit; text-decoration: none; }
   scale: 1.1;
 }
 .tile-character.character-mouch {
-  width: clamp(68px, 9vw, 104px);
-  height: clamp(58px, 8vw, 88px);
+  width: clamp(78px, 10vw, 116px);
+  height: clamp(48px, 6.8vw, 78px);
+  top: 12px;
   object-position: center 50%;
-  scale: 0.98;
+  scale: 1;
 }
 .tile-character.character-mokadel {
   scale: 1.2;
 }
+.tile-character.character-mosferatu {
+  width: clamp(74px, 9.5vw, 106px);
+  height: clamp(55px, 7.7vw, 86px);
+  top: 8px;
+  object-position: center center;
+  scale: 1.08;
+}
+.tile-character.character-moyaki {
+  width: clamp(76px, 9.8vw, 108px);
+  height: clamp(54px, 7.4vw, 84px);
+  top: 8px;
+  object-position: center center;
+  scale: 1.05;
+}
+.tile-character.character-shramp {
+  width: clamp(78px, 10vw, 112px);
+  height: clamp(52px, 7.4vw, 82px);
+  top: 9px;
+  object-position: center center;
+  scale: 1.05;
+}
+.tile-character.character-nadbot {
+  width: clamp(72px, 9.4vw, 104px);
+  height: clamp(56px, 7.8vw, 88px);
+  top: 7px;
+  object-position: center center;
+  scale: 1.04;
+}
 .tile-character.character-salmonad {
   scale: 1.14;
 }
+.tile-character.character-hypernad {
+  width: clamp(70px, 9.2vw, 102px);
+  height: clamp(58px, 8vw, 90px);
+  top: 7px;
+  object-position: center center;
+  scale: 1.02;
+}
 .tile-character.character-emonad {
-  top: 0;
-  width: clamp(44px, 5.8vw, 70px);
-  height: clamp(74px, 9.8vw, 118px);
+  top: 7px;
+  width: clamp(38px, 5vw, 60px);
+  height: clamp(62px, 8vw, 94px);
   object-position: center top;
+  scale: 0.9;
 }
 .tile-2 { background:
   radial-gradient(circle at 82% 22%, rgba(255,255,255,0.92) 0 12%, transparent 30%),
@@ -3935,6 +3972,24 @@ a { color: inherit; text-decoration: none; }
   padding: 10px 12px;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.hud-new-game {
+  min-height: 50px;
+  border: 1px solid rgba(238,246,251,0.16);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.1);
+  color: #eef6fb;
+  font: 900 11px/1 var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
+}
+.hud-new-game:active,
+.hud-new-game:hover {
+  background: linear-gradient(135deg, rgba(159,124,255,0.68), rgba(45,191,176,0.68));
+}
+.monad-game.app-mode .hud-new-game {
+  width: 100%;
 }
 .monad-game.app-mode .game-controls {
   grid-area: controls;
@@ -6142,7 +6197,7 @@ body:has(.game-app-page) {
 }
 
 .install-note {
-  display: block;
+  display: none;
   margin: 10px auto 0;
   border: 0;
   background: transparent;
@@ -6153,6 +6208,45 @@ body:has(.game-app-page) {
   text-transform: uppercase;
   text-decoration: underline;
   text-underline-offset: 5px;
+}
+.install-float-banner {
+  position: fixed;
+  left: 50%;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  z-index: 80;
+  width: min(520px, calc(100vw - 28px));
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
+  border: 1px solid rgba(238,246,251,0.22);
+  border-radius: 999px;
+  background:
+    linear-gradient(135deg, rgba(238,246,251,0.24), rgba(238,246,251,0.1)),
+    rgba(20, 14, 52, 0.72);
+  color: rgba(238,246,251,0.86);
+  box-shadow: 0 20px 70px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.18);
+  backdrop-filter: blur(18px);
+  transform: translateX(-50%);
+}
+.install-float-banner button {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #9F7CFF, #2DBFB0);
+  color: #fff;
+  font: 900 10px/1 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.install-float-banner span {
+  font-size: 13px;
+  line-height: 1.15;
+  color: rgba(238,246,251,0.72);
 }
 
 .monad-game.app-mode .game-menu-text {

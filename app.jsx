@@ -22,7 +22,7 @@ import {
 } from './tweaks-panel.jsx';
 import './styles.css';
 
-const SITE_BUILD_VERSION = 'ecosystems-app-82';
+const SITE_BUILD_VERSION = 'ecosystems-app-83';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -849,7 +849,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-82`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-83`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
@@ -1757,7 +1757,7 @@ const MONAD_TILE_CHARACTERS = {
 const MONAD_CHARACTER_IMAGES = {
   Chog: 'assets/monanimals/chog-official-sprite.png',
   Molandak: 'assets/monanimals/molandak-official-sprite.png',
-  Mouch: 'assets/monanimals/mouch.png',
+  Mouch: 'assets/monanimals/mouch-sprite-tight.png',
   Mosferatu: 'assets/monanimals/mosferatu-clean.svg',
   Moyaki: 'assets/monanimals/moyaki-clean.svg',
   Shramp: 'assets/monanimals/shramp-clean.svg',
@@ -2250,6 +2250,15 @@ function MonadGame() {
       : 'Score is hidden. Clean walls. Track the merges in your head.');
   }
 
+  function returnToMonergeHome() {
+    unlockMonergeAudio();
+    setGameStarted(false);
+    setGameMenuOpen(false);
+    setLeaderboardOpen(false);
+    setTouchStart(null);
+    setPressedDirection('');
+  }
+
   function makeMove(direction) {
     if (gameOver) return;
     if (hazardsEnabled && frozenTurns > 0) {
@@ -2528,6 +2537,7 @@ function MonadGame() {
             </div>
             <div className="game-menu-actions">
               <MonergeWalletButton account={account} label="Connect wallet" onClick={connectMonad} onSignOut={disconnectWallet} />
+              {isGameApp && gameStarted && <button type="button" onClick={returnToMonergeHome}>Home</button>}
               <button type="button" onClick={() => { newGame(); setGameMenuOpen(false); }}>New run</button>
               {isGameApp && <button type="button" onClick={() => { unlockMonergeAudio(); setGameMusic((value) => !value); }}>{gameMusic && musicReady ? 'Music off' : 'Music on'}</button>}
               {isGameApp && <button type="button" onClick={() => { unlockMonergeAudio(); setSfxEnabled((value) => !value); }}>{sfxEnabled ? 'SFX off' : 'SFX on'}</button>}
@@ -2586,15 +2596,15 @@ function MonadGame() {
             <button type="button" className="install-primary" onClick={() => setInstallGuideOpen(false)}>Got it</button>
           </div>
         </div>}
-        <div className="game-shell-actions" aria-label="Wallet and run controls">
+        <div className="game-shell-actions" aria-label="Wallet controls">
           <MonergeWalletButton account={account} label="Connect" onClick={connectMonad} onSignOut={disconnectWallet} />
-          <button type="button" onClick={newGame}>New</button>
         </div>
         <div className="game-hud">
           <div><span>Hidden score</span><strong>{scoreReveal ? score : '???'}</strong></div>
           <div><span>Best</span><strong>{best}</strong></div>
           <div className="hud-lava"><span>{hazardsEnabled ? 'Lava' : 'Mode'}</span><strong>{hazardsEnabled ? DIRECTION_LABELS[lavaDirection] : currentDifficulty.label}</strong></div>
           <div><span>Time</span><strong>{currentDifficulty.timed ? `${Math.floor(timeLeft / 60)}:${String(timeLeft % 60).padStart(2, '0')}` : 'Open'}</strong></div>
+          <button type="button" className="hud-new-game" onClick={newGame}>New game</button>
         </div>
         <div className="game-side-panel">
           <div className="tile-ladder" aria-label="Monad tile progression">
@@ -2660,6 +2670,10 @@ function MonadGame() {
           <strong>{scoreReveal ? `Final ${scoreReveal.final}` : gameOver ? 'Board locked. Guess before you reveal.' : maxTile >= 2048 ? 'Emonad unlocked.' : gameMessage}</strong>
           <span>{moves} moves · max tile {maxTile} · {currentDifficulty.note}</span>
         </div>
+        {isGameApp && <div className="install-float-banner" role="note">
+          <button type="button" onClick={promptInstallApp}>Add Monerge to Home Screen</button>
+          <span>Swipe the board or tap arrows to move.</span>
+        </div>}
       </div>
     </section>);
 }
@@ -2965,13 +2979,13 @@ function App() {
     const favicon = document.querySelector('link[rel="icon"]');
     if (isGameApp) {
       document.title = 'Monerge · Gerry Stephen';
-      appleIcon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-82');
-      favicon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-82');
+      appleIcon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-83');
+      favicon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-83');
       return;
     }
     document.title = 'Gerry Stephen · Business, Web3, and the Iglu';
-    appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-82');
-    favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-82');
+    appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-83');
+    favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-83');
   }, [isGameApp]);
 
   useEffect(() => {
