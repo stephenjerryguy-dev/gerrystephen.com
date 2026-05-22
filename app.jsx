@@ -11,7 +11,7 @@ import {
 import { EthereumWalletConnectors } from '@dynamic-labs/ethereum';
 import { DynamicWagmiConnector } from '@dynamic-labs/wagmi-connector';
 import { WagmiProvider, createConfig, http } from 'wagmi';
-import { defineChain } from 'viem';
+import { defineChain, encodeFunctionData, keccak256, toHex } from 'viem';
 import {
   useTweaks,
   TweaksPanel,
@@ -22,7 +22,7 @@ import {
 } from './tweaks-panel.jsx';
 import './styles.css';
 
-const SITE_BUILD_VERSION = 'ecosystems-app-91';
+const SITE_BUILD_VERSION = 'ecosystems-app-92';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -849,7 +849,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-91`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-92`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
@@ -1242,6 +1242,28 @@ const monadMainnet = defineChain({
     default: { name: 'MonadScan', url: MONAD_NETWORK.blockExplorerUrls[0] }
   }
 });
+const MONERGE_RUNS_CONTRACT = String(import.meta.env.VITE_MONERGE_RUNS_CONTRACT || '').trim();
+const MONERGE_RUNS_ABI = [{
+  type: 'function',
+  name: 'submitRun',
+  stateMutability: 'nonpayable',
+  inputs: [
+    { name: 'runId', type: 'bytes32' },
+    { name: 'score', type: 'uint256' },
+    { name: 'actual', type: 'uint256' },
+    { name: 'maxTile', type: 'uint16' },
+    { name: 'moves', type: 'uint16' },
+    { name: 'difficulty', type: 'uint8' },
+    { name: 'profileHash', type: 'bytes32' }
+  ],
+  outputs: []
+}];
+const DIFFICULTY_CHAIN_CODES = {
+  Chill: 0,
+  Classic: 1,
+  Hazard: 2,
+  Hardest: 3
+};
 const DYNAMIC_ENV_ID = 'b62527ee-ec89-4502-86b3-37987b5720d4';
 const queryClient = new QueryClient();
 const wagmiConfig = createConfig({
@@ -1726,6 +1748,28 @@ async function publishLeaderboardRun(entry) {
   return Array.isArray(data?.entries) ? dedupeLeaderboard(data.entries).slice(0, 50) : [];
 }
 
+function monergeRunHash(value = '') {
+  return keccak256(toHex(String(value || '')));
+}
+
+function monergeProfileHash(entry = {}) {
+  return keccak256(toHex(JSON.stringify({
+    wallet: String(entry.wallet || '').toLowerCase(),
+    username: entry.username || '',
+    pfp: entry.pfp ? 'custom' : 'default',
+    signature: entry.signature || ''
+  })));
+}
+
+function shareMonergeRunUrl(entry = {}) {
+  const text = [
+    `I just revealed a ${entry.score || 0} Monerge run on Monad.`,
+    `${entry.difficulty || 'Classic'} · max tile ${entry.maxTile || 2} · ${entry.moves || 0} moves`,
+    'Play: https://gerrystephen.com/monerge'
+  ].join('\n');
+  return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+}
+
 function hexFromText(text) {
   return '0x' + Array.from(new TextEncoder().encode(text))
     .map((byte) => byte.toString(16).padStart(2, '0'))
@@ -1898,6 +1942,8 @@ function MonadGame() {
   const [hazardPulse, setHazardPulse] = useState(0);
   const [scoreGuess, setScoreGuess] = useState('');
   const [scoreReveal, setScoreReveal] = useState(null);
+  const [lastRevealedEntry, setLastRevealedEntry] = useState(null);
+  const [onChainRun, setOnChainRun] = useState({ status: MONERGE_RUNS_CONTRACT ? 'ready' : 'not-configured', txHash: '', error: '' });
   const [leaderboard, setLeaderboard] = useState(() => loadLeaderboard());
   const [profile, setProfile] = useState(() => loadProfile());
   const [gameMessage, setGameMessage] = useState('Score is hidden. Track the merges in your head.');
@@ -2274,6 +2320,8 @@ function MonadGame() {
     setGameOver(false);
     setScoreGuess('');
     setScoreReveal(null);
+    setLastRevealedEntry(null);
+    setOnChainRun({ status: MONERGE_RUNS_CONTRACT ? 'ready' : 'not-configured', txHash: '', error: '' });
     setFrozenTurns(0);
     setTimeLeft(currentDifficulty.duration);
     const firstHazards = currentDifficulty.hazards ? randomHazards(undefined, true) : { lava: '', freeze: '' };
@@ -2293,6 +2341,65 @@ function MonadGame() {
     setLeaderboardOpen(false);
     setTouchStart(null);
     setPressedDirection('');
+  }
+
+  async function submitRunOnMonad(entry) {
+    if (!MONERGE_RUNS_CONTRACT) {
+      setOnChainRun({ status: 'not-configured', txHash: '', error: '' });
+      return '';
+    }
+    if (!account) {
+      setOnChainRun({ status: 'wallet-needed', txHash: '', error: 'Connect wallet to verify on Monad.' });
+      return '';
+    }
+    try {
+      setOnChainRun({ status: 'pending', txHash: '', error: '' });
+      if (!isMonad) await connectMonad();
+      const data = encodeFunctionData({
+        abi: MONERGE_RUNS_ABI,
+        functionName: 'submitRun',
+        args: [
+          monergeRunHash(entry.id),
+          BigInt(entry.score || 0),
+          BigInt(entry.actual || 0),
+          Number(entry.maxTile || 2),
+          Number(entry.moves || 0),
+          DIFFICULTY_CHAIN_CODES[entry.difficulty] ?? 1,
+          monergeProfileHash(entry)
+        ]
+      });
+
+      let txHash = '';
+      const walletClient = await primaryWallet?.connector?.getWalletClient?.();
+      if (walletClient?.sendTransaction) {
+        txHash = await walletClient.sendTransaction({
+          account,
+          to: MONERGE_RUNS_CONTRACT,
+          data,
+          chain: monadMainnet
+        });
+      } else if (primaryWallet?.connector?.sendTransaction) {
+        txHash = await primaryWallet.connector.sendTransaction({
+          to: MONERGE_RUNS_CONTRACT,
+          data,
+          chainId: 143
+        });
+      } else if (window.ethereum?.request) {
+        txHash = await window.ethereum.request({
+          method: 'eth_sendTransaction',
+          params: [{ from: account, to: MONERGE_RUNS_CONTRACT, data }]
+        });
+      } else {
+        throw new Error('Wallet transaction signer unavailable.');
+      }
+
+      setOnChainRun({ status: 'submitted', txHash, error: '' });
+      return txHash;
+    } catch (error) {
+      const message = error?.shortMessage || error?.message || 'Monad verification was cancelled.';
+      setOnChainRun({ status: 'error', txHash: '', error: message });
+      return '';
+    }
   }
 
   function makeMove(direction) {
@@ -2390,6 +2497,7 @@ function MonadGame() {
       signedAt: profileSignature ? new Date().toISOString() : '',
       revealedAt: new Date().toISOString()
     };
+    setLastRevealedEntry(revealedEntry);
     const nextBoard = mergeLeaderboardEntry(leaderboard, revealedEntry);
     setLeaderboard(nextBoard);
     saveLeaderboard(nextBoard);
@@ -2400,6 +2508,23 @@ function MonadGame() {
         saveLeaderboard(merged);
       })
       .catch(() => {});
+    if (account && profileSignature && MONERGE_RUNS_CONTRACT) {
+      submitRunOnMonad(revealedEntry).then((txHash) => {
+        if (!txHash) return;
+        const verifiedEntry = { ...revealedEntry, txHash };
+        const verifiedBoard = mergeLeaderboardEntry(loadLeaderboard(), verifiedEntry);
+        setLastRevealedEntry(verifiedEntry);
+        setLeaderboard(verifiedBoard);
+        saveLeaderboard(verifiedBoard);
+        publishLeaderboardRun(verifiedEntry).catch(() => {});
+      });
+    } else if (!MONERGE_RUNS_CONTRACT) {
+      setOnChainRun({ status: 'not-configured', txHash: '', error: '' });
+    } else if (!account) {
+      setOnChainRun({ status: 'wallet-needed', txHash: '', error: 'Connect wallet to verify this run on Monad.' });
+    } else {
+      setOnChainRun({ status: 'signature-needed', txHash: '', error: 'Sign your profile before reveal to verify on Monad.' });
+    }
     if (final > best) {
       setBest(final);
       localStorage.setItem('monergeBlindBest', String(final));
@@ -2682,8 +2807,19 @@ function MonadGame() {
             {scoreReveal
               ? <span>Actual {scoreReveal.actual} · off by {scoreReveal.miss} · time {scoreReveal.timeBonus} · mode {scoreReveal.difficultyBonus} · final {scoreReveal.final}</span>
               : <input inputMode="numeric" pattern="[0-9]*" value={scoreGuess} onChange={(event) => setScoreGuess(event.target.value)} placeholder="Your score guess" aria-label="Score guess" />}
+            {scoreReveal && <small className={`chain-run-status ${onChainRun.status}`}>
+              {onChainRun.status === 'submitted'
+                ? `Monad verified ${shortWallet(onChainRun.txHash)}`
+                : onChainRun.status === 'pending'
+                  ? 'Confirming Monad run...'
+                  : onChainRun.status === 'not-configured'
+                    ? 'On-chain contract pending deployment'
+                    : onChainRun.error || 'Run saved locally'}
+            </small>}
             <div className="game-over-actions">
               {!scoreReveal && <button type="submit">Reveal</button>}
+              {scoreReveal && lastRevealedEntry && <a href={shareMonergeRunUrl(lastRevealedEntry)} target="_blank" rel="noopener">Share on X</a>}
+              {scoreReveal && lastRevealedEntry && account && profileSignature && MONERGE_RUNS_CONTRACT && onChainRun.status !== 'submitted' && onChainRun.status !== 'pending' && <button type="button" onClick={() => submitRunOnMonad(lastRevealedEntry)}>Verify on Monad</button>}
               <button type="button" onClick={newGame}>Run it back</button>
             </div>
           </form>}
@@ -2724,7 +2860,7 @@ function Leaderboard({ entries, compact = false, limit }) {
                 {entry.pfp ? <img src={entry.pfp} alt="" /> : <i>{playerName(entry).slice(0, 1).toUpperCase()}</i>}
               </div>
               <strong>{entry.score}</strong>
-              <em>{entry.signature ? 'Profile' : 'Revealed'} · {entry.difficulty}</em>
+              <em>{entry.txHash ? 'On-chain' : entry.signature ? 'Profile' : 'Revealed'} · {entry.difficulty}</em>
               <small><b>{playerName(entry)}</b> · {entry.wallet ? shortWallet(entry.wallet) : 'No wallet yet'} · max {entry.maxTile}</small>
             </li>
           ))}
@@ -3007,13 +3143,13 @@ function App() {
     const favicon = document.querySelector('link[rel="icon"]');
     if (isGameApp) {
       document.title = 'Monerge · Gerry Stephen';
-      appleIcon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-91');
-      favicon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-91');
+      appleIcon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-92');
+      favicon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-92');
       return;
     }
     document.title = 'Gerry Stephen · Business, Web3, and the Iglu';
-    appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-91');
-    favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-91');
+    appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-92');
+    favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-92');
   }, [isGameApp]);
 
   useEffect(() => {

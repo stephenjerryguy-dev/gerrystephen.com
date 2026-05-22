@@ -1,0 +1,219 @@
+{
+  "contractName": "MonergeRuns",
+  "abi": [
+    {
+      "inputs": [],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [],
+      "name": "InvalidRun",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "NotOwner",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "Paused",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "RunAlreadySubmitted",
+      "type": "error"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "bool",
+          "name": "paused",
+          "type": "bool"
+        }
+      ],
+      "name": "PauseSet",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "player",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "runId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "score",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "actual",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint16",
+          "name": "maxTile",
+          "type": "uint16"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint16",
+          "name": "moves",
+          "type": "uint16"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint8",
+          "name": "difficulty",
+          "type": "uint8"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes32",
+          "name": "profileHash",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "timestamp",
+          "type": "uint256"
+        }
+      ],
+      "name": "RunSubmitted",
+      "type": "event"
+    },
+    {
+      "inputs": [],
+      "name": "owner",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "paused",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "name": "runSubmitted",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bool",
+          "name": "nextPaused",
+          "type": "bool"
+        }
+      ],
+      "name": "setPaused",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "runId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint256",
+          "name": "score",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "actual",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint16",
+          "name": "maxTile",
+          "type": "uint16"
+        },
+        {
+          "internalType": "uint16",
+          "name": "moves",
+          "type": "uint16"
+        },
+        {
+          "internalType": "uint8",
+          "name": "difficulty",
+          "type": "uint8"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "profileHash",
+          "type": "bytes32"
+        }
+      ],
+      "name": "submitRun",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "totalRuns",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x60a0604052348015600e575f5ffd5b50336080526080516103c66100315f395f818160c9015261013001526103c65ff3fe608060405234801561000f575f5ffd5b5060043610610060575f3560e01c806316c38b3c146100645780635c975abb146100795780635f6f1a2d1461009b578063742d8bb4146100b15780638da5cb5b146100c45780639778bec914610103575b5f5ffd5b6100776100723660046102ce565b610125565b005b6001546100869060ff1681565b60405190151581526020015b60405180910390f35b6100a35f5481565b604051908152602001610092565b6100776100bf36600461030a565b6101b5565b6100eb7f000000000000000000000000000000000000000000000000000000000000000081565b6040516001600160a01b039091168152602001610092565b610086610111366004610379565b60026020525f908152604090205460ff1681565b336001600160a01b037f0000000000000000000000000000000000000000000000000000000000000000161461016e576040516330cd747160e01b815260040160405180910390fd5b6001805460ff19168215159081179091556040519081527f878ac8a2ca79520471f8f3c8494fa802c03ce3bf034252aad7f22318984fdbdb9060200160405180910390a150565b60015460ff16156101d9576040516313d0ff5960e31b815260040160405180910390fd5b8615806101e4575085155b806101f1575061ffff8416155b1561020f57604051630e868b7160e31b815260040160405180910390fd5b5f8781526002602052604090205460ff161561023e576040516330aaee1d60e21b815260040160405180910390fd5b5f8781526002602090815260408083208054600160ff199091168117909155835401909255815188815290810187905261ffff868116828401528516606082015260ff8416608082015260a081018390524260c08201529051889133917fa76cd2aeebccb9149100d8b0e1634a4bed0af100d7b1bdd4b528f9d4ebc814a29181900360e00190a350505050505050565b5f602082840312156102de575f5ffd5b813580151581146102ed575f5ffd5b9392505050565b803561ffff81168114610305575f5ffd5b919050565b5f5f5f5f5f5f5f60e0888a031215610320575f5ffd5b87359650602088013595506040880135945061033e606089016102f4565b935061034c608089016102f4565b925060a088013560ff81168114610361575f5ffd5b96999598509396929591949193505060c09091013590565b5f60208284031215610389575f5ffd5b503591905056fea2646970667358221220d7c02b6e346e5dbd0d9d1e6ecd27ee99f7e4a5e4cc078d111ca2bbbccbadbcd564736f6c63430008230033"
+}

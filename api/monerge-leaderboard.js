@@ -34,10 +34,12 @@ async function ensureLeaderboardTable(sql) {
       max_tile INTEGER DEFAULT 2,
       moves INTEGER DEFAULT 0,
       signature TEXT DEFAULT '',
+      tx_hash TEXT DEFAULT '',
       revealed_at TIMESTAMPTZ DEFAULT now(),
       signed_at TIMESTAMPTZ
     )
   `;
+  await sql`ALTER TABLE monerge_leaderboard ADD COLUMN IF NOT EXISTS tx_hash TEXT DEFAULT ''`;
   await sql`
     CREATE INDEX IF NOT EXISTS monerge_leaderboard_rank_idx
     ON monerge_leaderboard ((signature <> ''), score DESC, revealed_at DESC)
@@ -57,6 +59,7 @@ function rowToEntry(row = {}) {
     maxTile: row.max_tile,
     moves: row.moves,
     signature: row.signature,
+    txHash: row.tx_hash,
     revealedAt: row.revealed_at ? new Date(row.revealed_at).toISOString() : '',
     signedAt: row.signed_at ? new Date(row.signed_at).toISOString() : ''
   });
@@ -67,7 +70,7 @@ async function readPostgresEntries() {
   if (!sql) return undefined;
   await ensureLeaderboardTable(sql);
   const rows = await sql`
-    SELECT id, wallet, username, pfp, score, actual, difficulty, max_tile, moves, signature, revealed_at, signed_at
+    SELECT id, wallet, username, pfp, score, actual, difficulty, max_tile, moves, signature, tx_hash, revealed_at, signed_at
     FROM monerge_leaderboard
     ORDER BY (signature <> '') DESC, score DESC, revealed_at DESC
     LIMIT 200
@@ -81,7 +84,7 @@ async function writePostgresEntry(entry) {
   await ensureLeaderboardTable(sql);
   await sql`
     INSERT INTO monerge_leaderboard (
-      id, wallet, username, pfp, score, actual, difficulty, max_tile, moves, signature, revealed_at, signed_at
+      id, wallet, username, pfp, score, actual, difficulty, max_tile, moves, signature, tx_hash, revealed_at, signed_at
     )
     VALUES (
       ${entry.id},
@@ -94,6 +97,7 @@ async function writePostgresEntry(entry) {
       ${entry.maxTile},
       ${entry.moves},
       ${entry.signature},
+      ${entry.txHash},
       ${entry.revealedAt || new Date().toISOString()},
       ${entry.signedAt || null}
     )
@@ -107,6 +111,7 @@ async function writePostgresEntry(entry) {
       max_tile = EXCLUDED.max_tile,
       moves = EXCLUDED.moves,
       signature = EXCLUDED.signature,
+      tx_hash = EXCLUDED.tx_hash,
       revealed_at = EXCLUDED.revealed_at,
       signed_at = EXCLUDED.signed_at
   `;
@@ -184,6 +189,7 @@ function sanitizeEntry(input = {}) {
     maxTile: Number.isFinite(maxTile) ? maxTile : 2,
     moves: Number.isFinite(moves) ? moves : 0,
     signature: String(input.signature || '').slice(0, 220),
+    txHash: String(input.txHash || '').slice(0, 80),
     revealedAt: String(input.revealedAt || new Date().toISOString()).slice(0, 40),
     signedAt: String(input.signedAt || '').slice(0, 40)
   };
