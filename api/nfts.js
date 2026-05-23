@@ -1,3 +1,5 @@
+import { rateLimit } from './_rate-limit.js';
+
 const WALLETS = [
   '0xCf3b8981AbAa56a8E41117b0c721C05F608400A7',
   '0x382556a543aad855c07678e7f8e820d0d90429bb',
@@ -434,6 +436,7 @@ async function fetchContractSampleNfts(contract) {
 }
 
 export default async function handler(req, res) {
+  if (rateLimit(req, res, { name: 'nfts', limit: 24, windowMs: 60_000 })) return;
   try {
     const ecosystemContracts = ECOSYSTEMS.flatMap((ecosystem) => ecosystem.contracts);
     const reservoirResponses = await Promise.allSettled(

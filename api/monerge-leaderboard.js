@@ -1,4 +1,5 @@
 import { neon } from '@neondatabase/serverless';
+import { rateLimit } from './_rate-limit.js';
 
 const MAX_ENTRIES = 50;
 const LEADERBOARD_KEY = 'monerge:leaderboard:v1';
@@ -241,6 +242,12 @@ export default async function handler(request, response) {
 
   if (request.method === 'OPTIONS') {
     response.status(204).end();
+    return;
+  }
+
+  if (request.method === 'POST') {
+    if (rateLimit(request, response, { name: 'leaderboard-write', limit: 8, windowMs: 60_000 })) return;
+  } else if (rateLimit(request, response, { name: 'leaderboard-read', limit: 90, windowMs: 60_000 })) {
     return;
   }
 

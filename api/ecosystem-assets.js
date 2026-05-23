@@ -1,3 +1,5 @@
+import { rateLimit } from './_rate-limit.js';
+
 const ABSTRACT_WALLET = '0x382556A543aAd855C07678E7F8e820d0d90429BB';
 const ETH_WALLET = '0xc3ce1Eb539c1Cc031eCd7B95e8C00768BF324403';
 const ETH_RPC = 'https://eth.llamarpc.com';
@@ -162,6 +164,7 @@ async function withBalance(asset) {
 }
 
 export default async function handler(req, res) {
+  if (rateLimit(req, res, { name: 'ecosystem-assets', limit: 40, windowMs: 60_000 })) return;
   const assets = await Promise.all(ASSETS.map(withBalance));
   res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=3600');
   res.status(200).json({ assets: [...assets, ...STATIC_ASSETS] });
