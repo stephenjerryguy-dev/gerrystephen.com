@@ -8,6 +8,8 @@
   --purple-soft: #ece2ff;
   --coral: #ffd5bf;
   --sky: #dff3ff;
+  --seal-mint: #22dca3;
+  --seal-lime: #9de95b;
   --green: #3b7c59;
   --shadow: 0 18px 50px rgba(58, 41, 25, 0.12);
   font-family: "DM Sans", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -258,11 +260,13 @@ svg {
 
 .glow {
   position: absolute;
-  width: min(92%, 760px);
-  aspect-ratio: 1;
+  width: min(94%, 760px);
+  aspect-ratio: 1.02;
   border-radius: 50%;
-  background: radial-gradient(circle at 42% 44%, rgba(255, 255, 255, 0.9), rgba(206, 183, 238, 0.72) 36%, rgba(255, 213, 191, 0.72) 68%, transparent 72%);
-  filter: blur(5px);
+  background:
+    radial-gradient(circle at 46% 38%, rgba(34, 220, 163, 0.95) 0 34%, rgba(102, 224, 114, 0.78) 52%, rgba(251, 246, 235, 0) 73%),
+    radial-gradient(circle at 62% 72%, rgba(157, 233, 91, 0.72), rgba(251, 246, 235, 0) 64%);
+  filter: blur(7px);
 }
 
 .speech {
@@ -299,8 +303,10 @@ svg {
   max-height: 650px;
   object-fit: contain;
   object-position: bottom;
-  filter: drop-shadow(0 26px 46px rgba(91, 63, 209, 0.18));
-  border-radius: 28px;
+  filter: drop-shadow(0 26px 46px rgba(34, 139, 100, 0.2));
+  border-radius: 0;
+  -webkit-mask-image: radial-gradient(ellipse 78% 83% at 51% 56%, #000 62%, rgba(0, 0, 0, 0.86) 72%, transparent 91%);
+  mask-image: radial-gradient(ellipse 78% 83% at 51% 56%, #000 62%, rgba(0, 0, 0, 0.86) 72%, transparent 91%);
 }
 
 .main {
@@ -358,6 +364,7 @@ svg {
 .studio-page,
 .meme-vault,
 .meme-panel,
+.delegate-panel,
 .community {
   margin-top: 32px;
 }
@@ -404,8 +411,10 @@ svg {
 .feature-grid article,
 .asset-card,
 .studio-tools article,
+.studio-detail,
 .meme-vault,
 .meme-panel,
+.delegate-panel,
 .community {
   border: 1px solid rgba(255, 255, 255, 0.72);
   border-radius: 16px;
@@ -451,6 +460,19 @@ svg {
 
 .studio-tools article {
   overflow: hidden;
+  cursor: pointer;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.studio-tools article:hover,
+.studio-tools article.selected {
+  transform: translateY(-3px);
+  border-color: rgba(59, 124, 89, 0.42);
+  box-shadow: 0 18px 34px rgba(58, 41, 25, 0.12);
+}
+
+.studio-tools article.selected {
+  background: rgba(255, 255, 255, 0.82);
 }
 
 .studio-tools img {
@@ -478,6 +500,179 @@ svg {
   font-size: 13px;
   font-weight: 750;
   line-height: 1.45;
+}
+
+.studio-detail {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 20px;
+  align-items: center;
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.studio-detail img {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  object-fit: cover;
+  background: var(--seal-mint);
+}
+
+.studio-detail span {
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 1000;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.studio-detail h3 {
+  margin: 10px 0 0;
+  font-size: clamp(28px, 3vw, 44px);
+  line-height: 1;
+  font-weight: 1000;
+  letter-spacing: -0.04em;
+}
+
+.studio-detail p {
+  max-width: 620px;
+  margin: 10px 0 18px;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 750;
+  line-height: 1.6;
+}
+
+.delegate-panel {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.86fr) minmax(0, 1.14fr) auto;
+  gap: 18px;
+  align-items: center;
+  padding: 20px;
+  background:
+    linear-gradient(135deg, rgba(34, 220, 163, 0.18), rgba(255, 255, 255, 0.72) 42%, rgba(236, 226, 255, 0.48));
+}
+
+.delegate-copy span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 1000;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.delegate-copy h2 {
+  margin: 10px 0 0;
+  font-size: clamp(32px, 4vw, 54px);
+  line-height: 0.98;
+  font-weight: 1000;
+  letter-spacing: -0.04em;
+}
+
+.delegate-copy p {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 750;
+  line-height: 1.55;
+}
+
+.delegate-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.delegate-stats article {
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.62);
+  padding: 14px;
+}
+
+.delegate-stats p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 1000;
+}
+
+.delegate-stats strong {
+  display: block;
+  overflow: hidden;
+  margin-top: 7px;
+  font-size: 22px;
+  font-weight: 1000;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.delegate-stats span {
+  display: block;
+  margin-top: 5px;
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.delegate-panel > a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 999px;
+  background: #000;
+  color: white;
+  padding: 14px 18px;
+  font-size: 13px;
+  font-weight: 1000;
+  white-space: nowrap;
+}
+
+.asset-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.asset-toolbar p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.filter-row button {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  padding: 9px 13px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 1000;
+  transition: background 180ms ease, color 180ms ease, border-color 180ms ease;
+}
+
+.filter-row button:hover,
+.filter-row .active {
+  border-color: transparent;
+  background: var(--green);
+  color: white;
 }
 
 .asset-grid {
@@ -641,6 +836,7 @@ svg {
   background: white;
   padding: 7px 12px;
   color: var(--muted);
+  cursor: pointer;
   font-size: 11px;
   font-weight: 1000;
 }
@@ -896,6 +1092,7 @@ footer strong {
 
   .hero-inner,
   .meme-panel,
+  .delegate-panel,
   .community {
     grid-template-columns: 1fr;
   }
@@ -920,6 +1117,7 @@ footer strong {
 
   .feature-grid,
   .studio-tools,
+  .delegate-stats,
   .stats {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -964,7 +1162,8 @@ footer strong {
 
   .hero-actions,
   .holder-row,
-  .section-head {
+  .section-head,
+  .asset-toolbar {
     align-items: flex-start;
     flex-direction: column;
   }
@@ -980,6 +1179,8 @@ footer strong {
   .stats,
   .feature-grid,
   .studio-tools,
+  .studio-detail,
+  .delegate-stats,
   .meme-grid,
   .asset-grid,
   .contract-list,
