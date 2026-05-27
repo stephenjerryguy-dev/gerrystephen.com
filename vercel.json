@@ -9,6 +9,10 @@
     { "source": "/reset-app", "destination": "/" },
     { "source": "/monerge", "destination": "/monerge.html" },
     { "source": "/monerge/:path*", "destination": "/monerge.html" },
+    { "source": "/moncade", "destination": "/moncade.html" },
+    { "source": "/moncade/:path*", "destination": "/moncade.html" },
+    { "source": "/moncade-game", "destination": "/moncade-game.html" },
+    { "source": "/moncade-game/:path*", "destination": "/moncade-game.html" },
     { "source": "/:path*", "destination": "/" }
   ],
   "headers": [
@@ -26,7 +30,7 @@
       ]
     },
     {
-      "source": "/(index.html|monerge.html|service-worker.js|manifest.webmanifest|monerge.webmanifest|monerge)",
+      "source": "/(index.html|monerge.html|moncade.html|moncade-game.html|service-worker.js|manifest.webmanifest|monerge.webmanifest|monerge|moncade|moncade-game)",
       "headers": [
         { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
       ]

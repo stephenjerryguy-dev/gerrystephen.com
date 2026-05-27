@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Moncade — Monad Arcade hub with Monanimal cabinets and the playable MonRaidfield prototype." />
+    <meta name="keywords" content="Moncade, Monad Arcade, Monad game, MonRaidfield, Monerge, Monanimals" />
+    <meta property="og:site_name" content="Moncade" />
+    <meta property="og:title" content="Moncade · Monad Arcade" />
+    <meta property="og:description" content="Connect wallet, pick a cabinet, play MonRaidfield, and post your run on Monad." />
+    <title>Moncade · Monad Arcade</title>
+    <link rel="icon" href="./assets/monerge-icon-512.png" />
+    <link rel="stylesheet" href="./src/moncade.css" />
+  </head>
+  <body>
+    <div class="arcade-backdrop" aria-hidden="true">
+      <div class="lobby-stars"></div>
+      <div class="lobby-sun"></div>
+    </div>
+    <div class="scanlines" aria-hidden="true"></div>
+    <main class="moncade-shell">
+      <header class="chrome-top">
+        <a class="brand" href="./moncade.html" aria-label="Moncade home">
+          <span class="brand-mark">M</span>
+          <span>
+            <strong>MONCADE</strong>
+            <em>Arcade · Built on Monad</em>
+          </span>
+        </a>
+        <nav class="chrome-nav" aria-label="Moncade sections">
+          <a href="#cabinets">Cabinets</a>
+          <a href="#hall">Hall of Nads</a>
+          <a href="#chat">Chat</a>
+        </nav>
+        <div class="chrome-actions">
+          <button id="connectWallet" type="button">Connect Wallet</button>
+          <a class="play-link" href="./moncade-game.html">Open Raidfield</a>
+        </div>
+      </header>
+
+      <section class="hero-grid lobby-title">
+        <div class="hero-copy">
+          <p class="kicker">Monad Arcade · est. 2026</p>
+          <h1>MONCADE</h1>
+          <p>
+            A vaporwave arcade of Monad-native games starring Monanimals. This build merges the Claude
+            Moncade lobby direction with our playable MOBA, dungeon crawler, and base raid hybrid.
+          </p>
+          <div class="hero-actions">
+            <a href="#featured" class="primary-action">Play featured cabinet</a>
+            <button id="commitHeroRun" type="button">Save local run</button>
+          </div>
+        </div>
+        <aside class="hero-card character-pick-row" aria-label="Monanimal squad">
+          <div class="character-pick-header">
+            <p class="kicker">Choose your Nad</p>
+            <span class="character-pick-hint">Monanimals synced</span>
+          </div>
+          <div class="monanimal-row">
+            <img src="./assets/monanimals/chog-official-sprite.png" alt="" />
+            <img src="./assets/monanimals/molandak-official-sprite.png" alt="" />
+            <img src="./assets/monanimals/mokadel-sprite-tight.png" alt="" />
+            <img src="./assets/monanimals/salmonad-sprite-tight.png" alt="" />
+            <img src="./assets/monanimals/emonad-sprite.png" alt="" />
+          </div>
+          <div class="chain-strip">
+            <span><strong id="onlineCount">496</strong> online</span>
+            <span>MON · chain <strong>10143</strong></span>
+            <span id="walletStatus">wallet offline</span>
+          </div>
+        </aside>
+      </section>
+
+      <section id="featured" class="featured-cabinet">
+        <div class="section-head">
+          <h2>Featured Cabinet <em>live</em></h2>
+          <span id="featuredModeLine">Mongeon + Monclash + Monaba merged into one run</span>
+        </div>
+        <div class="play-stage">
+          <aside class="cabinet-frame">
+            <div class="crt-label">
+              <span id="featuredCabinetName">MonRaidfield</span>
+              <span id="featuredCabinetVersion">v0.2</span>
+            </div>
+            <iframe id="featuredGame" src="./moncade-game.html" title="Playable MonRaidfield cabinet"></iframe>
+          </aside>
+          <aside class="run-panel">
+            <h3 id="runTitle">MonRaidfield</h3>
+            <p id="runDescription">Control a champion, clear dungeon camps, build your keep, and crack the enemy core.</p>
+            <div class="mode-switcher" aria-label="Boot cabinet mode">
+              <button class="mode-chip active" type="button" data-mode="raidfield">Hybrid</button>
+              <button class="mode-chip" type="button" data-mode="mongeon">Mongeon</button>
+              <button class="mode-chip" type="button" data-mode="monclash">Monclash</button>
+              <button class="mode-chip" type="button" data-mode="monaba">Monaba</button>
+            </div>
+            <div id="runBadges" class="badge-grid">
+              <span>MOBA</span>
+              <span>Crawler</span>
+              <span>Siege</span>
+              <span>Monad-ready</span>
+            </div>
+            <label for="settlementAddress">Settlement contract</label>
+            <input id="settlementAddress" placeholder="0x contract address" autocomplete="off" />
+            <button id="submitCabinetRun" type="button">Commit cabinet run</button>
+            <p id="commitStatus" class="commit-status">Local proof mode. Paste a contract after deployment.</p>
+          </aside>
+        </div>
+      </section>
+
+      <section id="cabinets">
+        <div class="section-head">
+          <h2>Now Playing <em>cabinets</em></h2>
+          <span>Claude Moncade design merged with this prototype</span>
+        </div>
+        <div class="cabinets">
+          <article class="cabinet featured selected" data-game="raidfield" data-mode="raidfield">
+            <div class="crt">
+              <div class="crt-status"><span>● Live · 496 online</span><span>V0.2</span></div>
+              <canvas width="320" height="180" data-preview="raidfield"></canvas>
+              <div class="crt-glow"></div>
+            </div>
+            <div class="cabinet-meta">
+              <h3>MonRaidfield <em>hybrid</em></h3>
+              <p>MOBA lanes, dungeon rooms, and base raids in one cabinet.</p>
+              <div><span>Live</span><span>On-chain run</span><span>8-bit proof</span></div>
+              <button class="boot-cabinet" type="button" data-mode="raidfield">Boot hybrid</button>
+            </div>
+          </article>
+          <article class="cabinet" data-game="monerge">
+            <div class="crt">
+              <div class="crt-status"><span>● Live · 62 online</span><span>OG</span></div>
+              <canvas width="320" height="180" data-preview="merge"></canvas>
+              <div class="crt-glow"></div>
+            </div>
+            <div class="cabinet-meta">
+              <h3>Monerge <em>puzzle</em></h3>
+              <p>Merge Monanimal tiles, remember hidden score, reveal your run.</p>
+              <div><span>Imported</span><span>Focus</span><span>Leaderboard</span></div>
+            </div>
+          </article>
+          <article class="cabinet" data-game="monbubble">
+            <div class="crt">
+              <div class="crt-status"><span>● Live · 184 online</span><span>Mass</span></div>
+              <canvas width="320" height="180" data-preview="blob"></canvas>
+              <div class="crt-glow"></div>
+            </div>
+            <div class="cabinet-meta">
+              <h3>Monbubble <em>arena</em></h3>
+              <p>Eat smaller blobs, dodge bigger ones, split to chase mass.</p>
+              <div><span>Bundle</span><span>Solo</span><span>Mass</span></div>
+            </div>
+          </article>
+          <article class="cabinet" data-game="monslither">
+            <div class="crt">
+              <div class="crt-status"><span>● Live · 248 online</span><span>PvP</span></div>
+              <canvas width="320" height="180" data-preview="snake"></canvas>
+              <div class="crt-glow"></div>
+            </div>
+            <div class="cabinet-meta">
+              <h3>Monslither <em>.io</em></h3>
+              <p>Coil around enemies, eat orbs, become the longest on Monad.</p>
+              <div><span>Bundle</span><span>Snake</span><span>PvP-ready</span></div>
+            </div>
+          </article>
+          <article class="cabinet coming">
+            <div class="crt"><div class="crt-status"><span>● Folded in</span><span>WIP</span></div><div class="static-letter">G</div></div>
+            <div class="cabinet-meta">
+              <h3>Mongeon <em>crawler</em></h3>
+              <p>Procedural dungeon crawl with a Monanimal squad.</p>
+              <div><span>Playable mode</span><span>Dungeon route</span></div>
+              <button class="boot-cabinet" type="button" data-mode="mongeon">Boot Mongeon</button>
+            </div>
+          </article>
+          <article class="cabinet coming">
+            <div class="crt"><div class="crt-status"><span>● Folded in</span><span>WIP</span></div><div class="static-letter">C</div></div>
+            <div class="cabinet-meta">
+              <h3>Monclash <em>siege</em></h3>
+              <p>Build your keep, defend against waves, raid the core.</p>
+              <div><span>Playable mode</span><span>Base raid</span></div>
+              <button class="boot-cabinet" type="button" data-mode="monclash">Boot Monclash</button>
+            </div>
+          </article>
+          <article class="cabinet coming">
+            <div class="crt"><div class="crt-status"><span>● Folded in</span><span>WIP</span></div><div class="static-letter">A</div></div>
+            <div class="cabinet-meta">
+              <h3>Monaba <em>moba</em></h3>
+              <p>Lane brawler DNA now drives the champion combat loop.</p>
+              <div><span>Playable mode</span><span>Lane fight</span></div>
+              <button class="boot-cabinet" type="button" data-mode="monaba">Boot Monaba</button>
+            </div>
+          </article>
+          <article class="cabinet coming">
+            <div class="crt"><div class="crt-status"><span>● Roadmap</span><span>SOON</span></div><div class="static-letter">P</div></div>
+            <div class="cabinet-meta">
+              <h3>Monparty <em>party</em></h3>
+              <p>Microgame cabinet reserved for the next playable wave.</p>
+              <div><span>Roadmap</span></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="hall" class="hall-grid">
+        <div>
+          <div class="section-head">
+            <h2>Hall of Nads <em>proofs</em></h2>
+            <span>Local fallback now, Monad receipts after deployment</span>
+          </div>
+          <div class="leaderboard" id="leaderboard"></div>
+        </div>
+        <aside id="chat" class="chat-panel">
+          <h2>Cabinet Chat</h2>
+          <div id="chatLog" class="chat-log" aria-live="polite"></div>
+          <form id="chatForm" class="chat-form">
+            <input id="chatInput" maxlength="90" placeholder="Send arcade chatter" autocomplete="off" />
+            <button type="submit">Send</button>
+          </form>
+        </aside>
+      </section>
+    </main>
+    <script type="module" src="./src/moncade.js?v=playable-modes"></script>
+  </body>
+</html>

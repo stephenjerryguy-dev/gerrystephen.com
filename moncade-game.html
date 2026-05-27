@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Monad Raidfield</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="topbar" aria-label="Game status">
+        <div class="brand">
+          <span class="mark" aria-hidden="true"></span>
+          <div>
+            <h1 id="gameTitle">Monad Raidfield</h1>
+            <p id="gameSubtitle">MOBA lanes, dungeon rooms, base raids</p>
+          </div>
+        </div>
+        <div class="resource-strip">
+          <span><strong id="shards">0</strong> shards</span>
+          <span><strong id="wave">1</strong> wave</span>
+          <span><strong id="rank">Scout</strong></span>
+        </div>
+        <div class="wallet">
+          <button id="connectWallet" type="button">Connect</button>
+          <button id="switchMonad" type="button">Monad</button>
+        </div>
+      </section>
+
+      <section class="game-wrap">
+        <aside class="quest-panel" aria-label="Raid objectives">
+          <h2>Raid Plan</h2>
+          <ol>
+            <li id="questMonsters">Clear 6 dungeon creeps</li>
+            <li id="questBase">Break the enemy core</li>
+            <li id="questBuild">Build defenses before wave 3</li>
+          </ol>
+          <div class="hero-card">
+            <div class="portrait"></div>
+            <div>
+              <h3>Veya, Shardbreaker</h3>
+              <p>Dash through rooms, pull creeps, spend shards on the keep.</p>
+            </div>
+          </div>
+        </aside>
+
+        <canvas id="game" width="1280" height="720" aria-label="Playable Monad Raidfield game canvas"></canvas>
+
+        <aside class="minimap-panel" aria-label="Minimap and base">
+          <canvas id="minimap" width="180" height="180"></canvas>
+          <div class="base-bars">
+            <label>Keep <span id="keepHp">100%</span></label>
+            <progress id="keepProgress" value="100" max="100"></progress>
+            <label>Enemy Core <span id="coreHp">100%</span></label>
+            <progress id="coreProgress" value="100" max="100"></progress>
+          </div>
+          <div class="settlement-card">
+            <label for="contractAddress">Settlement</label>
+            <input id="contractAddress" inputmode="text" autocomplete="off" placeholder="0x contract address" />
+            <span id="chainStatus">Local snapshot mode</span>
+          </div>
+          <button id="commitRun" type="button">Commit run</button>
+        </aside>
+      </section>
+
+      <section class="hud" aria-label="Actions">
+        <div class="bars">
+          <div>
+            <span>Health</span>
+            <progress id="hp" value="100" max="100"></progress>
+          </div>
+          <div>
+            <span>Energy</span>
+            <progress id="energy" value="100" max="100"></progress>
+          </div>
+        </div>
+        <div class="skillbar">
+          <button class="skill active" data-action="slash" type="button"><span>Q</span>Slash</button>
+          <button class="skill" data-action="shield" type="button"><span>W</span>Shield</button>
+          <button class="skill" data-action="dash" type="button"><span>E</span>Dash</button>
+          <button class="skill" data-action="vortex" type="button"><span>R</span>Vortex</button>
+        </div>
+        <div class="buildbar">
+          <button data-build="tower" type="button"><span>1</span>Tower 12</button>
+          <button data-build="wall" type="button"><span>2</span>Wall 6</button>
+          <button data-build="minion" type="button"><span>3</span>Minion 9</button>
+        </div>
+      </section>
+
+      <p class="status" id="status">Move with WASD or arrows. Click the map to path. Q/W/E/R casts skills. 1/2/3 builds near your keep.</p>
+    </main>
+
+    <script type="module" src="./src/game.js?v=moncade-modes"></script>
+  </body>
+</html>
