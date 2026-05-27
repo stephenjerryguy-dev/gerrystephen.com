@@ -13,6 +13,8 @@
     { "source": "/moncade/:path*", "destination": "/moncade.html" },
     { "source": "/moncade-game", "destination": "/moncade-game.html" },
     { "source": "/moncade-game/:path*", "destination": "/moncade-game.html" },
+    { "source": "/sappy", "destination": "/sappy.html" },
+    { "source": "/sappy/:path*", "destination": "/sappy.html" },
     { "source": "/:path*", "destination": "/" }
   ],
   "headers": [
@@ -30,7 +32,7 @@
       ]
     },
     {
-      "source": "/(index.html|monerge.html|moncade.html|moncade-game.html|service-worker.js|manifest.webmanifest|monerge.webmanifest|monerge|moncade|moncade-game)",
+      "source": "/(index.html|sappy.html|monerge.html|moncade.html|moncade-game.html|service-worker.js|manifest.webmanifest|monerge.webmanifest|sappy|monerge|moncade|moncade-game)",
       "headers": [
         { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
       ]
