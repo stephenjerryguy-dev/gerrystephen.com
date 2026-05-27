@@ -108,7 +108,14 @@ svg {
   background: white;
 }
 
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .connect,
+.x-login,
 .primary,
 .secondary,
 .small-connect,
@@ -126,6 +133,7 @@ svg {
 }
 
 .connect,
+.x-login,
 .primary,
 .small-connect {
   background: #000;
@@ -138,6 +146,17 @@ svg {
   padding: 16px 28px;
 }
 
+.x-login {
+  background: white;
+  color: #000;
+  box-shadow: none;
+}
+
+.x-login.connected {
+  background: var(--green);
+  color: white;
+}
+
 .secondary,
 .section-head a,
 .community a {
@@ -147,6 +166,7 @@ svg {
 }
 
 .connect:hover,
+.x-login:hover,
 .primary:hover,
 .secondary:hover,
 .small-connect:hover,
@@ -179,9 +199,9 @@ svg {
 .hero-inner {
   position: relative;
   max-width: 1600px;
-  min-height: 720px;
+  min-height: 610px;
   margin: 0 auto;
-  padding: 48px 24px;
+  padding: 38px 24px;
   display: grid;
   grid-template-columns: 0.92fr 1.08fr;
   align-items: center;
@@ -203,7 +223,7 @@ svg {
 
 .hero-copy > p {
   max-width: 550px;
-  margin: 24px 0 0;
+  margin: 18px 0 0;
   color: rgba(32, 26, 24, 0.78);
   font-size: 18px;
   font-weight: 650;
@@ -214,14 +234,23 @@ svg {
   display: flex;
   flex-wrap: wrap;
   gap: 16px;
-  margin-top: 28px;
+  margin-top: 22px;
 }
 
 .holder-row {
   display: flex;
   align-items: center;
   gap: 16px;
-  margin-top: 28px;
+  margin-top: 20px;
+}
+
+.login-note {
+  max-width: 520px;
+  margin: 14px 0 0;
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.45;
 }
 
 .avatar-stack {
@@ -253,7 +282,7 @@ svg {
 .hero-art {
   position: relative;
   display: flex;
-  min-height: 620px;
+  min-height: 520px;
   align-items: flex-end;
   justify-content: center;
 }
@@ -312,7 +341,7 @@ svg {
 .main {
   max-width: 1600px;
   margin: 0 auto;
-  padding: 32px 24px 64px;
+  padding: 20px 24px 64px;
 }
 
 .stats {
@@ -365,8 +394,9 @@ svg {
 .meme-vault,
 .meme-panel,
 .delegate-panel,
+.quick-hub,
 .community {
-  margin-top: 32px;
+  margin-top: 20px;
 }
 
 .section-head {
@@ -409,6 +439,7 @@ svg {
 }
 
 .feature-grid article,
+.quick-hub a,
 .asset-card,
 .studio-tools article,
 .studio-detail,
@@ -424,6 +455,56 @@ svg {
 
 .feature-grid article {
   padding: 22px;
+}
+
+.quick-hub {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.quick-hub a {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  column-gap: 12px;
+  align-items: start;
+  padding: 15px;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.quick-hub a:hover {
+  transform: translateY(-3px);
+  border-color: rgba(59, 124, 89, 0.38);
+  box-shadow: 0 16px 28px rgba(58, 41, 25, 0.12);
+}
+
+.quick-hub div {
+  grid-row: span 2;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(34, 220, 163, 0.16);
+  color: var(--green);
+}
+
+.quick-hub strong {
+  display: block;
+  min-width: 0;
+  font-size: 17px;
+  font-weight: 1000;
+}
+
+.quick-hub span {
+  display: block;
+  min-width: 0;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.45;
 }
 
 .feature-grid article > div {
@@ -553,6 +634,27 @@ svg {
   padding: 20px;
   background:
     linear-gradient(135deg, rgba(34, 220, 163, 0.18), rgba(255, 255, 255, 0.72) 42%, rgba(236, 226, 255, 0.48));
+}
+
+.delegate-panel.compact {
+  grid-template-columns: minmax(220px, 0.78fr) minmax(0, 1.22fr) auto;
+  padding: 15px;
+}
+
+.delegate-panel.compact .delegate-copy h2 {
+  display: none;
+}
+
+.delegate-panel.compact .delegate-copy p {
+  margin-top: 8px;
+}
+
+.delegate-panel.compact .delegate-stats article {
+  padding: 11px 12px;
+}
+
+.delegate-panel.compact .delegate-stats strong {
+  font-size: 18px;
 }
 
 .delegate-copy span {
@@ -1093,6 +1195,7 @@ footer strong {
   .hero-inner,
   .meme-panel,
   .delegate-panel,
+  .delegate-panel.compact,
   .community {
     grid-template-columns: 1fr;
   }
@@ -1107,6 +1210,7 @@ footer strong {
 
   .asset-grid,
   .contract-list,
+  .quick-hub,
   .community-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -1150,6 +1254,10 @@ footer strong {
     font-size: 13px;
   }
 
+  .x-login {
+    display: none;
+  }
+
   .hero-inner,
   .main {
     padding-left: 16px;
@@ -1178,6 +1286,7 @@ footer strong {
 
   .stats,
   .feature-grid,
+  .quick-hub,
   .studio-tools,
   .studio-detail,
   .delegate-stats,

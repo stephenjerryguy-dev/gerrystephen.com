@@ -159,11 +159,11 @@ const studioTools = [
   },
 ];
 
-const features = [
-  ["Browse holdings", "View Sappy Seals, staked Seals, PIXL, Omnia assets, Pixseals, keys, and artifacts in one place."],
-  ["Check your seals", "Liquid and staked Sappy Seals stay separate where it matters and roll up together where it helps."],
-  ["Delegate-aware access", "Use Delegate.xyz so a hot wallet can view supported assets from delegated vaults without connecting the vault directly."],
-  ["Create with assets", "Generate memes and X banners from the assets connected to your wallet."],
+const quickActions = [
+  ["Holdings", "Seals, staked Seals, delegated vaults, PIXL, Omnia, keys, Pixseals, and artifacts.", "#assets", "wallet"],
+  ["Studio", "Pick a Seal identity, prep banners, organize downloads, and keep creator tools close.", "#studio-tools", "sparkles"],
+  ["Meme Den", "Search and remix Sappy-ready templates from the same page.", "#memes", "image"],
+  ["Community", "Browse public ecosystem lanes before connecting your wallet.", "#community", "users"],
 ];
 
 const state = {
@@ -173,6 +173,8 @@ const state = {
   delegatedBalances: {},
   delegations: [],
   delegationStatus: "idle",
+  xProfile: null,
+  xStatus: "idle",
   assetFilter: "All",
   memeSearch: "",
   memeTag: "All",
@@ -187,6 +189,9 @@ function icon(name) {
     waves: '<path d="M2 6c2.5 0 2.5 2 5 2s2.5-2 5-2 2.5 2 5 2 2.5-2 5-2"></path><path d="M2 12c2.5 0 2.5 2 5 2s2.5-2 5-2 2.5 2 5 2 2.5-2 5-2"></path><path d="M2 18c2.5 0 2.5 2 5 2s2.5-2 5-2 2.5 2 5 2 2.5-2 5-2"></path>',
     sparkles: '<path d="m12 3-1.9 5.8L4 10.5l6.1 1.7L12 18l1.9-5.8 6.1-1.7-6.1-1.7Z"></path><path d="M5 3v4"></path><path d="M3 5h4"></path><path d="M19 17v4"></path><path d="M17 19h4"></path>',
     shield: '<path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3Z"></path><path d="m9 12 2 2 4-4"></path>',
+    image: '<rect width="18" height="18" x="3" y="3" rx="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"></path>',
+    users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>',
+    x: '<path d="M4 4l16 16"></path><path d="M20 4 4 20"></path>',
   };
   return `<svg viewBox="0 0 24 24" aria-hidden="true">${icons[name]}</svg>`;
 }
@@ -367,6 +372,44 @@ async function connectWallet() {
   render();
 }
 
+async function connectX() {
+  state.xStatus = "loading";
+  render();
+
+  if (window.sappyXLogin) {
+    try {
+      const profile = await window.sappyXLogin();
+      if (profile?.handle) {
+        state.xProfile = profile;
+        state.xStatus = "connected";
+        render();
+        return;
+      }
+    } catch (_) {
+      state.xStatus = "error";
+      render();
+      return;
+    }
+  }
+
+  state.xStatus = "needsProvider";
+  render();
+}
+
+function xLabel() {
+  if (state.xProfile?.handle) return `@${state.xProfile.handle.replace(/^@/, "")}`;
+  if (state.xStatus === "loading") return "Opening X...";
+  if (state.xStatus === "needsProvider") return "X Login Ready";
+  return "Login with X";
+}
+
+function xStatusText() {
+  if (state.xProfile?.handle) return `Signed in as @${state.xProfile.handle.replace(/^@/, "")}.`;
+  if (state.xStatus === "needsProvider") return "Connect the Dynamic X provider to window.sappyXLogin to complete live sign-in.";
+  if (state.xStatus === "error") return "X login needs another try.";
+  return "Use X for identity and wallet for asset ownership.";
+}
+
 function displayAmount(key) {
   const value = state.balances[key];
   if (value === undefined) return state.status === "connected" ? "0" : "Connect";
@@ -472,14 +515,15 @@ function render() {
             <span>ecosystem hub</span>
           </a>
           <div class="nav-links">
-            <a href="#home">Home</a>
-            <a href="#delegate">Delegate</a>
             <a href="#assets">Assets</a>
-            <a href="#studio">Studio</a>
+            <a href="#studio-tools">Studio</a>
             <a href="#memes">Memes</a>
             <a href="#community">Community</a>
           </div>
-          <button class="connect ${connected ? "connected" : ""}">${icon("wallet")}${connectLabel}</button>
+          <div class="nav-actions">
+            <button class="x-login ${state.xProfile ? "connected" : ""}">${icon("x")}${xLabel()}</button>
+            <button class="connect ${connected ? "connected" : ""}">${icon("wallet")}${connectLabel}</button>
+          </div>
         </nav>
       </header>
 
@@ -488,11 +532,13 @@ function render() {
         <div class="hero-inner">
           <div class="hero-copy">
             <h1>All your seals.<br /><span>Finally</span> in one place.</h1>
-            <p>Track Sappy Seals, staked Seals, delegated vaults, $PIXL, Omnia Pets, Omnia Items, Sappy Keys, Pixseals, and Digital Artifacts. Build your identity. Meet your people. Stay sappy.</p>
+            <p>Track liquid Seals, staked Seals, delegated vaults, $PIXL, Omnia, Pixseals, keys, and artifacts from one fast holder hub.</p>
             <div class="hero-actions">
               <button class="primary">Connect Wallet ${icon("arrow")}</button>
-              <a class="secondary" href="#community">Explore the Colony ${icon("waves")}</a>
+              <button class="secondary x-login-hero">${icon("x")}${xLabel()}</button>
+              <a class="secondary" href="#assets">Browse Assets ${icon("waves")}</a>
             </div>
+            <p class="login-note">${xStatusText()}</p>
             <div class="holder-row">
               <div class="avatar-stack">
                 <img src="/assets/sappy-hero.png" alt="" />
@@ -517,10 +563,19 @@ function render() {
           <div><p>$PIXL</p><strong>${displayAmount("pixl")}</strong><span>wallet balance</span></div>
         </section>
 
-        <section id="delegate" class="delegate-panel">
+        <section class="quick-hub">
+          ${quickActions.map(([title, body, href, iconName]) => `
+            <a href="${href}">
+              <div>${icon(iconName)}</div>
+              <strong>${title}</strong>
+              <span>${body}</span>
+            </a>
+          `).join("")}
+        </section>
+
+        <section id="delegate" class="delegate-panel compact">
           <div class="delegate-copy">
             <span>${icon("shield")} Delegate.xyz</span>
-            <h2>Vault-aware by default.</h2>
             <p>${delegateSummary()}</p>
           </div>
           <div class="delegate-stats">
@@ -531,27 +586,11 @@ function render() {
           <a href="https://delegate.xyz/" target="_blank" rel="noopener">Manage delegations ${icon("arrow")}</a>
         </section>
 
-        <section id="studio" class="studio">
-          <div class="section-head">
-            <h2>Collector and creator hub.</h2>
-            <p>A home base for Sappy holders to browse direct and delegated assets, create shareable outputs, and move through the ecosystem.</p>
-          </div>
-          <div class="feature-grid">
-            ${features.map(([title, body]) => `
-              <article>
-                <div>${icon("sparkles")}</div>
-                <h3>${title}</h3>
-                <p>${body}</p>
-              </article>
-            `).join("")}
-          </div>
-        </section>
-
         <section id="assets" class="asset-section">
           <div class="section-head split">
             <div>
               <h2>${connected ? "Your ecosystem assets." : "Sappy ecosystem assets."}</h2>
-              <p>${connected ? "Your connected wallet is now shaping the collection view." : "Explore the collections covered by the hub. Connect your wallet to make it yours."}</p>
+              <p>${connected ? "Direct and delegated balances are grouped into practical collection lanes." : "Filter the covered collections, then connect when you want the view personalized."}</p>
             </div>
             <a href="https://www.sappy.lol/~/omnia" target="_blank" rel="noopener">Open sappy.lol ${icon("arrow")}</a>
           </div>
@@ -566,11 +605,11 @@ function render() {
           </div>
         </section>
 
-        <section class="studio-page">
+        <section id="studio-tools" class="studio-page">
           <div class="section-head split">
             <div>
-              <h2>Your Seal Studio.</h2>
-              <p>Build a holder profile, prepare banners, save creator outputs, and keep downloadable ecosystem assets close.</p>
+              <h2>Seal Studio.</h2>
+              <p>Pick a task and work from the same connected asset pool.</p>
             </div>
             <button class="small-connect">Connect Wallet ${icon("arrow")}</button>
           </div>
@@ -670,6 +709,8 @@ function render() {
 
   document.querySelector(".connect").addEventListener("click", connectWallet);
   document.querySelector(".primary").addEventListener("click", connectWallet);
+  document.querySelector(".x-login")?.addEventListener("click", connectX);
+  document.querySelector(".x-login-hero")?.addEventListener("click", connectX);
   document.querySelectorAll(".small-connect").forEach((button) => button.addEventListener("click", connectWallet));
   document.querySelectorAll("[data-asset-filter]").forEach((button) => {
     button.addEventListener("click", () => {
