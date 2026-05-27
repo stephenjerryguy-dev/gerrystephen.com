@@ -1,13 +1,13 @@
 <svg width="320" height="240" viewBox="0 0 320 240" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <filter id="s" x="-20%" y="-30%" width="140%" height="160%"><feDropShadow dx="0" dy="12" stdDeviation="9" flood-color="#120B2E" flood-opacity=".32"/></filter>
+  <filter id="s" x="-20%" y="-30%" width="140%" height="160%"><feDropShadow dx="0" dy="12" stdDeviation="9" flood-color="#120B2E" flood-opacity=".32"></feDropShadow></filter>
   <g filter="url(#s)" stroke="#13091F" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
-    <rect x="66" y="58" width="188" height="130" rx="42" fill="#2DBFB0"/>
-    <path d="M107 58L91 27M210 58L232 27" stroke="#13091F"/>
-    <path d="M92 166C122 189 201 190 233 166" stroke="#168E86" stroke-width="6"/>
-    <path d="M82 118H53M267 118H296" stroke="#13091F"/>
+    <rect x="66" y="58" width="188" height="130" rx="42" fill="#2DBFB0"></rect>
+    <path d="M107 58L91 27M210 58L232 27" stroke="#13091F"></path>
+    <path d="M92 166C122 189 201 190 233 166" stroke="#168E86" stroke-width="6"></path>
+    <path d="M82 118H53M267 118H296" stroke="#13091F"></path>
   </g>
-  <rect x="93" y="88" width="55" height="43" rx="20" fill="#F9FAFF" stroke="#13091F" stroke-width="6"/>
-  <rect x="174" y="88" width="55" height="43" rx="20" fill="#F9FAFF" stroke="#13091F" stroke-width="6"/>
-  <circle cx="121" cy="110" r="9" fill="#13091F"/><circle cx="201" cy="110" r="9" fill="#13091F"/>
-  <path d="M130 150C151 162 179 162 201 150" stroke="#0E1F2C" stroke-width="8" stroke-linecap="round"/>
+  <rect x="93" y="88" width="55" height="43" rx="20" fill="#F9FAFF" stroke="#13091F" stroke-width="6"></rect>
+  <rect x="174" y="88" width="55" height="43" rx="20" fill="#F9FAFF" stroke="#13091F" stroke-width="6"></rect>
+  <circle cx="121" cy="110" r="9" fill="#13091F"></circle><circle cx="201" cy="110" r="9" fill="#13091F"></circle>
+  <path d="M130 150C151 162 179 162 201 150" stroke="#0E1F2C" stroke-width="8" stroke-linecap="round"></path>
 </svg>
