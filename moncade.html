@@ -893,6 +893,39 @@ canvas { display: block; }
   color: var(--ink);
 }
 
+/* === Monslither mobile controls === */
+.snake-mobile-controls {
+  position: absolute;
+  right: calc(16px + env(safe-area-inset-right));
+  bottom: calc(76px + env(safe-area-inset-bottom));
+  z-index: 5;
+  display: none;
+  pointer-events: none;
+}
+.snake-boost-btn {
+  pointer-events: auto;
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  border: 1px solid rgba(140,247,240,0.42);
+  background:
+    radial-gradient(circle at 35% 28%, rgba(255,255,255,0.22), transparent 36%),
+    linear-gradient(135deg, rgba(159,124,255,0.92), rgba(45,191,176,0.88));
+  color: #0a0418;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  box-shadow: 0 16px 38px rgba(0,0,0,0.42), 0 0 24px rgba(140,247,240,0.24);
+  touch-action: none;
+  user-select: none;
+}
+.snake-boost-btn:active {
+  transform: scale(0.96);
+  filter: brightness(1.15);
+}
+
 /* === Monerge board === */
 .me-stage { display: grid; place-items: center; padding: 18px; }
 .me-wrap { display: flex; flex-direction: column; gap: 16px; align-items: center; }
@@ -1444,7 +1477,7 @@ canvas { display: block; }
   .game-help-bar {
     left: 10px;
     right: 10px;
-    bottom: calc(12px + env(safe-area-inset-bottom));
+    bottom: calc(10px + env(safe-area-inset-bottom));
     transform: none;
     width: auto;
     border-radius: 10px;
@@ -1453,6 +1486,7 @@ canvas { display: block; }
     letter-spacing: 0.08em;
     text-align: center;
   }
+  .snake-mobile-controls { display: block; }
   .game-card {
     width: min(420px, calc(100vw - 24px));
     max-height: calc(100dvh - 88px - env(safe-area-inset-top) - env(safe-area-inset-bottom));

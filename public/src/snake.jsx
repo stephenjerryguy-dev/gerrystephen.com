@@ -8,21 +8,21 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
 // ============================================================
 // GAME CONSTANTS
 // ============================================================
-const WORLD = 3200;
-const MAX_BOTS = 12;
-const ORB_COUNT = 320;
-const BASE_SPEED = 2.8;
-const BOOST_SPEED = 5.2;
-const TURN_RATE = 0.07;
-const SEG_GAP = 6.5;
+const WORLD = 4200;
+const MAX_BOTS = 16;
+const ORB_COUNT = 540;
+const BASE_SPEED = 3.0;
+const BOOST_SPEED = 5.6;
+const TURN_RATE = 0.085;
+const SEG_GAP = 7;
 const HEAD_R = 12;
-const BOOST_COST_RATE = 0.03; // length per frame while boosting
+const BOOST_COST_RATE = 0.026; // length per frame while boosting
 
 // ============================================================
 // FACTORIES
 // ============================================================
 function makeSnake({ x, y, name, monanimalId, skin, isPlayer = false }) {
-  const startLen = 30;
+  const startLen = 36;
   const angle = Math.random() * Math.PI * 2;
   const seg = [];
   for (let i = 0; i < startLen; i++) seg.push({ x: x - Math.cos(angle) * i * SEG_GAP, y: y - Math.sin(angle) * i * SEG_GAP });
@@ -45,13 +45,42 @@ function makeSnake({ x, y, name, monanimalId, skin, isPlayer = false }) {
 
 function makeOrb() {
   const palette = ['#9F7CFF','#FF4FA1','#8CF7F0','#FFE66D','#2DBFB0','#C27C46','#d8c7ff'];
+  const roll = Math.random();
+  const tier =
+    roll > 0.985 ? { r: rand(8.5, 12), value: 12, growth: 4.4 } :
+    roll > 0.92  ? { r: rand(5.6, 8.2), value: 5,  growth: 2.0 } :
+    roll > 0.58  ? { r: rand(3.4, 5.2), value: 2,  growth: 0.95 } :
+                   { r: rand(2.0, 3.2), value: 1,  growth: 0.45 };
   return {
     x: rand(40, WORLD - 40),
     y: rand(40, WORLD - 40),
-    r: rand(2.5, 4.5),
+    r: tier.r,
     color: palette[Math.floor(Math.random() * palette.length)],
-    value: 1,
+    value: tier.value,
+    growth: tier.growth,
+    pulse: rand(0, Math.PI * 2),
   };
+}
+
+function makeDeathOrb(seg, skin) {
+  const r = rand(3, 7.5);
+  return {
+    x: seg.x + rand(-10, 10),
+    y: seg.y + rand(-10, 10),
+    r,
+    color: skin.body,
+    value: Math.max(1, Math.round(r * 0.8)),
+    growth: r * 0.42,
+    pulse: rand(0, Math.PI * 2),
+  };
+}
+
+function snakeScale(sn) {
+  return clamp(1 + Math.sqrt(Math.max(0, sn.length - 36)) / 28, 1, 2.35) * (sn.sizeMul || 1);
+}
+
+function pickupRadius(sn) {
+  return (HEAD_R + 12) * snakeScale(sn);
 }
 
 function spawnSnakeAtEdge({ name, monanimalId, skin, isPlayer = false }) {
@@ -130,7 +159,7 @@ function SnakeGame({ wallet, onExit }) {
       t: 0,
     };
     startTimeRef.current = performance.now();
-    setHud({ score: 0, length: 30, kills: 0, rank: bots.length + 1, alive: true });
+    setHud({ score: 0, length: 36, kills: 0, rank: bots.length + 1, alive: true });
     setRunStats(null);
     setTxState(null);
     setPhase('playing');
@@ -143,7 +172,10 @@ function SnakeGame({ wallet, onExit }) {
     if (phase !== 'playing') return;
     const stage = stageRef.current;
     if (!stage) return;
+    stage.style.touchAction = 'none';
+    stage.style.userSelect = 'none';
     const onMove = (e) => {
+      if (e.cancelable) e.preventDefault();
       const rect = stage.getBoundingClientRect();
       const cx = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
       const cy = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
@@ -152,8 +184,14 @@ function SnakeGame({ wallet, onExit }) {
       inputRef.current.focused = true;
     };
     const onDown = (e) => {
+      if (e.cancelable) e.preventDefault();
+      if (e.touches) {
+        inputRef.current.boost = e.touches.length > 1;
+        onMove(e);
+        return;
+      }
       inputRef.current.boost = true;
-      if (e.touches) onMove(e);
+      onMove(e);
     };
     const onUp = () => { inputRef.current.boost = false; };
     const onKey = (e) => {
@@ -169,12 +207,15 @@ function SnakeGame({ wallet, onExit }) {
     stage.addEventListener('mousedown', onDown);
     stage.addEventListener('mouseup',   onUp);
     stage.addEventListener('mouseleave', onUp);
-    stage.addEventListener('touchstart', onDown, { passive: true });
-    stage.addEventListener('touchmove',  onMove, { passive: true });
+    stage.addEventListener('touchstart', onDown, { passive: false });
+    stage.addEventListener('touchmove',  onMove, { passive: false });
     stage.addEventListener('touchend',   onUp);
+    stage.addEventListener('touchcancel', onUp);
     window.addEventListener('keydown', onKey);
     window.addEventListener('keyup',   onKeyUp);
     return () => {
+      stage.style.touchAction = '';
+      stage.style.userSelect = '';
       stage.removeEventListener('mousemove', onMove);
       stage.removeEventListener('mousedown', onDown);
       stage.removeEventListener('mouseup',   onUp);
@@ -182,6 +223,7 @@ function SnakeGame({ wallet, onExit }) {
       stage.removeEventListener('touchstart', onDown);
       stage.removeEventListener('touchmove',  onMove);
       stage.removeEventListener('touchend',   onUp);
+      stage.removeEventListener('touchcancel', onUp);
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('keyup',   onKeyUp);
     };
@@ -309,9 +351,11 @@ function SnakeGame({ wallet, onExit }) {
       let diff = sn.targetAngle - sn.angle;
       while (diff > Math.PI)  diff -= Math.PI * 2;
       while (diff < -Math.PI) diff += Math.PI * 2;
-      const turn = TURN_RATE * (sn.turnMul || 1);
+      const scale = snakeScale(sn);
+      const turn = TURN_RATE * (sn.turnMul || 1) / Math.max(1, scale * 0.42);
       sn.angle += clamp(diff, -turn, turn);
-      const speed = (sn.boosting ? BOOST_SPEED : BASE_SPEED) * (sn.speedMul || 1);
+      const massDrag = clamp(1 - Math.max(0, sn.length - 36) / 1500, 0.72, 1);
+      const speed = (sn.boosting ? BOOST_SPEED : BASE_SPEED) * (sn.speedMul || 1) * massDrag;
       const head = sn.seg[0];
       const nx = head.x + Math.cos(sn.angle) * speed;
       const ny = head.y + Math.sin(sn.angle) * speed;
@@ -322,16 +366,16 @@ function SnakeGame({ wallet, onExit }) {
       }
       sn.seg.unshift({ x: nx, y: ny });
       // length budget
-      let want = Math.max(20, Math.floor(sn.length));
+      let want = Math.max(24, Math.floor(sn.length));
       if (sn.seg.length > want) sn.seg.length = want;
       // boost cost
       if (sn.boosting) {
-        sn.length = Math.max(20, sn.length - BOOST_COST_RATE);
+        sn.length = Math.max(24, sn.length - BOOST_COST_RATE);
         if (Math.random() < 0.4) {
           // drop orbs while boosting
           const tail = sn.seg[sn.seg.length - 1];
           if (tail) {
-            s.orbs.push({ x: tail.x + rand(-6, 6), y: tail.y + rand(-6, 6), r: 3, color: sn.skin.body, value: 1 });
+            s.orbs.push({ x: tail.x + rand(-6, 6), y: tail.y + rand(-6, 6), r: 3, color: sn.skin.body, value: 1, growth: 0.35, pulse: rand(0, Math.PI * 2) });
           }
         }
       }
@@ -341,12 +385,12 @@ function SnakeGame({ wallet, onExit }) {
     s.snakes.forEach((sn) => {
       if (!sn.alive) return;
       const head = sn.seg[0];
-      const r = (HEAD_R + 14) * (sn.sizeMul || 1);
+      const r = pickupRadius(sn);
       for (let i = s.orbs.length - 1; i >= 0; i--) {
         const o = s.orbs[i];
         const dx = o.x - head.x, dy = o.y - head.y;
-        if (dx * dx + dy * dy < r * r) {
-          sn.length += 0.7;
+        if (dx * dx + dy * dy < (r + o.r) ** 2) {
+          sn.length += o.growth || 0.7;
           sn.score  += o.value;
           s.orbs.splice(i, 1);
         }
@@ -359,14 +403,14 @@ function SnakeGame({ wallet, onExit }) {
     s.snakes.forEach((sn) => {
       if (!sn.alive) return;
       const head = sn.seg[0];
-      const myR = HEAD_R * (sn.sizeMul || 1);
+      const myR = HEAD_R * snakeScale(sn);
       for (const other of s.snakes) {
         if (other === sn || !other.alive) continue;
         // skip first few segs to avoid self-kill on tight turns
         for (let i = 6; i < other.seg.length; i += 2) {
           const seg = other.seg[i];
           const dx = seg.x - head.x, dy = seg.y - head.y;
-          const segR = 7 * (other.sizeMul || 1);
+          const segR = 7 * snakeScale(other);
           if (dx * dx + dy * dy < (myR + segR) ** 2) {
             // sn died, other gets kill
             killSnake(s, sn);
@@ -408,7 +452,7 @@ function SnakeGame({ wallet, onExit }) {
     // explode into orbs
     sn.seg.forEach((seg, i) => {
       if (i % 2 === 0) {
-        s.orbs.push({ x: seg.x + rand(-8, 8), y: seg.y + rand(-8, 8), r: rand(2.5, 4.5), color: sn.skin.body, value: 2 });
+        s.orbs.push(makeDeathOrb(seg, sn.skin));
       }
     });
   }
@@ -455,15 +499,21 @@ function SnakeGame({ wallet, onExit }) {
       // cull
       if (x < -20 * dpr - offX || x > w - offX + 20 * dpr) continue;
       if (y < -20 * dpr - offY || y > h - offY + 20 * dpr) continue;
-      const r = o.r * dpr;
+      const shimmer = 1 + Math.sin(s.t * 0.045 + (o.pulse || 0)) * 0.08;
+      const r = o.r * shimmer * dpr;
       // glow
       const g = ctx.createRadialGradient(x, y, 0, x, y, r * 3);
       g.addColorStop(0, o.color + 'aa');
       g.addColorStop(1, o.color + '00');
       ctx.fillStyle = g;
       ctx.beginPath(); ctx.arc(x, y, r * 3, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#fff';
+      ctx.fillStyle = o.r > 5 ? o.color : '#fff';
       ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+      if (o.r > 7) {
+        ctx.strokeStyle = '#fff8';
+        ctx.lineWidth = 1.5 * dpr;
+        ctx.beginPath(); ctx.arc(x, y, r * 1.45, 0, Math.PI * 2); ctx.stroke();
+      }
     }
 
     // snakes (back-to-front by length so big ones overlap small)
@@ -480,13 +530,15 @@ function SnakeGame({ wallet, onExit }) {
   function drawSnake(ctx, sn, dpr) {
     const seg = sn.seg;
     if (!seg.length) return;
-    const baseR = 10 * (sn.sizeMul || 1) * dpr;
+    const scale = snakeScale(sn);
+    const baseR = 9.5 * scale * dpr;
     // boost shimmer
     const boostBoost = sn.boosting ? 1.15 : 1.0;
     // body — gradient from glow at edges to body color
     for (let i = seg.length - 1; i >= 1; i--) {
       const p = seg[i];
-      const r = baseR * boostBoost * (1 + 0.18 * Math.sin(i * 0.3 + sn.seg.length));
+      const taper = clamp(i / Math.max(1, seg.length * 0.22), 0.55, 1);
+      const r = baseR * boostBoost * taper * (1 + 0.12 * Math.sin(i * 0.3 + sn.seg.length));
       ctx.fillStyle = sn.skin.body;
       ctx.beginPath(); ctx.arc(p.x * dpr, p.y * dpr, r, 0, Math.PI * 2); ctx.fill();
       // ridge highlight
@@ -535,7 +587,8 @@ function SnakeGame({ wallet, onExit }) {
       ctx.fillStyle = sn.isPlayer ? '#8CF7F0' : 'rgba(238,246,251,0.7)';
       ctx.font = `700 ${Math.floor(10 * dpr)}px JetBrains Mono, monospace`;
       ctx.textAlign = 'center';
-      ctx.fillText(sn.name, head.x * dpr, head.y * dpr - headR - 6 * dpr);
+      const label = sn.isPlayer ? `${sn.name} · ${Math.floor(sn.length)}` : sn.name;
+      ctx.fillText(label, head.x * dpr, head.y * dpr - headR - 6 * dpr);
     }
   }
 
@@ -661,6 +714,7 @@ function SnakeGame({ wallet, onExit }) {
 
             {/* control hint, fades after a few seconds */}
             <ControlHint />
+            <SnakeMobileControls inputRef={inputRef} />
           </>
         )}
 
@@ -710,7 +764,29 @@ function ControlHint() {
       letterSpacing: '0.18em', textTransform: 'uppercase',
       color: 'var(--ink-soft)', textAlign: 'center',
     }}>
-      Move with your cursor · Click or [SPACE] to boost
+      Drag to steer · Boost with click, button, two fingers, or [SPACE]
+    </div>
+  );
+}
+
+function SnakeMobileControls({ inputRef }) {
+  const setBoost = (boost) => {
+    inputRef.current.boost = boost;
+    inputRef.current.focused = true;
+  };
+  return (
+    <div className="snake-mobile-controls">
+      <button
+        className="snake-boost-btn"
+        onMouseDown={() => setBoost(true)}
+        onMouseUp={() => setBoost(false)}
+        onMouseLeave={() => setBoost(false)}
+        onTouchStart={(e) => { e.preventDefault(); setBoost(true); }}
+        onTouchEnd={(e) => { e.preventDefault(); setBoost(false); }}
+        onTouchCancel={() => setBoost(false)}
+      >
+        Boost
+      </button>
     </div>
   );
 }
