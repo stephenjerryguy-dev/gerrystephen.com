@@ -16,6 +16,8 @@ const B_START_MASS = 24;
 const B_MAX_CELLS = 8;
 const B_BASE_SPEED = 3.05;
 const B_SPLIT_BOOST = 21;
+const B_SPLIT_REMERGE_MS = 6500;
+const B_VIRUS_REMERGE_MS = 9000;
 
 function massToRadius(m) { return Math.sqrt(m) * 5.5; }
 function speedFromMass(m) {
@@ -436,10 +438,10 @@ function BlobGame({ wallet, onExit }) {
           mass: c.mass / 2,
           vx: Math.cos(ang) * B_SPLIT_BOOST,
           vy: Math.sin(ang) * B_SPLIT_BOOST,
-          mergeAt: Date.now() + 10_000,
+          mergeAt: Date.now() + B_SPLIT_REMERGE_MS,
         };
         c.mass /= 2;
-        c.mergeAt = Date.now() + 10_000;
+        c.mergeAt = Date.now() + B_SPLIT_REMERGE_MS;
         newCells.push(piece);
       }
     }
@@ -455,10 +457,10 @@ function BlobGame({ wallet, onExit }) {
       b.cells.push({
         x: c.x, y: c.y, mass: each,
         vx: Math.cos(ang) * 14, vy: Math.sin(ang) * 14,
-        mergeAt: Date.now() + 14_000,
+        mergeAt: Date.now() + B_VIRUS_REMERGE_MS,
       });
     }
-    c.mergeAt = Date.now() + 14_000;
+    c.mergeAt = Date.now() + B_VIRUS_REMERGE_MS;
   }
   function ejectMass(s, b) {
     for (const c of b.cells) {

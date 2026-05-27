@@ -25,13 +25,13 @@ const TIERS = [
   { v: 16,   label: '16',   img: 'salmonad',  color: '#C27C46', textOn: 'light' },
   { v: 32,   label: '32',   img: 'mokadel',   color: '#7B49B7', textOn: 'light' },
   { v: 64,   label: '64',   img: 'emonad',    color: '#FFE66D', textOn: 'dark'  },
-  { v: 128,  label: '128',  img: null,        color: '#FF4FA1', textOn: 'light' },
-  { v: 256,  label: '256',  img: null,        color: '#2DBFB0', textOn: 'dark'  },
-  { v: 512,  label: '512',  img: null,        color: '#7AC9E8', textOn: 'dark'  },
-  { v: 1024, label: '1024', img: null,        color: '#FFE66D', textOn: 'dark'  },
-  { v: 2048, label: '2048', img: null,        color: '#FF4FA1', textOn: 'light' },
-  { v: 4096, label: '4k',   img: null,        color: '#9F7CFF', textOn: 'light' },
-  { v: 8192, label: '8k',   img: null,        color: '#8CF7F0', textOn: 'dark'  },
+  { v: 128,  label: '128',  img: 'hypernad',  color: '#FF4FA1', textOn: 'light' },
+  { v: 256,  label: '256',  img: 'mondana',   color: '#2DBFB0', textOn: 'dark'  },
+  { v: 512,  label: '512',  img: 'mosferatu', color: '#7AC9E8', textOn: 'dark'  },
+  { v: 1024, label: '1024', img: 'moyaki',    color: '#FFE66D', textOn: 'dark'  },
+  { v: 2048, label: '2048', img: 'nadbot',    color: '#FF4FA1', textOn: 'light' },
+  { v: 4096, label: '4k',   img: 'shramp',    color: '#9F7CFF', textOn: 'light' },
+  { v: 8192, label: '8k',   img: 'emonad',    color: '#8CF7F0', textOn: 'dark'  },
 ];
 
 let TILE_ID = 1;

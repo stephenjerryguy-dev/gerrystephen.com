@@ -48,6 +48,7 @@ const CABINETS = [
       { label: 'Reveal', tone: 'pink' },
     ],
     Preview: 'MergePreview',
+    external: '/monerge',
     cta: 'Enter Lobby',
   },
   {
@@ -61,7 +62,8 @@ const CABINETS = [
       { label: 'Bump',     tone: 'pink' },
     ],
     Preview: 'MongeonPreview',
-    cta: 'Enter Lobby',
+    cta: 'Coming Soon',
+    comingSoon: true,
   },
   {
     id: 'monclash',
@@ -74,7 +76,8 @@ const CABINETS = [
       { label: 'Solo',   tone: 'pink' },
     ],
     Preview: 'MonclashPreview',
-    cta: 'Enter Lobby',
+    cta: 'Coming Soon',
+    comingSoon: true,
   },
   {
     id: 'monaba',
@@ -87,7 +90,8 @@ const CABINETS = [
       { label: 'WASD',   tone: 'pink' },
     ],
     Preview: 'MonabaPreview',
-    cta: 'Enter Lobby',
+    cta: 'Coming Soon',
+    comingSoon: true,
   },
   {
     id: 'moncards',
@@ -100,7 +104,8 @@ const CABINETS = [
       { label: 'Speed',  tone: 'pink' },
     ],
     Preview: 'MoncardsPreview',
-    cta: 'Enter Lobby',
+    cta: 'Coming Soon',
+    comingSoon: true,
   },
   {
     id: 'monparty',
@@ -113,7 +118,8 @@ const CABINETS = [
       { label: 'Combo', tone: 'pink' },
     ],
     Preview: 'MonpartyPreview',
-    cta: 'Enter Lobby',
+    cta: 'Coming Soon',
+    comingSoon: true,
   },
 ];
 
@@ -179,11 +185,14 @@ function Cabinet({ cab, onPlay }) {
   const PreviewComp = window[cab.Preview];
   const counts = PLAYER_COUNTS[cab.id] || { live: 0, peak: 0 };
   const tier = ONCHAIN_TIERS[cab.id];
+  const ticker = cab.comingSoon
+    ? 'In production · public soon'
+    : `Peak ${fmt(counts.peak)} · Now ${counts.live}`;
   return (
-    <article className={`cabinet ${cab.featured ? 'featured' : ''}`}>
+    <article className={`cabinet ${cab.featured ? 'featured' : ''} ${cab.comingSoon ? 'coming-soon' : ''}`}>
       <div className="crt">
         <div className="crt-status">
-          <span>● Live · {counts.live} online</span>
+          <span>{cab.comingSoon ? '◆ Build queue' : `● Live · ${counts.live} online`}</span>
           {tier && (
             <span className={`crt-tier tier-${tier.tier}`} title={tier.desc}>
               <span className="crt-tier-dot"></span>
@@ -191,17 +200,17 @@ function Cabinet({ cab, onPlay }) {
             </span>
           )}
         </div>
-        {PreviewComp && <PreviewComp />}
+        {cab.comingSoon ? <div className="crt-static">SOON</div> : PreviewComp && <PreviewComp />}
         <div className="crt-glow"></div>
       </div>
       <div className="cabinet-meta">
         <div>
           <h3>{cab.name}<em>{cab.sub}</em></h3>
-          <div className="ticker">Peak <strong>{fmt(counts.peak)}</strong> · Now <strong>{counts.live}</strong></div>
+          <div className="ticker">{ticker}</div>
         </div>
         <div className="players">
-          <strong>{counts.live}</strong>
-          <span>online</span>
+          <strong>{cab.comingSoon ? 'SOON' : counts.live}</strong>
+          <span>{cab.comingSoon ? 'queue' : 'online'}</span>
         </div>
       </div>
       <p className="cabinet-blurb">{cab.blurb}</p>
@@ -218,9 +227,9 @@ function Cabinet({ cab, onPlay }) {
       <div className="cabinet-tags">
         {cab.tags.map((t) => <span key={t.label} className={`cabinet-tag ${t.tone}`}>{t.label}</span>)}
       </div>
-      <button className="cabinet-play" onClick={() => onPlay(cab)}>
-        <span>▶ {cab.cta || 'Play'}</span>
-        <span className="arrow">→</span>
+      <button className={`cabinet-play ${cab.comingSoon ? 'coming' : ''}`} onClick={() => !cab.comingSoon && onPlay(cab)} disabled={!!cab.comingSoon}>
+        <span>{cab.comingSoon ? '◆' : '▶'} {cab.cta || 'Play'}</span>
+        <span className="arrow">{cab.comingSoon ? '·' : '→'}</span>
       </button>
     </article>
   );
@@ -242,7 +251,6 @@ function LeaderboardSnapshot({ wallet }) {
       <LeaderboardCard title="Monslither" game="snake" rows={lb.snake} wallet={wallet} />
       <LeaderboardCard title="Monbubble"  game="blob"  rows={lb.blob}  wallet={wallet} />
       <LeaderboardCard title="Monerge"    game="monerge" rows={lb.monerge}  wallet={wallet} />
-      <LeaderboardCard title="Monparty"   game="monparty" rows={lb.monparty} wallet={wallet} />
     </div>
   );
 }
@@ -315,7 +323,7 @@ function Lobby({ onPlay, onConnect, onDisconnect, wallet,
             <span className="kicker">Monad Arcade · est. 2026</span>
             <h1>MONCADE</h1>
             <p>
-              An arcade of fully on-chain games starring the official Monanimals.
+              An arcade of Monad-native games starring the official Monanimals.
               Connect your wallet, pick a cabinet, chat with the floor, post your run on Monad.
             </p>
             <div className="lobby-jumps">
@@ -327,7 +335,7 @@ function Lobby({ onPlay, onConnect, onDisconnect, wallet,
 
           <div className="section-head">
             <h2>Now Playing<em>games</em></h2>
-            <div className="meta">{CABINETS.length} live</div>
+            <div className="meta">3 polished · 5 coming soon</div>
           </div>
           <div className="cabinets">
             {CABINETS.map((c) => <Cabinet key={c.id} cab={c} onPlay={onPlay} />)}

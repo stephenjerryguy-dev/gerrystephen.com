@@ -29,6 +29,8 @@ const { useState, useEffect, useRef, useCallback } = React;
 // ============================================================
 const DYNAMIC_ENV_ID = 'moncade-mainnet-1a4f9c2b';
 const DYNAMIC_KEY    = 'moncade.dynamic.v2';
+const X_SIGN_IN_ENABLED = false;
+const CHAT_BOTS_ENABLED = false;
 
 function loadDynamicCache() {
   try { return JSON.parse(localStorage.getItem(DYNAMIC_KEY) || 'null'); }
@@ -94,6 +96,10 @@ function useDynamicTwitter() {
   const state = useDynamicSlice('twitter');
 
   const connect = useCallback(async () => {
+    if (!X_SIGN_IN_ENABLED) {
+      pushToast?.('X sign-in coming soon', 'pink');
+      return null;
+    }
     const result = await openDynamicAuth({ prefer: 'twitter' });
     if (!result) return null;
     if (result.wallet)  setDynamic({ wallet:  result.wallet });
@@ -198,7 +204,8 @@ function openDynamicAuth({ prefer = 'wallet' } = {}) {
   return new Promise((resolve) => {
     const w = window.open('', 'dynamic-auth', 'width=440,height=720');
     if (!w) {
-      setTimeout(() => resolve({ wallet: makeMpcWallet(), twitter: prefer === 'twitter' ? synthTwitter() : null }), 800);
+      const wantsTwitter = prefer === 'twitter' && X_SIGN_IN_ENABLED;
+      setTimeout(() => resolve({ wallet: makeMpcWallet(), twitter: wantsTwitter ? synthTwitter() : null }), 800);
       return;
     }
     w.document.write(dynamicAuthHtml(prefer));
@@ -213,7 +220,15 @@ function openDynamicAuth({ prefer = 'wallet' } = {}) {
         if (choice) {
           clearInterval(checkInt);
           let wallet = null, twitter = null;
-          if (choice === 'twitter') { wallet = makeMpcWallet(); twitter = synthTwitter(); }
+          if (choice === 'twitter') {
+            if (!X_SIGN_IN_ENABLED) {
+              w.close();
+              pushToast?.('X sign-in coming soon', 'pink');
+              resolve(null);
+              return;
+            }
+            wallet = makeMpcWallet(); twitter = synthTwitter();
+          }
           else if (choice === 'google') { wallet = makeMpcWallet(); }
           else if (choice === 'email')  { wallet = makeMpcWallet(); }
           else if (choice === 'wallet') {
@@ -266,14 +281,14 @@ function dynamicAuthHtml(prefer) {
   <div class="main" id="main">
     <h1>Sign in to Moncade</h1>
     <p class="sub">Connect a wallet or sign in with social — Dynamic provisions an MPC wallet for you instantly.</p>
-    <button class="x-btn" id="btn-x" data-choice="${prefer === 'twitter' ? 'twitter' : 'wallet'}">
-      ${prefer === 'twitter'
+    <button class="x-btn" id="btn-x" data-choice="${prefer === 'twitter' && X_SIGN_IN_ENABLED ? 'twitter' : 'wallet'}">
+      ${prefer === 'twitter' && X_SIGN_IN_ENABLED
         ? '<span class="x-glyph">𝕏</span>Continue with X'
         : '<span style="font-size:18px">🦊</span>Continue with Wallet'}
     </button>
     <div class="divider">or</div>
     <div class="alt-list">
-      ${prefer === 'twitter' ? '' : `
+      ${prefer === 'twitter' || !X_SIGN_IN_ENABLED ? '' : `
       <button class="alt-btn" data-choice="twitter">
         <div class="alt-ico" style="background: #000; color: #fff;">𝕏</div>
         Continue with X
@@ -320,42 +335,21 @@ function dynamicAuthHtml(prefer) {
 // ============================================================
 // CHAT — global + per-game. Each message wallet-signed via personal_sign.
 // ============================================================
-const CHAT_KEY = 'moncade.chat.v1';
+const CHAT_KEY = 'moncade.chat.v2';
 const CHAT_ROOMS = [
   { id: 'lobby',    label: 'Lobby',    icon: '◆' },
   { id: 'snake',    label: 'Monslither', icon: '~' },
   { id: 'blob',     label: 'Monbubble',  icon: '○' },
   { id: 'monerge',  label: 'Monerge',    icon: '⊞' },
-  { id: 'mongeon',  label: 'Mongeon',    icon: '⌂' },
-  { id: 'monclash', label: 'Monclash',   icon: '⚔' },
-  { id: 'monaba',   label: 'Monaba',     icon: '◉' },
-  { id: 'moncards', label: 'Moncards',   icon: '♠' },
-  { id: 'monparty', label: 'Monparty',   icon: '◊' },
 ];
 
-const SEED_MSGS = [
-  { who: 'gerrydoteth', text: 'just hit 2048 on monerge LFG', verified: true, room: 'monerge' },
-  { who: 'nadgod', text: 'who wants to lobby up snake', room: 'snake' },
-  { who: 'pixelmonad', text: 'monparty bombs are EVIL', room: 'monparty' },
-  { who: 'salmonking', text: 'getting destroyed in monaba lol', room: 'monaba' },
-  { who: 'iglu_dev', text: 'gn iglus 🌙', room: 'lobby' },
-  { who: 'monad_qt', text: 'mongeon floor 7 personal best', room: 'mongeon' },
-  { who: 'chog_lord', text: 'anyone solving moncards in <20s?', room: 'moncards' },
-  { who: 'snek_dev', text: 'just posted my run on chain', room: 'lobby' },
-  { who: 'parallel_io', text: 'monclash wave 14 is unfair', room: 'monclash' },
-  { who: 'monfren', text: 'blob is way slower now, way better', room: 'blob' },
-];
+const SEED_MSGS = [];
 
 const BOT_LINES = {
   lobby:    ['gm', 'gn', 'who playing tonight', 'building anything?', 'wagmi', 'monad gas so cheap', 'iglu szn', '🦔', 'time to grind', 'fully onchain szn'],
   snake:    ['lobby up', 'kill steal incoming', 'biggest snake wins', 'longest run was 340 segs', 'orange dot food'],
   blob:     ['split to chase!', 'feed me', 'gg', 'mass overrated', 'don\'t merge yet'],
   monerge:  ['so close to 1024', 'rng kinda brutal', 'corners only', 'one more tile'],
-  mongeon:  ['floor 5 a wall', 'gold > kills', 'salmonad too tanky', 'careful at exit'],
-  monclash: ['use the bombs', 'wave 10 is a wall', 'click faster', 'mouch is fast'],
-  monaba:   ['dash is OP', 'space attack better', 'gg ez', 'wp'],
-  moncards: ['memorize the corners', 'easy 1000', 'speed > moves'],
-  monparty: ['BOMBS', 'combo break 😭', 'so close to 1k', 'this is chaos'],
 };
 
 function loadChat() {
@@ -438,6 +432,7 @@ async function signChatMessage({ wallet, room, text }) {
 // background bots: every 8-15s a bot posts in some random room
 let botInt = null;
 function startBotChatter() {
+  if (!CHAT_BOTS_ENABLED) return;
   if (botInt) return;
   botInt = setInterval(() => {
     const room = CHAT_ROOMS[Math.floor(Math.random() * CHAT_ROOMS.length)].id;
@@ -566,7 +561,7 @@ function ChatPanel({ twitter, wallet, onConnectTwitter, onDisconnectTwitter, cur
         ) : (
           <button className="chat-connect-x" onClick={onConnectTwitter}>
             <span className="x-glyph">𝕏</span>
-            Connect X via Dynamic
+            X sign-in coming soon
           </button>
         )}
       </div>
@@ -586,9 +581,9 @@ function ChatPanel({ twitter, wallet, onConnectTwitter, onDisconnectTwitter, cur
 function TwitterChip({ twitter, onConnect, onDisconnect }) {
   if (!twitter.handle) {
     return (
-      <button className="chip chip-x" onClick={onConnect} title="Connect via Dynamic">
+      <button className="chip chip-x" onClick={onConnect} title="X sign-in coming soon">
         <span className="x-glyph">𝕏</span>
-        Connect X
+        X Soon
       </button>
     );
   }
@@ -606,6 +601,7 @@ Object.assign(window, {
   useWallet, useTwitter,
   useChat, postMessage, signChatMessage,
   CHAT_ROOMS, DYNAMIC_ENV_ID,
+  X_SIGN_IN_ENABLED, CHAT_BOTS_ENABLED,
   ChatPanel, TwitterChip, timeAgo, pickAvatar,
   openDynamicAuth,
 });

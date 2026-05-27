@@ -1,11 +1,10 @@
-/* global React, ReactDOM, Lobby, SnakeGame, BlobGame, MergeGame,
-          MongeonGame, MonclashGame, MonabaGame, MoncardsGame, MonpartyGame,
+/* global React, ReactDOM, Lobby, SnakeGame, BlobGame,
           ChatPanel, useWallet, useTwitter, ToastStack */
 // Moncade root — hash-routed.
 
 const { useState, useEffect, useCallback } = React;
 
-const ROUTES = ['snake', 'blob', 'monerge', 'mongeon', 'monclash', 'monaba', 'moncards', 'monparty'];
+const ROUTES = ['snake', 'blob'];
 
 function App() {
   const wallet = useWallet();
@@ -26,7 +25,7 @@ function App() {
 
   const onPlay = useCallback((cab) => {
     if (cab.external) {
-      window.open(cab.external, '_blank', 'noopener');
+      window.location.href = cab.external;
       return;
     }
     goTo(cab.id);
@@ -49,12 +48,6 @@ function App() {
   const gameComp = {
     snake:    SnakeGame,
     blob:     BlobGame,
-    monerge:  MergeGame,
-    mongeon:  MongeonGame,
-    monclash: MonclashGame,
-    monaba:   MonabaGame,
-    moncards: MoncardsGame,
-    monparty: MonpartyGame,
   }[route];
 
   return (

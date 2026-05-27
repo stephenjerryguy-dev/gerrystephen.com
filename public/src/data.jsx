@@ -4,7 +4,7 @@
 const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
 // ============================================================
-// MONANIMAL ROSTER — only the 6 with real official artwork
+// MONANIMAL ROSTER
 // ============================================================
 const MONANIMALS = [
   {
@@ -72,6 +72,72 @@ const MONANIMALS = [
     blurb: 'Final iglu form. All stats average. All feelings huge.',
     snakeStat: { speed: 1.0,  turn: 1.0,  size: 1.0 },
     blobStat:  { speed: 1.0,  mass: 1.0,  vision: 1.0 },
+  },
+  {
+    id: 'hypernad',
+    name: 'Hypernad',
+    tag: 'HYPER',
+    sprite: 'assets/monanimals/hypernad-clean.svg',
+    color: '#8CF7F0',
+    accent: '#FF4FA1',
+    blurb: 'High-voltage Monad creature. Fast, twitchy, built for escapes.',
+    snakeStat: { speed: 1.16, turn: 1.08, size: 0.82 },
+    blobStat:  { speed: 1.18, mass: 0.84, vision: 1.02 },
+  },
+  {
+    id: 'mondana',
+    name: 'Mondana',
+    tag: 'BLOOM',
+    sprite: 'assets/monanimals/mondana-clean.svg',
+    color: '#FF7BB1',
+    accent: '#FFE66D',
+    blurb: 'Floral menace. Graceful turns, surprisingly sharp.',
+    snakeStat: { speed: 1.0, turn: 1.18, size: 0.92 },
+    blobStat:  { speed: 1.04, mass: 0.95, vision: 1.14 },
+  },
+  {
+    id: 'mosferatu',
+    name: 'Mosferatu',
+    tag: 'NIGHT',
+    sprite: 'assets/monanimals/mosferatu-clean.svg',
+    color: '#5B3CC4',
+    accent: '#8CF7F0',
+    blurb: 'Nocturnal drainer. Slower, heavier, hard to push around.',
+    snakeStat: { speed: 0.92, turn: 0.98, size: 1.16 },
+    blobStat:  { speed: 0.92, mass: 1.16, vision: 1.06 },
+  },
+  {
+    id: 'moyaki',
+    name: 'Moyaki',
+    tag: 'SPARK',
+    sprite: 'assets/monanimals/moyaki-clean.svg',
+    color: '#FFE66D',
+    accent: '#FF4FA1',
+    blurb: 'Tiny spark, huge attitude. Quick starts and clean jukes.',
+    snakeStat: { speed: 1.1, turn: 1.12, size: 0.88 },
+    blobStat:  { speed: 1.12, mass: 0.88, vision: 1.0 },
+  },
+  {
+    id: 'nadbot',
+    name: 'Nadbot',
+    tag: 'BOT',
+    sprite: 'assets/monanimals/nadbot-clean.svg',
+    color: '#7AC9E8',
+    accent: '#9F7CFF',
+    blurb: 'Synthetic Monad unit. Balanced, precise, annoyingly consistent.',
+    snakeStat: { speed: 1.02, turn: 1.04, size: 1.0 },
+    blobStat:  { speed: 1.02, mass: 1.0, vision: 1.08 },
+  },
+  {
+    id: 'shramp',
+    name: 'Shramp',
+    tag: 'SNAP',
+    sprite: 'assets/monanimals/shramp-clean.svg',
+    color: '#C27C46',
+    accent: '#8CF7F0',
+    blurb: 'Crusty little snapper. Dense body, strong late-game scaling.',
+    snakeStat: { speed: 0.96, turn: 1.02, size: 1.08 },
+    blobStat:  { speed: 0.96, mass: 1.12, vision: 0.98 },
   },
 ];
 
