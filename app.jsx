@@ -1763,11 +1763,125 @@ function monergeProfileHash(entry = {}) {
 
 function shareMonergeRunUrl(entry = {}) {
   const text = [
-    `I just revealed a ${entry.score || 0} Monerge run on Monad.`,
+    `I just revealed a ${Number(entry.score || 0).toLocaleString()} Monerge run on Monad.`,
     `${entry.difficulty || 'Classic'} · max tile ${entry.maxTile || 2} · ${entry.moves || 0} moves`,
     'Play: https://gerrystephen.com/monerge'
   ].join('\n');
   return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+}
+
+function monergeWinnerCardFilename(entry = {}) {
+  const score = Number(entry.score || 0);
+  return `monerge-${score || 'run'}-${String(entry.id || Date.now()).slice(0, 12)}.png`;
+}
+
+function drawMonergeWinnerCard(context, entry = {}) {
+  const width = context.canvas.width;
+  const height = context.canvas.height;
+  const score = Number(entry.score || 0);
+  const maxTile = Number(entry.maxTile || 2);
+  const character = MONAD_TILE_CHARACTERS[maxTile] || MONAD_TILE_NAMES[maxTile] || 'MON';
+  const player = playerName(entry);
+  const verified = entry.txHash ? 'Monad verified' : entry.signature ? 'Profile signed' : 'Revealed run';
+
+  const sky = context.createLinearGradient(0, 0, width, height);
+  sky.addColorStop(0, '#100b31');
+  sky.addColorStop(0.44, '#24145c');
+  sky.addColorStop(1, '#7ee8f1');
+  context.fillStyle = sky;
+  context.fillRect(0, 0, width, height);
+
+  const glow = context.createRadialGradient(860, 140, 10, 860, 140, 440);
+  glow.addColorStop(0, 'rgba(255, 230, 109, 0.9)');
+  glow.addColorStop(0.42, 'rgba(255, 79, 161, 0.45)');
+  glow.addColorStop(1, 'rgba(255, 79, 161, 0)');
+  context.fillStyle = glow;
+  context.fillRect(0, 0, width, height);
+
+  context.strokeStyle = 'rgba(238, 246, 251, 0.1)';
+  context.lineWidth = 2;
+  for (let x = -80; x < width + 160; x += 64) {
+    context.beginPath();
+    context.moveTo(x, height);
+    context.lineTo(x + 260, 340);
+    context.stroke();
+  }
+  for (let y = 370; y < height; y += 44) {
+    context.beginPath();
+    context.moveTo(0, y);
+    context.lineTo(width, y);
+    context.stroke();
+  }
+
+  context.fillStyle = 'rgba(10, 4, 24, 0.72)';
+  context.roundRect(72, 70, 1056, 490, 34);
+  context.fill();
+  context.strokeStyle = 'rgba(140, 247, 240, 0.38)';
+  context.stroke();
+
+  context.fillStyle = '#8cf7f0';
+  context.font = '700 30px Inter, system-ui, sans-serif';
+  context.fillText('MONERGE WINNER CARD', 118, 130);
+
+  context.fillStyle = '#eef6fb';
+  context.font = '900 122px Inter Tight, Inter, system-ui, sans-serif';
+  context.fillText(score.toLocaleString(), 112, 272);
+
+  context.fillStyle = 'rgba(238, 246, 251, 0.76)';
+  context.font = '700 34px Inter, system-ui, sans-serif';
+  context.fillText(`${entry.difficulty || 'Classic'} run by ${player}`, 118, 326);
+
+  context.fillStyle = 'rgba(255, 255, 255, 0.08)';
+  context.roundRect(118, 370, 294, 96, 18);
+  context.roundRect(452, 370, 294, 96, 18);
+  context.roundRect(786, 370, 294, 96, 18);
+  context.fill();
+
+  context.fillStyle = '#ff4fa1';
+  context.font = '800 24px JetBrains Mono, monospace';
+  context.fillText('MAX TILE', 146, 408);
+  context.fillText('MOVES', 480, 408);
+  context.fillText('STATUS', 814, 408);
+
+  context.fillStyle = '#fff';
+  context.font = '900 38px Inter, system-ui, sans-serif';
+  context.fillText(`${maxTile} ${character}`, 146, 448);
+  context.fillText(String(entry.moves || 0), 480, 448);
+  context.fillText(verified, 814, 448);
+
+  context.fillStyle = 'rgba(238, 246, 251, 0.62)';
+  context.font = '600 22px Inter, system-ui, sans-serif';
+  context.fillText('Play: gerrystephen.com/monerge', 118, 520);
+}
+
+function downloadMonergeWinnerCard(entry = {}) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1200;
+  canvas.height = 630;
+  const context = canvas.getContext('2d');
+  if (!context) return;
+  drawMonergeWinnerCard(context, entry);
+  const saveBlob = (blob) => {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = monergeWinnerCardFilename(entry);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  if (canvas.toBlob) {
+    canvas.toBlob(saveBlob, 'image/png');
+  } else {
+    const link = document.createElement('a');
+    link.href = canvas.toDataURL('image/png');
+    link.download = monergeWinnerCardFilename(entry);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
 }
 
 function hexFromText(text) {
@@ -2805,7 +2919,15 @@ function MonadGame() {
           {gameOver && <form className="game-over" onSubmit={revealBlindScore} onTouchStart={(event) => event.stopPropagation()} onTouchMove={(event) => event.stopPropagation()} onTouchEnd={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()}>
             <strong>{scoreReveal ? 'Score revealed' : 'Guess your score'}</strong>
             {scoreReveal
-              ? <span>Actual {scoreReveal.actual} · off by {scoreReveal.miss} · time {scoreReveal.timeBonus} · mode {scoreReveal.difficultyBonus} · final {scoreReveal.final}</span>
+              ? <>
+                <div className="winner-card-preview" aria-label="Monerge winner card preview">
+                  <span>Winner card</span>
+                  <strong>{Number(scoreReveal.final || 0).toLocaleString()}</strong>
+                  <em>{lastRevealedEntry?.difficulty || currentDifficulty.label} · max tile {lastRevealedEntry?.maxTile || maxTile} · {lastRevealedEntry?.moves || moves} moves</em>
+                  <small>{lastRevealedEntry ? playerName(lastRevealedEntry) : playerName({ wallet: account, username: cleanPlayerProfile.username })}</small>
+                </div>
+                <span>Actual {scoreReveal.actual} · off by {scoreReveal.miss} · time {scoreReveal.timeBonus} · mode {scoreReveal.difficultyBonus} · final {scoreReveal.final}</span>
+              </>
               : <input inputMode="numeric" pattern="[0-9]*" value={scoreGuess} onChange={(event) => setScoreGuess(event.target.value)} placeholder="Your score guess" aria-label="Score guess" />}
             {scoreReveal && <small className={`chain-run-status ${onChainRun.status}`}>
               {onChainRun.status === 'submitted'
@@ -2818,7 +2940,8 @@ function MonadGame() {
             </small>}
             <div className="game-over-actions">
               {!scoreReveal && <button type="submit">Reveal</button>}
-              {scoreReveal && lastRevealedEntry && <a href={shareMonergeRunUrl(lastRevealedEntry)} target="_blank" rel="noopener">Share on X</a>}
+              {scoreReveal && lastRevealedEntry && <button type="button" onClick={() => downloadMonergeWinnerCard(lastRevealedEntry)}>Save card</button>}
+              {scoreReveal && lastRevealedEntry && <a href={shareMonergeRunUrl(lastRevealedEntry)} target="_blank" rel="noopener">Post on X</a>}
               {scoreReveal && lastRevealedEntry && account && profileSignature && MONERGE_RUNS_CONTRACT && onChainRun.status !== 'submitted' && onChainRun.status !== 'pending' && <button type="button" onClick={() => submitRunOnMonad(lastRevealedEntry)}>Verify on Monad</button>}
               <button type="button" onClick={newGame}>Run it back</button>
             </div>
