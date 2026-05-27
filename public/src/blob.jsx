@@ -8,17 +8,19 @@ const { useState, useEffect, useRef, useCallback } = React;
 // ============================================================
 // CONSTANTS
 // ============================================================
-const B_WORLD = 4000;
-const B_PELLET_COUNT = 600;
-const B_VIRUS_COUNT = 14;
-const B_BOTS = 14;
-const B_START_MASS = 18;
-const B_MAX_CELLS = 6;
-const B_BASE_SPEED = 2.4;
-const B_SPLIT_BOOST = 18;
+const B_WORLD = 4600;
+const B_PELLET_COUNT = 920;
+const B_VIRUS_COUNT = 16;
+const B_BOTS = 16;
+const B_START_MASS = 24;
+const B_MAX_CELLS = 8;
+const B_BASE_SPEED = 3.05;
+const B_SPLIT_BOOST = 21;
 
 function massToRadius(m) { return Math.sqrt(m) * 5.5; }
-function speedFromMass(m) { return B_BASE_SPEED * (50 / (massToRadius(m) + 10)); }
+function speedFromMass(m) {
+  return B_BASE_SPEED * clamp(42 / (massToRadius(m) + 10), 0.42, 1.55);
+}
 
 // ============================================================
 // FACTORIES
@@ -34,19 +36,40 @@ function makeBlob({ name, monanimalId, isPlayer = false, x, y, mass }) {
 }
 function makePellet() {
   const palette = ['#9F7CFF','#FF4FA1','#8CF7F0','#FFE66D','#2DBFB0','#C27C46','#d8c7ff','#FF7A9E'];
-  return { x: rand(20, B_WORLD - 20), y: rand(20, B_WORLD - 20), color: palette[Math.floor(Math.random() * palette.length)], mass: 1 };
+  const roll = Math.random();
+  const tier =
+    roll > 0.985 ? { mass: rand(9, 15), r: rand(8, 11), score: 10 } :
+    roll > 0.92  ? { mass: rand(4, 7),  r: rand(5, 7),  score: 4 } :
+    roll > 0.56  ? { mass: rand(1.6, 3), r: rand(3.6, 5), score: 2 } :
+                   { mass: 1,           r: rand(2.4, 3.3), score: 1 };
+  return {
+    x: rand(20, B_WORLD - 20),
+    y: rand(20, B_WORLD - 20),
+    color: palette[Math.floor(Math.random() * palette.length)],
+    mass: tier.mass,
+    r: tier.r,
+    score: tier.score,
+    pulse: rand(0, Math.PI * 2),
+  };
 }
 function makeVirus() {
-  return { x: rand(200, B_WORLD - 200), y: rand(200, B_WORLD - 200), mass: 120 };
+  return { x: rand(240, B_WORLD - 240), y: rand(240, B_WORLD - 240), mass: rand(95, 145), pulse: rand(0, Math.PI * 2) };
 }
 function spawnBotBlob(idx) {
   const m = randomMonanimal();
+  let x = rand(200, B_WORLD - 200);
+  let y = rand(200, B_WORLD - 200);
+  for (let tries = 0; tries < 20; tries++) {
+    if ((x - B_WORLD / 2) ** 2 + (y - B_WORLD / 2) ** 2 > 850 ** 2) break;
+    x = rand(200, B_WORLD - 200);
+    y = rand(200, B_WORLD - 200);
+  }
   const b = makeBlob({
     name: randomBotName() + (Math.random() < 0.2 ? '.eth' : ''),
     monanimalId: m.id,
-    x: rand(200, B_WORLD - 200),
-    y: rand(200, B_WORLD - 200),
-    mass: rand(20, 220),
+    x,
+    y,
+    mass: rand(24, 180),
   });
   b.speedMul  = m.blobStat.speed;
   b.massMul   = m.blobStat.mass;
@@ -61,7 +84,7 @@ function BlobGame({ wallet, onExit }) {
   const [phase, setPhase] = useState('lobby');
   const [monanimalId, setMonanimalId] = useState('chog');
   const [name, setName] = useState(() => localStorage.getItem('moncade.name') || '');
-  const [hud, setHud] = useState({ score: 0, mass: 18, eats: 0, rank: 1 });
+  const [hud, setHud] = useState({ score: 0, mass: B_START_MASS, eats: 0, rank: 1 });
   const [topboard, setTopboard] = useState([]);
   const [runStats, setRunStats] = useState(null);
   const [txState, setTxState] = useState(null);
@@ -70,7 +93,7 @@ function BlobGame({ wallet, onExit }) {
   const cnvRef = useRef(null);
   const miniRef = useRef(null);
   const stateRef = useRef(null);
-  const inputRef = useRef({ mx: 0.5, my: 0.5, split: 0, eject: 0 });
+  const inputRef = useRef({ mx: 0.5, my: 0.5, split: 0, eject: 0, focused: false });
   const startTimeRef = useRef(0);
 
   // ============================================================
@@ -89,6 +112,7 @@ function BlobGame({ wallet, onExit }) {
     player.speedMul  = m.blobStat.speed;
     player.massMul   = m.blobStat.mass;
     player.visionMul = m.blobStat.vision;
+    player.safeUntil = 180;
     const bots = Array.from({ length: B_BOTS }, (_, i) => spawnBotBlob(i));
     const pellets = Array.from({ length: B_PELLET_COUNT }, makePellet);
     const viruses = Array.from({ length: B_VIRUS_COUNT }, makeVirus);
@@ -109,22 +133,28 @@ function BlobGame({ wallet, onExit }) {
   useEffect(() => {
     if (phase !== 'playing') return;
     const stage = stageRef.current; if (!stage) return;
+    stage.style.touchAction = 'none';
+    stage.style.userSelect = 'none';
     const onMove = (e) => {
+      if (e.cancelable) e.preventDefault();
       const r = stage.getBoundingClientRect();
       const cx = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
       const cy = (e.touches ? e.touches[0].clientY : e.clientY) - r.top;
       inputRef.current.mx = cx / r.width;
       inputRef.current.my = cy / r.height;
+      inputRef.current.focused = true;
     };
     const onKey = (e) => {
       if (e.code === 'Space') { e.preventDefault(); inputRef.current.split = 1; }
       if (e.code === 'KeyW')  { inputRef.current.eject = 1; }
     };
     stage.addEventListener('mousemove', onMove);
-    stage.addEventListener('touchmove', onMove, { passive: true });
-    stage.addEventListener('touchstart', onMove, { passive: true });
+    stage.addEventListener('touchmove', onMove, { passive: false });
+    stage.addEventListener('touchstart', onMove, { passive: false });
     window.addEventListener('keydown', onKey);
     return () => {
+      stage.style.touchAction = '';
+      stage.style.userSelect = '';
       stage.removeEventListener('mousemove', onMove);
       stage.removeEventListener('touchmove', onMove);
       stage.removeEventListener('touchstart', onMove);
@@ -202,6 +232,7 @@ function BlobGame({ wallet, onExit }) {
 
   function step(s) {
     const p = s.player;
+    if (p.safeUntil > 0) p.safeUntil--;
     // === player aim & actions ===
     if (p.alive) {
       const cnv = cnvRef.current;
@@ -236,7 +267,7 @@ function BlobGame({ wallet, onExit }) {
         for (const other of s.blobs) {
           if (other === b || !other.alive) continue;
           const oBig = biggestCell(other);
-          if (big.mass > oBig.mass * 1.25) {
+            if (big.mass > oBig.mass * 1.22) {
             if (!target || dist2(oBig, big) < dist2(target, big)) target = { x: oBig.x, y: oBig.y };
           }
         }
@@ -245,7 +276,7 @@ function BlobGame({ wallet, onExit }) {
           for (const other of s.blobs) {
             if (other === b || !other.alive) continue;
             const oBig = biggestCell(other);
-            if (oBig.mass > big.mass * 1.25 && dist2(oBig, big) < 200 * 200) {
+            if (oBig.mass > big.mass * 1.18 && dist2(oBig, big) < 300 * 300) {
               target = { x: big.x - (oBig.x - big.x), y: big.y - (oBig.y - big.y) };
               break;
             }
@@ -254,9 +285,9 @@ function BlobGame({ wallet, onExit }) {
         // 3) nearest pellet
         if (!target) {
           let nearD = Infinity; let near = null;
-          for (let i = 0; i < s.pellets.length; i += 4) {
+          for (let i = 0; i < s.pellets.length; i += 3) {
             const o = s.pellets[i];
-            const d = (o.x - big.x) ** 2 + (o.y - big.y) ** 2;
+            const d = ((o.x - big.x) ** 2 + (o.y - big.y) ** 2) / Math.max(1, o.mass);
             if (d < nearD) { nearD = d; near = o; }
           }
           if (near) target = { x: near.x + rand(-40, 40), y: near.y + rand(-40, 40) };
@@ -273,14 +304,15 @@ function BlobGame({ wallet, onExit }) {
       b.cells.forEach((c) => {
         const dx = b.targetX - c.x, dy = b.targetY - c.y;
         const d = Math.hypot(dx, dy) || 1;
-        const sp = speedFromMass(c.mass) * (b.speedMul || 1);
+        const targetBoost = b.isPlayer && inputRef.current.focused ? 1.08 : 1;
+        const sp = speedFromMass(c.mass) * (b.speedMul || 1) * targetBoost;
         // ease toward target
         const ux = dx / d, uy = dy / d;
         c.x += ux * sp + c.vx;
         c.y += uy * sp + c.vy;
         c.vx *= 0.92; c.vy *= 0.92;
-        // mass decay (slow)
-        if (c.mass > 50) c.mass *= 0.9994;
+        // mass decay should feel like late-game pressure, not an early growth cap.
+        if (c.mass > 220) c.mass *= 0.99985;
         // clamp world
         const r = massToRadius(c.mass);
         c.x = clamp(c.x, r, B_WORLD - r);
@@ -294,7 +326,7 @@ function BlobGame({ wallet, onExit }) {
           const dx = cc.x - a.x, dy = cc.y - a.y;
           const d = Math.hypot(dx, dy) || 0.0001;
           const merging = Date.now() > a.mergeAt && Date.now() > cc.mergeAt;
-          if (merging && d < (ar + br) * 0.4) {
+          if (merging && d < (ar + br) * 0.48) {
             // MERGE
             a.mass += cc.mass; b.cells.splice(j, 1); j--; continue;
           }
@@ -315,9 +347,10 @@ function BlobGame({ wallet, onExit }) {
         for (let i = s.pellets.length - 1; i >= 0; i--) {
           const o = s.pellets[i];
           const dx = o.x - c.x, dy = o.y - c.y;
-          if (dx * dx + dy * dy < (r + 6) ** 2) {
+          const pr = o.r || 3;
+          if (dx * dx + dy * dy < (r + pr + 4) ** 2) {
             c.mass += o.mass * (b.massMul || 1);
-            b.score += 1;
+            b.score += o.score || Math.max(1, Math.floor(o.mass));
             s.pellets.splice(i, 1);
           }
         }
@@ -350,14 +383,15 @@ function BlobGame({ wallet, onExit }) {
       if (!eater.alive) continue;
       for (const prey of s.blobs) {
         if (prey === eater || !prey.alive) continue;
+        if (prey.isPlayer && prey.safeUntil > 0) continue;
         for (const ec of eater.cells) {
           for (let pi = prey.cells.length - 1; pi >= 0; pi--) {
             const pc = prey.cells[pi];
-            if (ec.mass < pc.mass * 1.25) continue;
+            if (ec.mass < pc.mass * 1.18) continue;
             const dx = ec.x - pc.x, dy = ec.y - pc.y;
             const ecR = massToRadius(ec.mass);
-            if (dx * dx + dy * dy < (ecR - massToRadius(pc.mass) * 0.5) ** 2) {
-              ec.mass += pc.mass * (eater.massMul || 1);
+            if (dx * dx + dy * dy < (ecR - massToRadius(pc.mass) * 0.42) ** 2) {
+              ec.mass += pc.mass * 0.92 * (eater.massMul || 1);
               eater.score += Math.floor(pc.mass);
               prey.cells.splice(pi, 1);
             }
@@ -429,12 +463,16 @@ function BlobGame({ wallet, onExit }) {
   function ejectMass(s, b) {
     for (const c of b.cells) {
       if (c.mass < 24) continue;
-      c.mass -= 16;
+      c.mass -= 10;
       const ang = Math.atan2(b.targetY - c.y, b.targetX - c.x);
       s.pellets.push({
         x: c.x + Math.cos(ang) * (massToRadius(c.mass) + 6),
         y: c.y + Math.sin(ang) * (massToRadius(c.mass) + 6),
-        color: '#9F7CFF', mass: 12,
+        color: '#9F7CFF',
+        mass: 7,
+        r: 6,
+        score: 2,
+        pulse: rand(0, Math.PI * 2),
       });
     }
   }
@@ -483,19 +521,35 @@ function BlobGame({ wallet, onExit }) {
       // cull
       if (o.x < view.x - 20 || o.x > view.x + view.w + 20) continue;
       if (o.y < view.y - 20 || o.y > view.y + view.h + 20) continue;
-      ctx.fillStyle = o.color;
-      ctx.beginPath(); ctx.arc(x, y, 6 * dpr / 2, 0, Math.PI * 2); ctx.fill();
+      const pr = (o.r || 3) * (1 + Math.sin(s.t * 0.04 + (o.pulse || 0)) * 0.08) * dpr;
+      const glow = ctx.createRadialGradient(x, y, 0, x, y, pr * 3.3);
+      glow.addColorStop(0, o.color + 'aa');
+      glow.addColorStop(1, o.color + '00');
+      ctx.fillStyle = glow;
+      ctx.beginPath(); ctx.arc(x, y, pr * 3.3, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = o.mass > 3 ? o.color : '#fff';
+      ctx.beginPath(); ctx.arc(x, y, pr, 0, Math.PI * 2); ctx.fill();
+      if (o.mass > 7) {
+        ctx.strokeStyle = '#fff9';
+        ctx.lineWidth = 1.4 * dpr / zoom;
+        ctx.beginPath(); ctx.arc(x, y, pr * 1.42, 0, Math.PI * 2); ctx.stroke();
+      }
     }
 
     // viruses (spiky cyan)
     for (const v of s.viruses) {
       const x = v.x * dpr, y = v.y * dpr, r = massToRadius(v.mass) * dpr;
+      const vg = ctx.createRadialGradient(x, y, 0, x, y, r * 1.45);
+      vg.addColorStop(0, '#8CF7F055');
+      vg.addColorStop(1, '#2DBFB000');
+      ctx.fillStyle = vg;
+      ctx.beginPath(); ctx.arc(x, y, r * 1.45, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#2DBFB0';
       ctx.beginPath();
       const spikes = 18;
       for (let i = 0; i < spikes * 2; i++) {
         const a = (i / (spikes * 2)) * Math.PI * 2;
-        const rr = i % 2 === 0 ? r : r * 0.82;
+        const rr = (i % 2 === 0 ? r : r * 0.82) * (1 + Math.sin(s.t * 0.035 + i + (v.pulse || 0)) * 0.025);
         const px = x + Math.cos(a) * rr, py = y + Math.sin(a) * rr;
         if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
       }
@@ -519,17 +573,26 @@ function BlobGame({ wallet, onExit }) {
     const monanimal = MONANIMAL_BY_ID[b.monanimal] || MONANIMALS[0];
     // outer aura for player
     if (b.isPlayer) {
-      const g = ctx.createRadialGradient(x, y, 0, x, y, r * 1.25);
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r * 1.42);
       g.addColorStop(0, '#8CF7F0aa');
       g.addColorStop(1, '#8CF7F000');
       ctx.fillStyle = g;
-      ctx.beginPath(); ctx.arc(x, y, r * 1.25, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x, y, r * 1.42, 0, Math.PI * 2); ctx.fill();
+      if (b.safeUntil > 0) {
+        ctx.strokeStyle = `rgba(255,230,109,${0.36 + Math.sin(b.safeUntil * 0.14) * 0.18})`;
+        ctx.lineWidth = 3 * dpr / zoom;
+        ctx.beginPath(); ctx.arc(x, y, r * 1.18, 0, Math.PI * 2); ctx.stroke();
+      }
     }
     // body
-    ctx.fillStyle = monanimal.color;
+    const body = ctx.createRadialGradient(x - r * 0.24, y - r * 0.3, r * 0.05, x, y, r);
+    body.addColorStop(0, '#ffffff55');
+    body.addColorStop(0.22, monanimal.color);
+    body.addColorStop(1, '#110623');
+    ctx.fillStyle = body;
     ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#0a0418';
-    ctx.lineWidth = 2 * dpr / zoom;
+    ctx.strokeStyle = b.isPlayer ? '#8CF7F0' : '#0a0418';
+    ctx.lineWidth = (b.isPlayer ? 2.4 : 1.8) * dpr / zoom;
     ctx.stroke();
     // wobble highlight
     ctx.fillStyle = 'rgba(255,255,255,0.16)';
@@ -680,6 +743,7 @@ function BlobGame({ wallet, onExit }) {
               </div>
             </div>
             <BlobHint />
+            <BlobMobileControls inputRef={inputRef} />
           </>
         )}
 
@@ -726,7 +790,20 @@ function BlobHint() {
       letterSpacing: '0.18em', textTransform: 'uppercase',
       color: 'var(--ink-soft)', textAlign: 'center',
     }}>
-      Move with cursor · [SPACE] to split · [W] to eject mass · Avoid the spikes
+      Drag to move · Split to chase · Feed mass to bait · Avoid the spikes
+    </div>
+  );
+}
+
+function BlobMobileControls({ inputRef }) {
+  const pulse = (action) => {
+    inputRef.current[action] = 1;
+    inputRef.current.focused = true;
+  };
+  return (
+    <div className="blob-mobile-controls">
+      <button className="blob-action-btn secondary" onClick={() => pulse('eject')}>Feed</button>
+      <button className="blob-action-btn" onClick={() => pulse('split')}>Split</button>
     </div>
   );
 }

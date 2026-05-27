@@ -926,6 +926,49 @@ canvas { display: block; }
   filter: brightness(1.15);
 }
 
+/* === Monbubble mobile controls === */
+.blob-mobile-controls {
+  position: absolute;
+  right: calc(14px + env(safe-area-inset-right));
+  bottom: calc(74px + env(safe-area-inset-bottom));
+  z-index: 5;
+  display: none;
+  gap: 10px;
+  pointer-events: none;
+}
+.blob-action-btn {
+  pointer-events: auto;
+  width: 74px;
+  height: 74px;
+  border-radius: 50%;
+  border: 1px solid rgba(140,247,240,0.42);
+  background:
+    radial-gradient(circle at 34% 28%, rgba(255,255,255,0.22), transparent 36%),
+    linear-gradient(135deg, rgba(255,79,161,0.92), rgba(159,124,255,0.92));
+  color: #fff;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  box-shadow: 0 16px 38px rgba(0,0,0,0.42), 0 0 24px rgba(255,79,161,0.2);
+  touch-action: manipulation;
+  user-select: none;
+}
+.blob-action-btn.secondary {
+  width: 58px;
+  height: 58px;
+  align-self: end;
+  background:
+    radial-gradient(circle at 34% 28%, rgba(255,255,255,0.18), transparent 36%),
+    linear-gradient(135deg, rgba(45,191,176,0.88), rgba(122,201,232,0.88));
+  color: #0a0418;
+}
+.blob-action-btn:active {
+  transform: scale(0.96);
+  filter: brightness(1.12);
+}
+
 /* === Monerge board === */
 .me-stage { display: grid; place-items: center; padding: 18px; }
 .me-wrap { display: flex; flex-direction: column; gap: 16px; align-items: center; }
@@ -1487,6 +1530,7 @@ canvas { display: block; }
     text-align: center;
   }
   .snake-mobile-controls { display: block; }
+  .blob-mobile-controls { display: flex; }
   .game-card {
     width: min(420px, calc(100vw - 24px));
     max-height: calc(100dvh - 88px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
