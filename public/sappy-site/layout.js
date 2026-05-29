@@ -47,17 +47,13 @@
         <div class="foot-top">
           <div class="foot-brand">
             <div class="word">sappy<b>.</b></div>
-            <p>The community hub for the Sappy Seals ecosystem. Track the pod, stake for $PIXL, play Omnia, stay sappy.</p>
+            <p>The community hub for the Sappy Seals ecosystem.</p>
             <div class="foot-socials">
               <a href="${L.x}" target="_blank" rel="noopener">𝕏 @sappyseals</a>
-              <a href="${L.discord}" target="_blank" rel="noopener">◇ Discord</a>
-              <a href="${L.opensea}" target="_blank" rel="noopener">⛵ OpenSea</a>
-              <a href="${L.omnia}" target="_blank" rel="noopener">🌍 Omnia</a>
+              <a href="${L.discord}" target="_blank" rel="noopener"><img src="https://cdn.simpleicons.org/discord/ffffff" alt="" loading="lazy">Discord</a>
+              <a href="${L.opensea}" target="_blank" rel="noopener"><img src="https://cdn.simpleicons.org/opensea/ffffff" alt="" loading="lazy">OpenSea</a>
+              <a href="${L.omnia}" target="_blank" rel="noopener"><img src="https://www.google.com/s2/favicons?sz=64&domain=omnia.lol" alt="" loading="lazy">Omnia</a>
             </div>
-          </div>
-          <div>
-            <div class="dir-title">▸ THE POD · SEALFOLIO DIRECTORY</div>
-            <div class="dir" id="dir"></div>
           </div>
         </div>
         <div class="foot-bottom">

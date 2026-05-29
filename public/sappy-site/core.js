@@ -53,14 +53,28 @@ window.Sappy = (function () {
     return null;
   }
 
-  // ---- image loading with gateway fallback over a procedural seal ----
+  // ---- image loading with polished loading treatment ----
+  function addLoader(frame) {
+    let loader = frame.querySelector(".seal-loader");
+    if (loader) return loader;
+    loader = document.createElement("div");
+    loader.className = "seal-loader";
+    loader.innerHTML = '<span class="seal-loader-mark">sappy.</span><span class="seal-loader-ring"></span>';
+    frame.appendChild(loader);
+    return loader;
+  }
+  function clearLoader(frame) {
+    const loader = frame.querySelector(".seal-loader");
+    if (loader) loader.remove();
+  }
   function addPhoto(frame, urls, onFail) {
     if (!urls || !urls.length) { if (onFail) onFail(); return; }
+    addLoader(frame);
     const img = new Image();
     img.className = "seal-photo"; img.decoding = "async"; img.alt = "";
     let i = 0;
-    img.onload = () => { img.classList.add("show"); const cv = frame.querySelector(".seal-cv"); if (cv) cv.style.visibility = "hidden"; };
-    img.onerror = () => { i++; if (i < urls.length) img.src = urls[i]; else { img.remove(); if (onFail) onFail(); } };
+    img.onload = () => { img.classList.add("show"); clearLoader(frame); };
+    img.onerror = () => { i++; if (i < urls.length) img.src = urls[i]; else { img.remove(); frame.classList.add("load-failed"); if (onFail) onFail(); } };
     img.src = urls[0]; frame.appendChild(img); return img;
   }
   function loadSealPhoto(frame, attempt) {
@@ -97,18 +111,12 @@ window.Sappy = (function () {
   }
 
   function buildFrame(frame) {
-    const px = +frame.dataset.px || 300;
-    const cv = document.createElement("canvas");
-    cv.className = "seal-cv"; cv.width = px; cv.height = px;
-    const opts = {};
-    if (frame.dataset.acc !== undefined) opts.accessory = +frame.dataset.acc;
-    if (frame.dataset.bg) opts.bg = frame.dataset.bg;
-    if (window.SappySeal) window.SappySeal.draw(cv, frame.dataset.seed || Math.random(), opts);
-    frame.appendChild(cv);
     const kind = frame.dataset.kind || "seal";
+    if (kind !== "none") addLoader(frame);
     if (kind === "seal") loadSealPhoto(frame);
     else if (kind === "eth") resolveContract(frame, "eth");
     else if (kind === "polygon") resolveContract(frame, "polygon");
+    else if (kind === "none") addLoader(frame);
   }
   function hydrate(root) {
     (root || document).querySelectorAll(".sealframe:not([data-built])").forEach((f) => {
@@ -118,7 +126,7 @@ window.Sappy = (function () {
   function reroll() {
     document.querySelectorAll(".sealframe").forEach((f) => {
       if (f.dataset.pin === "1") return; // keep pinned ids
-      f.querySelectorAll(".seal-cv, .seal-photo").forEach((n) => n.remove());
+      f.querySelectorAll(".seal-loader, .seal-photo").forEach((n) => n.remove());
       f.removeAttribute("data-built"); if (f.dataset.id === undefined) delete f.dataset.tokenId;
     });
     hydrate();
@@ -161,7 +169,7 @@ window.Sappy = (function () {
     omnia: "https://omnia.lol",
     omniaWorld: "https://www.sappy.lol/~/omnia",
     omniaX: "https://x.com/ExploreOmnia",
-    discord: "https://discord.gg/zy2dfyMKwE",
+    discord: "https://discord.com/invite/z9e2sHtSrm",
     site: "https://www.sappy.lol/",
     pixl: "https://app.uniswap.org/explore/tokens/ethereum/0x427a03fb96d9a94a6727fbcfbba143444090dd64",
   };
@@ -193,7 +201,7 @@ window.Sappy = (function () {
       <a class="team-card" href="https://x.com/${m.h}" target="_blank" rel="noopener">
         <div class="team-pic sealframe" data-seed="${m.seed}" data-kind="none" data-px="160">
           <img class="seal-photo" decoding="async" alt="@${m.h}" referrerpolicy="no-referrer"
-               src="${pfp(m.h)}" onload="this.classList.add('show')" onerror="this.remove()">
+               src="${pfp(m.h)}" onload="this.classList.add('show');this.parentElement.querySelector('.seal-loader')?.remove()" onerror="this.remove();this.parentElement.classList.add('load-failed')">
         </div>
         <div class="team-meta">
           <div class="team-name">${m.name}</div>
@@ -201,13 +209,7 @@ window.Sappy = (function () {
           <div class="team-handle">@${m.h}</div>
         </div>
       </a>`).join("");
-    // build procedural fallbacks under the pfps
-    el.querySelectorAll(".team-pic").forEach((f) => {
-      if (f.dataset.built) return; f.dataset.built = "1";
-      const cv = document.createElement("canvas"); cv.className = "seal-cv"; cv.width = 160; cv.height = 160;
-      if (window.SappySeal) window.SappySeal.draw(cv, f.dataset.seed, {});
-      f.insertBefore(cv, f.firstChild);
-    });
+    el.querySelectorAll(".team-pic").forEach((f) => addLoader(f));
   }
 
   // ---- directory (random pod sample) ----

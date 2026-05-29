@@ -22,7 +22,8 @@
     owned.push({ id, trait: TRAITS[pick(TRAITS.length)], staked: rnd() > 0.5 });
   }
   const staked = owned.filter((o) => o.staked).length;
-  const pixl = (staked * (140 + pick(360))).toLocaleString("en-US");
+  const bitsBase = Math.max(42, staked * (1200 + pick(3800)) + pick(900));
+  const bits = bitsBase.toLocaleString("en-US");
   const score = 120 + pick(880);
   const rank = RANKS[Math.min(RANKS.length - 1, Math.floor(score / 200))];
   const vibe = VIBES[pick(VIBES.length)];
@@ -47,7 +48,7 @@
           <div class="wallet">${walletShort}</div>
           <div class="folio-chips">
             <span class="chip vibe">Vibe · ${vibe}</span>
-            <span class="chip pixl">${pixl} $PIXL</span>
+            <span class="chip pixl">${bits} BITS claimable</span>
             <a class="chip xh" href="https://x.com/${handle.replace(/^@/, "")}" target="_blank" rel="noopener">𝕏 @${handle.replace(/^@/, "")}</a>
           </div>
         </div>
@@ -61,7 +62,7 @@
       <div class="folio-claim" id="claim">
         <div class="ct">
           <h3>This is a sample Sealfolio.</h3>
-          <p>Connect your X to claim your handle and pull your real seals, staking & $PIXL.</p>
+          <p>Connect your X to claim your handle and pull your real seals, staking and BITS.</p>
         </div>
         <button class="btn btn-x" data-x-login>𝕏&nbsp; Connect your X</button>
       </div>
@@ -79,20 +80,20 @@
         <div class="seal-grid">${owned.map((o) => `
           <div class="seal-card">
             <div class="sealframe" data-pin="1" data-kind="seal" data-id="${o.id}" data-px="320"></div>
-            <div class="cap"><div class="n">Sappy Seal #${o.id}</div><div class="t">${o.trait}</div>${o.staked ? '<span class="staked">⛓ STAKED · EARNING $PIXL</span>' : ""}</div>
+            <div class="cap"><div class="n">Sappy Seal #${o.id}</div><div class="t">${o.trait}</div>${o.staked ? '<span class="staked">⛓ STAKED · EARNING BITS</span>' : ""}</div>
           </div>`).join("")}</div>
       </div>
 
       <div class="folio-sec">
-        <h2>Staking & $PIXL</h2>
+        <h2>Claimable BITS</h2>
         <div class="stake-card">
           <div>
-            <div style="font-family:var(--font-pixel);font-size:9px;color:var(--ink-soft);letter-spacing:.06em;">▸ CLAIMABLE $PIXL</div>
-            <div class="pixl-bal">${pixl} <span style="font-size:20px;">$PIXL</span></div>
-            <div class="stake-bar"><i style="width:${Math.min(100, staked / nOwned * 100)}%"></i></div>
-            <div style="color:var(--ink-soft);font-size:13.5px;margin-top:10px;">${staked} of ${nOwned} seals staked · earning up to 500 $PIXL/day each by rarity.</div>
+            <div class="bits-label"><span class="live-dot"></span>▸ CLAIMABLE BITS</div>
+            <div class="pixl-bal bits-bal"><span id="bits-count" data-base="${bitsBase}">${bits}</span> <span>BITS</span></div>
+            <div class="stake-bar"><i id="bits-bar" style="width:${Math.min(100, staked / nOwned * 100)}%"></i></div>
+            <div class="stake-detail">${staked} of ${nOwned} seals staked · live rewards fluctuate as the pool updates.</div>
           </div>
-          <button class="btn btn-accent">Claim $PIXL →</button>
+          <button class="btn btn-accent">Claim BITS →</button>
         </div>
       </div>
 
@@ -107,9 +108,24 @@
       </div>`;
   }
 
+  function animateBits() {
+    const el = document.getElementById("bits-count");
+    const bar = document.getElementById("bits-bar");
+    if (!el) return;
+    const base = +el.dataset.base || 100;
+    let current = base;
+    setInterval(() => {
+      const drift = Math.round((Math.random() - 0.38) * Math.max(9, base * 0.015));
+      current = Math.max(0, current + drift);
+      el.textContent = current.toLocaleString("en-US");
+      if (bar) bar.style.width = `${Math.max(8, Math.min(100, (current / (base * 1.8)) * 100))}%`;
+    }, 1100);
+  }
+
   S.ready(function () {
     window.SappyLayout.mount("community");
     render();
     S.init();
+    animateBits();
   });
 })();
