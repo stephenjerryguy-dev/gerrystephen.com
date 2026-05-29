@@ -17,6 +17,7 @@ const OMNIA_ITEMS_CONTRACT = '0xf0ea56402b2e2b27556d7abf4236c7327722fe41';
 const INKFINITY_CONTRACT = '0x4de49a57235cc0d4d22baad106a4dc302c8d935e';
 const PIXSEALS_CONTRACT = '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b';
 const DIGITAL_ARTIFACT_CONTRACT = '0xb1cdf2bfab043ea1d81d0a73b3b849efaac1d31a';
+const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
 const LOCAL_INKFINITY_IMAGES = {
   1: 'assets/inkfinity-visionary.png',
   2: 'assets/inkfinity-professor.png',
@@ -110,7 +111,7 @@ const ECOSYSTEMS = [
 
 function ecosystemForNft(nft) {
   const contract = nft?.contract?.toLowerCase?.();
-  const contractMatch = ECOSYSTEMS.find((ecosystem) => ecosystem.contracts.includes(contract));
+  const contractMatch = ECOSYSTEMS.find((ecosystem) => ecosystem.contracts.some((item) => item.toLowerCase() === contract));
   if (contractMatch) return contractMatch;
 
   const haystack = `${nft?.collection || ''} ${nft?.name || ''}`.toLowerCase();
@@ -150,7 +151,7 @@ function curatedEcosystemNfts(nfts) {
   const contractRank = (nft) => {
     const contract = nft.contract?.toLowerCase?.();
     const ecosystem = ecosystemForNft(nft);
-    const index = ecosystem?.contracts.indexOf(contract);
+    const index = ecosystem?.contracts.findIndex((item) => item.toLowerCase() === contract);
     return index >= 0 ? index : 99;
   };
   const numericTokenId = (nft) => {
@@ -191,8 +192,8 @@ function curatedEcosystemNfts(nfts) {
     .sort((a, b) => {
       const aContract = a.contract?.toLowerCase?.();
       const bContract = b.contract?.toLowerCase?.();
-      const aScore = ecosystemForNft(a)?.contracts.includes(aContract) ? 0 : 1;
-      const bScore = ecosystemForNft(b)?.contracts.includes(bContract) ? 0 : 1;
+      const aScore = ecosystemForNft(a)?.contracts.some((contract) => contract.toLowerCase() === aContract) ? 0 : 1;
+      const bScore = ecosystemForNft(b)?.contracts.some((contract) => contract.toLowerCase() === bContract) ? 0 : 1;
       if (a.ecosystem === 'sappy' && b.ecosystem === 'sappy') {
         return (sappyBucket(a) - sappyBucket(b)) || (numericTokenId(a) - numericTokenId(b));
       }
@@ -385,6 +386,22 @@ async function fetchReservoirNfts(wallet, contract, options = {}) {
   return Promise.all(normalized.map(refreshNftMetadata));
 }
 
+async function fetchDelegateWallets(wallet) {
+  const chainIds = [1, 137];
+  const settled = await Promise.allSettled(chainIds.map(async (chainId) => {
+    const response = await fetch(`https://api.delegate.xyz/registry/v2/${wallet}?chainId=${chainId}`, {
+      headers: { accept: 'application/json' },
+    });
+    if (!response.ok) return [];
+    const delegations = await response.json();
+    return (Array.isArray(delegations) ? delegations : [])
+      .filter((delegation) => delegation?.to?.toLowerCase?.() === wallet.toLowerCase())
+      .map((delegation) => delegation.from)
+      .filter((address) => ADDRESS_RE.test(address));
+  }));
+  return [...new Set(settled.flatMap((entry) => entry.status === 'fulfilled' ? entry.value : []))];
+}
+
 async function refreshNftMetadata(nft) {
   const needsRefresh = FORCE_METADATA_REFRESH.has(nft.contract?.toLowerCase?.());
   const metadata = needsRefresh || !nft.image
@@ -438,20 +455,26 @@ async function fetchContractSampleNfts(contract) {
 export default async function handler(req, res) {
   if (rateLimit(req, res, { name: 'nfts', limit: 24, windowMs: 60_000 })) return;
   try {
+    const requestedWallet = typeof req.query?.wallet === 'string' && ADDRESS_RE.test(req.query.wallet)
+      ? req.query.wallet
+      : undefined;
     const ecosystemContracts = ECOSYSTEMS.flatMap((ecosystem) => ecosystem.contracts);
+    const wallets = requestedWallet
+      ? [requestedWallet, ...await fetchDelegateWallets(requestedWallet)]
+      : WALLETS;
     const reservoirResponses = await Promise.allSettled(
-      WALLETS.flatMap((wallet) => [
+      wallets.flatMap((wallet) => [
         fetchReservoirNfts(wallet),
         ...ecosystemContracts.map((contract) => fetchReservoirNfts(wallet, contract)),
         fetchReservoirNfts(wallet, PIXSEALS_CONTRACT, { api: POLYGON_RESERVOIR_API, chain: 'matic' }),
       ])
     );
 
-    const blockscoutResponses = await Promise.allSettled(WALLETS.map(fetchBlockscoutNfts));
-    const previewResponses = await Promise.allSettled(
+    const blockscoutResponses = await Promise.allSettled(wallets.map(fetchBlockscoutNfts));
+    const previewResponses = requestedWallet ? [] : await Promise.allSettled(
       ECOSYSTEMS.flatMap((ecosystem) => ecosystem.previewContracts || []).map(fetchCollectionPreviewNfts)
     );
-    const sampleResponses = await Promise.allSettled([
+    const sampleResponses = requestedWallet ? [] : await Promise.allSettled([
       fetchBlockscoutContractInstances(INKFINITY_CONTRACT),
       fetchContractSampleNfts(INKFINITY_CONTRACT),
     ]);
@@ -460,7 +483,7 @@ export default async function handler(req, res) {
       ...blockscoutResponses.flatMap((result) => (result.status === 'fulfilled' ? result.value : [])),
       ...previewResponses.flatMap((result) => (result.status === 'fulfilled' ? result.value : [])),
       ...sampleResponses.flatMap((result) => (result.status === 'fulfilled' ? result.value : [])),
-      ...STATIC_PREVIEW_NFTS,
+      ...(requestedWallet ? [] : STATIC_PREVIEW_NFTS),
     ];
 
     let nfts = curatedEcosystemNfts(allNfts.filter((nft) => nft.image));
@@ -473,7 +496,7 @@ export default async function handler(req, res) {
     }
 
     res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');
-    res.status(200).json({ nfts });
+    res.status(200).json({ nfts, wallet: requestedWallet, delegatedWallets: requestedWallet ? wallets.slice(1) : [] });
   } catch (error) {
     res.status(200).json({ nfts: [] });
   }

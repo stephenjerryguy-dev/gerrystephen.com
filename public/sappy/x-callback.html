@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Connecting X — sappy.</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main class="wrap" style="min-height:70vh;display:grid;place-items:center;text-align:center;">
+  <div>
+    <div class="brand" style="justify-content:center;"><span class="word">sappy<b>.</b></span></div>
+    <h1 class="section-title" style="margin-top:20px;">Connecting X</h1>
+    <p class="section-sub" id="x-status">Finishing authorization...</p>
+  </div>
+</main>
+<script>
+(async function () {
+  const status = document.getElementById("x-status");
+  const params = new URLSearchParams(location.search);
+  const code = params.get("code");
+  const state = params.get("state");
+  let stored = {};
+  try { stored = JSON.parse(localStorage.getItem("sappy_x_oauth") || "{}"); } catch (e) {}
+  const finish = (message, next) => {
+    status.textContent = message;
+    setTimeout(() => { location.href = next || "/sappy/sealfolio.html"; }, 900);
+  };
+  if (!code || !state || !stored.state || state !== stored.state || !stored.verifier) {
+    finish("X authorization could not be verified.", stored.next);
+    return;
+  }
+  try {
+    const response = await fetch("/api/x-oauth", {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({ code, verifier: stored.verifier, redirectUri: location.origin + "/sappy/x-callback.html" }),
+    });
+    const data = await response.json();
+    if (!response.ok || !data.user) throw new Error(data.error || "x_failed");
+    const handle = "@" + data.user.username;
+    localStorage.setItem("sappy_x", handle);
+    localStorage.setItem("sappy_x_profile", JSON.stringify(data.user));
+    finish("X connected as " + handle + ".", stored.next);
+  } catch (e) {
+    finish("X login needs the X app credentials finished.", stored.next);
+  }
+})();
+</script>
+</body>
+</html>

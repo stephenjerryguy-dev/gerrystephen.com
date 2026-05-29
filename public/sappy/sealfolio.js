@@ -13,19 +13,19 @@
   const TRAITS = ["Orange BG", "Cloudy", "Poorple", "Black Tee", "Yellow Bomber", "Green Scarf", "Beanie", "Shades", "Durag", "Mushroom", "Pumpkin Head", "Halo", "Party Hat", "Skeleton"];
   const VIBES = ["ARF ARF", "WAGBO", "Diamond Flippers", "Pod Leader", "Cold Water Club", "Sealmaxi"];
   const RANKS = ["New Collector", "Seal Enjoyer", "Pod Member", "Legendary Collector", "Seal Whale"];
+  const CONTRACTS = {
+    seals: "0x364c828ee171616a39897688a831c2499ad972ec",
+    staked: "0x1c70d0a86475cc707b48aa79f112857e7957274f",
+  };
 
-  const owned = [];
+  const sampleOwned = [];
   const nOwned = 3 + pick(6);
   const used = new Set();
   for (let i = 0; i < nOwned; i++) {
     let id; do { id = pick(10000); } while (used.has(id)); used.add(id);
-    owned.push({ id, trait: TRAITS[pick(TRAITS.length)], staked: rnd() > 0.5 });
+    sampleOwned.push({ id, trait: TRAITS[pick(TRAITS.length)], collection: "Sappy Seals", staked: rnd() > 0.5 });
   }
-  const staked = owned.filter((o) => o.staked).length;
-  const bitsBase = Math.max(42, staked * (1200 + pick(3800)) + pick(900));
-  const bits = bitsBase.toLocaleString("en-US");
-  const score = 120 + pick(880);
-  const rank = RANKS[Math.min(RANKS.length - 1, Math.floor(score / 200))];
+  const state = { address: "", nfts: null, delegatedWallets: [], loading: false, error: "" };
   const vibe = VIBES[pick(VIBES.length)];
   let walletShort = "Connect wallet";
   try {
@@ -39,20 +39,72 @@
     try { walletShort = localStorage.getItem("sappy_wallet_label") || walletShort; } catch (e) {}
   }
 
-  const BADGES = [
-    { i: "🦭", n: "OG Seal", have: rnd() > .3 },
-    { i: "💎", n: "Staker", have: staked > 0 },
-    { i: "🌊", n: "Ocean Fund", have: rnd() > .5 },
-    { i: "🎨", n: "Meme Lord", have: rnd() > .5 },
-    { i: "🏆", n: "Pod Leader", have: rnd() > .7 },
-    { i: "🔑", n: "Key Holder", have: rnd() > .6 },
-  ];
+  function normalizeOwned() {
+    if (!state.nfts) return sampleOwned;
+    return state.nfts.map((nft) => {
+      const contract = nft.contract?.toLowerCase?.() || "";
+      const id = String(nft.tokenId || "").replace(/\D/g, "") || nft.tokenId || "";
+      return {
+        id,
+        name: nft.name || `${nft.collection || "NFT"} #${id}`,
+        trait: nft.collection || "Sappy ecosystem",
+        collection: nft.collection || "Sappy ecosystem",
+        image: nft.image,
+        href: nft.href,
+        chain: nft.chain || "ethereum",
+        wallet: nft.wallet,
+        staked: contract === CONTRACTS.staked || /staked/i.test(`${nft.collection || ""} ${nft.name || ""}`),
+      };
+    });
+  }
+
+  function scoreFor(owned) {
+    if (state.nfts) return Math.min(999, owned.length * 42 + owned.filter((o) => o.staked).length * 85 + state.delegatedWallets.length * 30);
+    return 120 + pick(880);
+  }
+
+  function badgesFor(owned, staked) {
+    const has = (needle) => owned.some((nft) => `${nft.collection} ${nft.name || ""}`.toLowerCase().includes(needle));
+    return [
+      { i: "🦭", n: "OG Seal", have: owned.some((nft) => /sappy seal/i.test(`${nft.collection} ${nft.name || ""}`)) },
+      { i: "💎", n: "Staker", have: staked > 0 },
+      { i: "🌊", n: "Omnia", have: has("omnia") },
+      { i: "🎨", n: "Pixseal", have: has("pixseal") },
+      { i: "🏆", n: "Artifact", have: has("artifact") },
+      { i: "🔑", n: "Key Holder", have: has("key") || has("faithful") },
+    ];
+  }
+
+  function renderTokenArt(o) {
+    if (o.image) {
+      return `<a class="sealframe token-art" href="${o.href || "#"}" target="_blank" rel="noopener">
+        <img class="seal-photo show" src="${o.image}" alt="${o.name || `Sappy asset #${o.id}`}" loading="lazy" referrerpolicy="no-referrer">
+      </a>`;
+    }
+    return `<div class="sealframe" data-pin="1" data-kind="seal" data-id="${o.id}" data-px="320"></div>`;
+  }
 
   function render() {
+    const owned = normalizeOwned();
+    const staked = owned.filter((o) => o.staked).length;
+    const bitsBase = Math.max(42, staked * (1200 + pick(3800)) + pick(900));
+    const bits = bitsBase.toLocaleString("en-US");
+    const score = scoreFor(owned);
+    const rank = RANKS[Math.min(RANKS.length - 1, Math.floor(score / 200))];
+    const badges = badgesFor(owned, staked);
+    const first = owned[0] || sampleOwned[0];
+    const isReal = Array.isArray(state.nfts);
+    const statusCopy = state.loading
+      ? ["Syncing your wallet.", "Pulling Sappy Seals, staked Seals, Pixseals, Omnia items, keys and artifacts from the covered contracts."]
+      : isReal
+        ? [`${owned.length} ecosystem asset${owned.length === 1 ? "" : "s"} found.`, state.delegatedWallets.length ? `Includes ${state.delegatedWallets.length} Delegate.xyz vault${state.delegatedWallets.length === 1 ? "" : "s"}.` : "Direct wallet holdings shown."]
+        : ["Connect your wallet.", "Your real Sappy ecosystem assets will replace this sample Sealfolio."];
     document.getElementById("folio").innerHTML = `
       <a class="folio-back" href="community.html">← Back to the Pod</a>
       <div class="folio-hero">
-        <div class="folio-pfp sealframe" data-pin="1" data-kind="seal" data-id="${owned[0].id}" data-px="300"></div>
+        <div class="folio-pfp sealframe" data-pin="1" data-kind="${first.image ? "none" : "seal"}" data-id="${first.id}" data-px="300">
+          ${first.image ? `<img class="seal-photo show" src="${first.image}" alt="${first.name || "Sealfolio profile asset"}" referrerpolicy="no-referrer">` : ""}
+        </div>
         <div class="folio-id">
           <div class="name">${handle}</div>
           <div class="wallet" id="folio-wallet">${walletShort}</div>
@@ -71,26 +123,33 @@
 
       <div class="folio-claim" id="claim">
         <div class="ct">
-          <h3>This is a sample Sealfolio.</h3>
-          <p>Connect your X to claim your handle and pull your real seals, staking and BITS.</p>
+          <h3>${statusCopy[0]}</h3>
+          <p>${statusCopy[1]}</p>
         </div>
         <button class="btn btn-x" data-x-login>𝕏&nbsp; Connect your X</button>
       </div>
 
       <div class="folio-statrow">
-        <div class="fstat"><div class="v">${nOwned}</div><div class="k">Seals owned</div></div>
-        <div class="fstat"><div class="v">${owned.length}/14</div><div class="k">Traits</div></div>
-        <div class="fstat"><div class="v">${BADGES.filter(b=>b.have).length}</div><div class="k">Badges</div></div>
+        <div class="fstat"><div class="v">${owned.length}</div><div class="k">Assets found</div></div>
+        <div class="fstat"><div class="v">${new Set(owned.map((o) => o.collection)).size}</div><div class="k">Collections</div></div>
+        <div class="fstat"><div class="v">${badges.filter(b=>b.have).length}</div><div class="k">Badges</div></div>
         <div class="fstat"><div class="v">${staked}</div><div class="k">Staked</div></div>
         <div class="fstat"><div class="v">${score}</div><div class="k">Score</div></div>
       </div>
 
       <div class="folio-sec">
-        <h2>${handle}'s Seals</h2>
+        <h2>${isReal ? "Your Sappy ecosystem" : `${handle}'s sample Seals`}</h2>
+        ${state.loading ? '<div class="folio-loading">Loading connected wallet collection...</div>' : ""}
+        ${isReal && !owned.length ? '<div class="folio-loading">No covered Sappy ecosystem NFTs were found in this wallet yet. If they are in a delegated vault, make sure Delegate.xyz points to this wallet.</div>' : ""}
         <div class="seal-grid">${owned.map((o) => `
           <div class="seal-card">
-            <div class="sealframe" data-pin="1" data-kind="seal" data-id="${o.id}" data-px="320"></div>
-            <div class="cap"><div class="n">Sappy Seal #${o.id}</div><div class="t">${o.trait}</div>${o.staked ? '<span class="staked">⛓ STAKED · EARNING BITS</span>' : ""}</div>
+            ${renderTokenArt(o)}
+            <div class="cap">
+              <div class="n">${o.name || `Sappy Seal #${o.id}`}</div>
+              <div class="t">${o.trait}</div>
+              ${o.wallet ? `<div class="t">${o.wallet}</div>` : ""}
+              ${o.staked ? '<span class="staked">⛓ STAKED · EARNING BITS</span>' : ""}
+            </div>
           </div>`).join("")}</div>
       </div>
 
@@ -109,13 +168,15 @@
 
       <div class="folio-sec">
         <h2>Badges</h2>
-        <div class="badge-grid">${BADGES.map((b) => `
+        <div class="badge-grid">${badges.map((b) => `
           <div class="badge ${b.have ? "" : "locked"}"><div class="bi">${b.i}</div><div class="bn">${b.n}</div></div>`).join("")}</div>
       </div>
 
       <div class="folio-sec" style="text-align:center;padding:30px 0 6px;color:var(--ink-soft);font-style:italic;">
         “Collect what you love. Stay sappy.” — ${handle}
       </div>`;
+    wireFolioActions();
+    if (window.__sappyHydrate) window.__sappyHydrate(document.getElementById("folio"));
   }
 
   function animateBits() {
@@ -141,10 +202,42 @@
     const label = detail.label || (detail.address.slice(0, 6) + "..." + detail.address.slice(-4));
     const el = document.getElementById("folio-wallet");
     if (el) el.textContent = label;
+    state.address = detail.address;
     try {
       localStorage.setItem("sappy_wallet", JSON.stringify({ address: detail.address, label, connectedAt: Date.now() }));
       localStorage.setItem("sappy_wallet_label", label);
     } catch (_) {}
+    loadWalletCollection(detail.address);
+  }
+
+  async function loadWalletCollection(address) {
+    if (!address || state.loading || state.address.toLowerCase() !== address.toLowerCase()) return;
+    state.loading = true;
+    state.error = "";
+    render();
+    try {
+      const response = await fetch(`/api/nfts?wallet=${encodeURIComponent(address)}`, { headers: { accept: "application/json" } });
+      const data = response.ok ? await response.json() : { nfts: [] };
+      state.nfts = Array.isArray(data.nfts) ? data.nfts : [];
+      state.delegatedWallets = Array.isArray(data.delegatedWallets) ? data.delegatedWallets : [];
+    } catch (e) {
+      state.error = "collection_sync_failed";
+      state.nfts = [];
+    } finally {
+      state.loading = false;
+      render();
+    }
+  }
+
+  function wireFolioActions() {
+    document.querySelectorAll("[data-x-login]").forEach((button) => {
+      if (button.dataset.wired) return;
+      button.dataset.wired = "1";
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        S.xModal();
+      });
+    });
   }
 
   S.ready(function () {
@@ -153,5 +246,9 @@
     S.init();
     animateBits();
     window.addEventListener("sappy-wallet-connected", (event) => syncWalletLabel(event.detail));
+    try {
+      const cached = JSON.parse(localStorage.getItem("sappy_wallet") || "{}");
+      if (cached.address) syncWalletLabel(cached);
+    } catch (_) {}
   });
 })();

@@ -256,7 +256,8 @@ window.Sappy = (function () {
   function setConnected(handle, kind) {
     if (kind === "wallet") {
       try {
-        localStorage.setItem("sappy_wallet", JSON.stringify({ label: handle, connectedAt: Date.now() }));
+        const cached = JSON.parse(localStorage.getItem("sappy_wallet") || "{}");
+        localStorage.setItem("sappy_wallet", JSON.stringify({ ...cached, label: handle, connectedAt: Date.now() }));
         localStorage.setItem("sappy_wallet_label", handle);
       } catch (e) {}
       document.querySelectorAll("[data-connect]").forEach((b) => { b.innerHTML = "✓&nbsp; " + handle; });
@@ -268,14 +269,25 @@ window.Sappy = (function () {
     }
   }
 
+  let xClientIdPromise = null;
+  async function getXClientId() {
+    if (window.SAPPY_X_CLIENT_ID) return window.SAPPY_X_CLIENT_ID;
+    if (!xClientIdPromise) {
+      xClientIdPromise = fetch("/api/x-config", { headers: { accept: "application/json" } })
+        .then((r) => r.ok ? r.json() : {})
+        .then((j) => j.clientId || "")
+        .catch(() => "");
+    }
+    return xClientIdPromise;
+  }
+
   function xModal() {
-    const cid = window.SAPPY_X_CLIENT_ID;
     openModal(`
       <div class="sm-logo"><span class="word">sappy<b>.</b></span></div>
       <h3 class="sm-title">Connect your X</h3>
-      <p class="sm-sub">Link your X to claim your Sealfolio — your seals, traits, staking and $PIXL in one profile.</p>
+      <p class="sm-sub">Link your X to claim your Sealfolio identity and display your profile alongside your connected wallet collection.</p>
       <button class="btn btn-x sm-x">𝕏&nbsp; Continue with X</button>
-      <p class="sm-fine">${cid ? "Authorizing via X OAuth 2.0." : "Demo mode — wire <code>window.SAPPY_X_CLIENT_ID</code> for live X OAuth."}</p>`);
+      <p class="sm-fine">You will be sent to X to authorize the public profile connection.</p>`);
     modalEl.querySelector(".sm-x").addEventListener("click", startXLogin);
   }
 
@@ -314,18 +326,22 @@ window.Sappy = (function () {
     toast("Wallet connect is loading. Try again in a moment.");
   }
 
-  function startXLogin() {
-    const cid = window.SAPPY_X_CLIENT_ID;
+  async function startXLogin() {
+    const cid = await getXClientId();
     if (cid) {
-      const redirect = location.origin + location.pathname.replace(/[^/]*$/, "") + "x-callback.html";
+      const redirect = location.origin + "/sappy/x-callback.html";
       const state = Math.random().toString(36).slice(2);
+      const verifier = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+      try {
+        localStorage.setItem("sappy_x_oauth", JSON.stringify({ state, verifier, next: location.href, createdAt: Date.now() }));
+      } catch (e) {}
       const url = "https://twitter.com/i/oauth2/authorize?response_type=code&client_id=" + encodeURIComponent(cid) +
         "&redirect_uri=" + encodeURIComponent(redirect) + "&scope=" + encodeURIComponent("tweet.read users.read") +
-        "&state=" + state + "&code_challenge=challenge&code_challenge_method=plain";
-      window.open(url, "x_oauth", "width=600,height=720");
-      toast("𝕏  Opened X authorization…");
+        "&state=" + encodeURIComponent(state) + "&code_challenge=" + encodeURIComponent(verifier) + "&code_challenge_method=plain";
+      location.href = url;
+      toast("Opening X authorization...");
     } else {
-      setConnected("@sappyseal_holder", "x");
+      toast("X login needs the X app client id configured first.");
     }
   }
 
@@ -342,7 +358,12 @@ window.Sappy = (function () {
     window.addEventListener("sappy-wallet-connected", (event) => {
       const address = event.detail && event.detail.address;
       if (!address) return;
-      setConnected(event.detail.label || (address.slice(0, 6) + "..." + address.slice(-4)), "wallet");
+      const label = event.detail.label || (address.slice(0, 6) + "..." + address.slice(-4));
+      try {
+        localStorage.setItem("sappy_wallet", JSON.stringify({ address, label, connectedAt: Date.now() }));
+        localStorage.setItem("sappy_wallet_label", label);
+      } catch (e) {}
+      setConnected(label, "wallet");
       syncDelegate(address);
     });
     window.addEventListener("sappy-wallet-status", (event) => {
