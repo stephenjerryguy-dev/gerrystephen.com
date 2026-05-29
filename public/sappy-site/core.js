@@ -1,0 +1,332 @@
+/* ============ sappy. ecosystem hub — shared engine (core.js) ============ */
+window.Sappy = (function () {
+  "use strict";
+
+  const GW = [
+    "https://ipfs.io/ipfs/",
+    "https://dweb.link/ipfs/",
+    "https://nftstorage.link/ipfs/",
+    "https://gateway.pinata.cloud/ipfs/",
+    "https://flk-ipfs.xyz/ipfs/",
+  ];
+  const PROXY = (u) => "https://api.codetabs.com/v1/proxy/?quest=" + u;
+  const SEAL_CID = "QmUs4WQP47QKGwzPLjVMmhqTbspJfAC344abDEE2UT52HF"; // verified Sappy Seals image base
+  const SEAL_SUPPLY = 10000;
+  const RPCS = {
+    eth: ["https://ethereum-rpc.publicnode.com", "https://rpc.ankr.com/eth", "https://eth.llamarpc.com", "https://1rpc.io/eth"],
+    polygon: ["https://polygon-bor-rpc.publicnode.com", "https://polygon-rpc.com", "https://1rpc.io/matic"],
+  };
+
+  const randId = (n) => Math.floor(Math.random() * (n || SEAL_SUPPLY));
+  const sealUrls = (id) => GW.map((g) => g + SEAL_CID + "/" + id + ".png");
+  const ipfsToHttp = (u) => {
+    if (/^https?:/.test(u)) return [u];
+    const p = u.replace(/^ipfs:\/\//, "").replace(/^ipfs\//, "");
+    return GW.map((g) => g + p);
+  };
+
+  // ---- on-chain reads ----
+  const TIMEOUT = (ms) => (typeof AbortSignal !== "undefined" && AbortSignal.timeout) ? AbortSignal.timeout(ms) : undefined;
+  async function ethCall(rpcs, to, data) {
+    for (const rpc of rpcs) {
+      try {
+        const r = await fetch(rpc, { method: "POST", headers: { "content-type": "application/json" }, signal: TIMEOUT(7000),
+          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_call", params: [{ to, data }, "latest"] }) });
+        const j = await r.json();
+        if (j && j.result && j.result.length > 2) return j.result;
+      } catch (e) {}
+    }
+    return null;
+  }
+  function decodeAbiString(hex) {
+    const c = hex.slice(2);
+    if (c.length < 128) return null;
+    const len = parseInt(c.slice(64, 128), 16);
+    if (!len || len > 4096) return null;
+    const d = c.slice(128); let s = "";
+    for (let i = 0; i < len; i++) { const b = parseInt(d.substr(i * 2, 2), 16); if (b) s += String.fromCharCode(b); }
+    return s;
+  }
+  async function fetchJson(url) {
+    try { const r = await fetch(url, { signal: TIMEOUT(8000) }); if (r.ok) return await r.json(); } catch (e) {}
+    try { const r = await fetch(PROXY(url), { signal: TIMEOUT(9000) }); if (r.ok) return await r.json(); } catch (e) {}
+    return null;
+  }
+
+  // ---- image loading with gateway fallback over a procedural seal ----
+  function addPhoto(frame, urls, onFail) {
+    if (!urls || !urls.length) { if (onFail) onFail(); return; }
+    const img = new Image();
+    img.className = "seal-photo"; img.decoding = "async"; img.alt = "";
+    let i = 0;
+    img.onload = () => { img.classList.add("show"); const cv = frame.querySelector(".seal-cv"); if (cv) cv.style.visibility = "hidden"; };
+    img.onerror = () => { i++; if (i < urls.length) img.src = urls[i]; else { img.remove(); if (onFail) onFail(); } };
+    img.src = urls[0]; frame.appendChild(img); return img;
+  }
+  function loadSealPhoto(frame, attempt) {
+    attempt = attempt || 0;
+    const id = frame.dataset.id !== undefined ? +frame.dataset.id : randId();
+    frame.dataset.tokenId = id;
+    const cur = frame.querySelector("img.seal-photo"); if (cur) cur.remove();
+    addPhoto(frame, sealUrls(id), () => { if (frame.dataset.id === undefined && attempt < 4) loadSealPhoto(frame, attempt + 1); });
+  }
+  async function resolveContract(frame, chain) {
+    const contract = frame.dataset.contract;
+    const rpcs = RPCS[chain] || RPCS.eth;
+    let ids;
+    if (frame.dataset.id !== undefined) ids = [+frame.dataset.id];
+    else {
+      const pool = [4, 5, 6, 7, 8, 9, 11, 13, 17, 21, 33];
+      for (let i = pool.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [pool[i], pool[j]] = [pool[j], pool[i]]; }
+      ids = [1, 2, 3].concat(pool.slice(0, 5));
+    }
+    for (const id of ids) {
+      const idHex = id.toString(16).padStart(64, "0");
+      let uri = null;
+      for (const sel of ["0xc87b56dd", "0x0e89341c"]) {
+        const res = await ethCall(rpcs, contract, sel + idHex);
+        if (res) { const s = decodeAbiString(res); if (s && s.length > 3) { uri = s; break; } }
+      }
+      if (!uri) continue;
+      uri = uri.replace(/0x\{id\}|\{id\}/gi, idHex);
+      let meta = null;
+      for (const u of ipfsToHttp(uri)) { meta = await fetchJson(u); if (meta) break; }
+      const img = meta && (meta.image || meta.image_url || meta.imageUrl);
+      if (img) { frame.dataset.tokenId = id; addPhoto(frame, ipfsToHttp(img)); return; }
+    }
+  }
+
+  function buildFrame(frame) {
+    const px = +frame.dataset.px || 300;
+    const cv = document.createElement("canvas");
+    cv.className = "seal-cv"; cv.width = px; cv.height = px;
+    const opts = {};
+    if (frame.dataset.acc !== undefined) opts.accessory = +frame.dataset.acc;
+    if (frame.dataset.bg) opts.bg = frame.dataset.bg;
+    if (window.SappySeal) window.SappySeal.draw(cv, frame.dataset.seed || Math.random(), opts);
+    frame.appendChild(cv);
+    const kind = frame.dataset.kind || "seal";
+    if (kind === "seal") loadSealPhoto(frame);
+    else if (kind === "eth") resolveContract(frame, "eth");
+    else if (kind === "polygon") resolveContract(frame, "polygon");
+  }
+  function hydrate(root) {
+    (root || document).querySelectorAll(".sealframe:not([data-built])").forEach((f) => {
+      f.setAttribute("data-built", "1"); buildFrame(f);
+    });
+  }
+  function reroll() {
+    document.querySelectorAll(".sealframe").forEach((f) => {
+      if (f.dataset.pin === "1") return; // keep pinned ids
+      f.querySelectorAll(".seal-cv, .seal-photo").forEach((n) => n.remove());
+      f.removeAttribute("data-built"); if (f.dataset.id === undefined) delete f.dataset.tokenId;
+    });
+    hydrate();
+  }
+
+  // ---- copy buttons ----
+  function wireCopy() {
+    document.addEventListener("click", (e) => {
+      const b = e.target.closest(".copy-btn"); if (!b) return;
+      const addr = b.getAttribute("data-addr");
+      const done = () => { const t = b.textContent; b.textContent = "Copied ✓"; b.classList.add("done");
+        setTimeout(() => { b.textContent = t; b.classList.remove("done"); }, 1300); };
+      if (navigator.clipboard) navigator.clipboard.writeText(addr).then(done, done); else done();
+    });
+  }
+
+  // ---- count-up ----
+  function countUp(el, target, o) {
+    o = o || {}; const dur = 1100, t0 = performance.now();
+    const dec = o.dec || 0, pre = o.pre || "", suf = o.suf || "";
+    (function step(t) {
+      const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3), v = target * e;
+      el.textContent = pre + v.toLocaleString("en-US", { minimumFractionDigits: dec, maximumFractionDigits: dec }) + suf;
+      if (k < 1) requestAnimationFrame(step);
+    })(t0);
+  }
+  function runStats(root) {
+    const io = new IntersectionObserver((ents) => ents.forEach((en) => {
+      if (!en.isIntersecting) return; io.unobserve(en.target); const el = en.target;
+      countUp(el, +el.dataset.to, { dec: +el.dataset.dec || 0, pre: el.dataset.pre || "", suf: el.dataset.suf || "" });
+    }), { threshold: .4 });
+    (root || document).querySelectorAll("[data-to]").forEach((el) => io.observe(el));
+  }
+
+  // ---- brand links + assets (from sappy.lol / omnia.lol) ----
+  const LINKS = {
+    x: "https://x.com/sappyseals",
+    opensea: "https://opensea.io/collection/sappy-seals",
+    meme: "https://mememachine.sappyseals.io/",
+    omnia: "https://omnia.lol",
+    omniaWorld: "https://www.sappy.lol/~/omnia",
+    omniaX: "https://x.com/ExploreOmnia",
+    discord: "https://discord.gg/zy2dfyMKwE",
+    site: "https://www.sappy.lol/",
+    pixl: "https://app.uniswap.org/explore/tokens/ethereum/0x427a03fb96d9a94a6727fbcfbba143444090dd64",
+  };
+  const BRAND_BASE = "https://www.sappy.lol/_next/image?url=%2Fseals-static%2F_next%2Fstatic%2Fmedia%2F";
+  const BRAND_DPL = "&w=1920&q=90&dpl=dpl_2ZVv1uGqUurxmNXzk5yh6JENfpwh";
+  const brand = (file) => BRAND_BASE + file + BRAND_DPL;
+  const BRAND = {
+    glow: brand("seal-glow.977fd6f5.png"),
+    camping: brand("seal-camping.c933f6ed.png"),
+    peaking: brand("seal-peaking.8d058776.png"),
+    questioning: brand("seal-questioning.2c05faf7.png"),
+    crowd: brand("seal-crowd.68dc754a.png"),
+    happy: brand("happy-seals.1e8b6995.png"),
+    chilling: brand("chilling-bro.eb9290a0.png"),
+  };
+
+  // ---- team (real people from @SappySeals X affiliates — live X pfps via unavatar) ----
+  const TEAM = [
+    { h: "wabdoteth", name: "wab.eth", role: "Founder & CEO", seed: "wab" },
+    { h: "diakou", name: "Diakou", role: "Co-founder · Divine Protector", seed: "diakou" },
+    { h: "stormrdoteth", name: "stormr", role: "Product", seed: "stormr" },
+    { h: "DylanKentish", name: "Dylan “Kent”", role: "Software Engineer", seed: "dylan" },
+    { h: "lilstovetop", name: "lilstovetop", role: "Collector · affiliate", seed: "lils" },
+  ];
+  const pfp = (h) => "https://unavatar.io/twitter/" + h + "?fallback=https://unavatar.io/" + h;
+  function renderTeam(el) {
+    if (!el) return;
+    el.innerHTML = TEAM.map((m) => `
+      <a class="team-card" href="https://x.com/${m.h}" target="_blank" rel="noopener">
+        <div class="team-pic sealframe" data-seed="${m.seed}" data-kind="none" data-px="160">
+          <img class="seal-photo" decoding="async" alt="@${m.h}" referrerpolicy="no-referrer"
+               src="${pfp(m.h)}" onload="this.classList.add('show')" onerror="this.remove()">
+        </div>
+        <div class="team-meta">
+          <div class="team-name">${m.name}</div>
+          <div class="team-role">${m.role}</div>
+          <div class="team-handle">@${m.h}</div>
+        </div>
+      </a>`).join("");
+    // build procedural fallbacks under the pfps
+    el.querySelectorAll(".team-pic").forEach((f) => {
+      if (f.dataset.built) return; f.dataset.built = "1";
+      const cv = document.createElement("canvas"); cv.className = "seal-cv"; cv.width = 160; cv.height = 160;
+      if (window.SappySeal) window.SappySeal.draw(cv, f.dataset.seed, {});
+      f.insertBefore(cv, f.firstChild);
+    });
+  }
+
+  // ---- directory (random pod sample) ----
+  const HOLDERS = [
+    { h: "wabdoteth", t: "Seal Father", n: 47, seed: "wab" },
+    { h: "pixlpilled", t: "Diamond Flipper", n: 12, seed: "pixlpilled" },
+    { h: "arfarf.eth", t: "ARF ARF", n: 8, seed: "arfarf" },
+    { h: "sealmaxi", t: "Pod Leader", n: 21, seed: "sealmaxi" },
+    { h: "coldwater", t: "New Collector", n: 1, seed: "coldwater" },
+    { h: "blubber.eth", t: "Staker", n: 5, seed: "blubber" },
+    { h: "icefloe", t: "Collector", n: 3, seed: "icefloe" },
+    { h: "frostbite", t: "Whale", n: 33, seed: "frostbite" },
+  ];
+  function renderDir(el, count) {
+    if (!el) return;
+    el.innerHTML = HOLDERS.slice(0, count || HOLDERS.length).map((p) => `
+      <a class="dir-row" href="#">
+        <div class="sealframe" data-kind="seal" data-seed="${p.seed}" data-px="90"></div>
+        <div><div class="n">${p.h}</div><div class="t">${p.t}</div></div>
+        <span class="cnt">${p.n} ${p.n === 1 ? "SEAL" : "SEALS"}</span>
+      </a>`).join("");
+  }
+
+  // ---- toast + login/connect modal ----
+  let modalEl = null;
+  function ensureModal() {
+    if (modalEl) return modalEl;
+    modalEl = document.createElement("div");
+    modalEl.id = "sappy-modal";
+    modalEl.innerHTML = `
+      <div class="sm-backdrop"></div>
+      <div class="sm-card" role="dialog" aria-modal="true">
+        <button class="sm-close" aria-label="Close">✕</button>
+        <div class="sm-body"></div>
+      </div>`;
+    document.body.appendChild(modalEl);
+    modalEl.querySelector(".sm-backdrop").addEventListener("click", closeModal);
+    modalEl.querySelector(".sm-close").addEventListener("click", closeModal);
+    return modalEl;
+  }
+  function closeModal() { if (modalEl) modalEl.classList.remove("show"); }
+  function openModal(html) { ensureModal(); modalEl.querySelector(".sm-body").innerHTML = html; modalEl.classList.add("show"); }
+
+  function setConnected(handle, kind) {
+    try { localStorage.setItem("sappy_" + (kind || "x"), handle); } catch (e) {}
+    if (kind === "wallet") {
+      document.querySelectorAll("[data-connect]").forEach((b) => { b.innerHTML = "✓&nbsp; " + handle; });
+      closeModal(); toast("Wallet connected — " + handle);
+    } else {
+      closeModal(); toast("🦭  Welcome, " + handle + " — loading your Sealfolio…");
+      if (window.__sappyConnectedX) window.__sappyConnectedX(handle);
+    }
+  }
+
+  function xModal() {
+    const cid = window.SAPPY_X_CLIENT_ID;
+    openModal(`
+      <div class="sm-logo"><span class="word">sappy<b>.</b></span></div>
+      <h3 class="sm-title">Connect your X</h3>
+      <p class="sm-sub">Link your X to claim your Sealfolio — your seals, traits, staking and $PIXL in one profile.</p>
+      <button class="btn btn-x sm-x">𝕏&nbsp; Continue with X</button>
+      <p class="sm-fine">${cid ? "Authorizing via X OAuth 2.0." : "Demo mode — wire <code>window.SAPPY_X_CLIENT_ID</code> for live X OAuth."}</p>`);
+    modalEl.querySelector(".sm-x").addEventListener("click", startXLogin);
+  }
+
+  const WALLETS = [
+    { n: "MetaMask", e: "🦊" }, { n: "WalletConnect", e: "🔗" },
+    { n: "Coinbase Wallet", e: "🔵" }, { n: "Rainbow", e: "🌈" },
+  ];
+  function walletModal() {
+    openModal(`
+      <div class="sm-logo"><span class="word">sappy<b>.</b></span></div>
+      <h3 class="sm-title">Connect a wallet</h3>
+      <p class="sm-sub">Connect to verify ownership and balances across the pod.</p>
+      <div class="sm-wallets">${WALLETS.map((w) => `<button class="btn btn-ghost sm-w" data-w="${w.n}"><span>${w.e}</span> ${w.n}</button>`).join("")}</div>
+      <p class="sm-fine">Demo mode — no real wallet connected. X login lives on your Sealfolio.</p>`);
+    modalEl.querySelectorAll(".sm-w").forEach((b) => b.addEventListener("click", () => setConnected("seal.eth", "wallet")));
+  }
+
+  function startXLogin() {
+    const cid = window.SAPPY_X_CLIENT_ID;
+    if (cid) {
+      const redirect = location.origin + location.pathname.replace(/[^/]*$/, "") + "x-callback.html";
+      const state = Math.random().toString(36).slice(2);
+      const url = "https://twitter.com/i/oauth2/authorize?response_type=code&client_id=" + encodeURIComponent(cid) +
+        "&redirect_uri=" + encodeURIComponent(redirect) + "&scope=" + encodeURIComponent("tweet.read users.read") +
+        "&state=" + state + "&code_challenge=challenge&code_challenge_method=plain";
+      window.open(url, "x_oauth", "width=600,height=720");
+      toast("𝕏  Opened X authorization…");
+    } else {
+      setConnected("@sappyseal_holder", "x");
+    }
+  }
+
+  let toastEl = null;
+  function toast(msg) {
+    if (!toastEl) { toastEl = document.getElementById("x-toast") || (function () { const d = document.createElement("div"); d.id = "x-toast"; document.body.appendChild(d); return d; })(); }
+    toastEl.textContent = msg; toastEl.classList.add("show"); clearTimeout(toastEl._t);
+    toastEl._t = setTimeout(() => toastEl.classList.remove("show"), 3200);
+  }
+
+  function wireLogin() {
+    document.querySelectorAll("[data-x-login]").forEach((b) => b.addEventListener("click", (e) => { e.preventDefault(); xModal(); }));
+    document.querySelectorAll("[data-connect]").forEach((b) => b.addEventListener("click", (e) => { e.preventDefault(); walletModal(); }));
+    window.sappyXLogin = xModal; window.sappyWallet = walletModal;
+  }
+
+  function init() {
+    wireCopy(); wireLogin(); runStats();
+    // defer image hydration until after the base page load event so the page
+    // reports "loaded" quickly; seal art then streams in over the fallbacks.
+    const go = () => setTimeout(hydrate, 30);
+    if (document.readyState === "complete") go();
+    else window.addEventListener("load", go, { once: true });
+    window.__sappyHydrate = hydrate; window.__sappyReroll = reroll;
+  }
+  function ready(fn) { if (document.readyState !== "loading") fn(); else document.addEventListener("DOMContentLoaded", fn); }
+
+  return { GW, SEAL_CID, sealUrls, ipfsToHttp, randId, ethCall, decodeAbiString, fetchJson,
+    addPhoto, resolveContract, hydrate, reroll, buildFrame, runStats, countUp,
+    renderTeam, renderDir, toast, xModal, walletModal, init, ready, TEAM, HOLDERS, LINKS, BRAND };
+})();
