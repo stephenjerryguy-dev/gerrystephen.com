@@ -42,12 +42,52 @@ async function fetchTopOwners() {
     .filter((owner) => /^0x[a-fA-F0-9]{40}$/.test(owner.address));
 }
 
+function ownerFromToken(item) {
+  return item?.token?.owner || item?.token?.ownerAddress || item?.owner || item?.ownership?.owner || item?.market?.floorAsk?.maker;
+}
+
+async function fetchOwnersFromTokens(contract) {
+  const owners = [];
+  let continuation = undefined;
+  for (let page = 0; page < 4; page += 1) {
+    const params = new URLSearchParams({
+      collection: contract,
+      limit: '200',
+      sortBy: 'tokenId',
+      includeAttributes: 'false',
+      includeLastSale: 'false',
+      includeTopBid: 'false',
+    });
+    if (continuation) params.set('continuation', continuation);
+    const response = await fetch(`${RESERVOIR_API}/tokens/v7?${params.toString()}`, {
+      headers: reservoirHeaders(),
+    });
+    if (!response.ok) break;
+    const data = await response.json();
+    owners.push(...(data.tokens || [])
+      .map((item) => ownerFromToken(item))
+      .filter((address) => /^0x[a-fA-F0-9]{40}$/.test(address)));
+    continuation = data.continuation;
+    if (!continuation) break;
+  }
+  return owners.map((address) => ({ address, count: 1 }));
+}
+
 export default async function handler(req, res) {
   if (rateLimit(req, res, { name: 'sappy-holders', limit: 36, windowMs: 60_000 })) return;
 
   try {
     const aggregate = new Map();
-    (await fetchTopOwners()).forEach((owner) => {
+    let owners = await fetchTopOwners();
+    if (!owners.length) {
+      const tokenOwnerResponses = await Promise.allSettled([
+        fetchOwnersFromTokens(SAPPY_SEALS_CONTRACT),
+        fetchOwnersFromTokens(STAKED_SEALS_CONTRACT),
+      ]);
+      owners = tokenOwnerResponses.flatMap((result) => (result.status === 'fulfilled' ? result.value : []));
+    }
+
+    owners.forEach((owner) => {
       const key = owner.address.toLowerCase();
       const current = aggregate.get(key) || { address: owner.address, count: 0 };
       current.count += owner.count;
