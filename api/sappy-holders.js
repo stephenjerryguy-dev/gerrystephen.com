@@ -1,6 +1,8 @@
 import { rateLimit } from './_rate-limit.js';
 
 const RESERVOIR_API = 'https://api.reservoir.tools';
+const ETH_RPC = 'https://eth.llamarpc.com';
+const OWNER_OF_SELECTOR = '0x6352211e';
 const SAPPY_SEALS_CONTRACT = '0x364c828ee171616a39897688a831c2499ad972ec';
 const STAKED_SEALS_CONTRACT = '0x1c70d0a86475cc707b48aa79f112857e7957274f';
 
@@ -46,6 +48,39 @@ function ownerFromToken(item) {
   return item?.token?.owner || item?.token?.ownerAddress || item?.owner || item?.ownership?.owner || item?.market?.floorAsk?.maker;
 }
 
+function ownerOfData(tokenId) {
+  return `${OWNER_OF_SELECTOR}${BigInt(tokenId).toString(16).padStart(64, '0')}`;
+}
+
+function decodeOwner(result) {
+  if (!result || typeof result !== 'string' || result.length < 66) return undefined;
+  const address = `0x${result.slice(-40)}`;
+  return /^0x[a-fA-F0-9]{40}$/.test(address) ? address : undefined;
+}
+
+async function fetchOwnersFromOwnerOf(contract, count = 160) {
+  const body = Array.from({ length: count }, (_, index) => {
+    const tokenId = index + 1;
+    return {
+      jsonrpc: '2.0',
+      id: tokenId,
+      method: 'eth_call',
+      params: [{ to: contract, data: ownerOfData(tokenId) }, 'latest'],
+    };
+  });
+  const response = await fetch(ETH_RPC, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) return [];
+  const calls = await response.json();
+  return (Array.isArray(calls) ? calls : [])
+    .map((call) => decodeOwner(call.result))
+    .filter(Boolean)
+    .map((address) => ({ address, count: 1 }));
+}
+
 async function fetchOwnersFromTokens(contract) {
   const owners = [];
   let continuation = undefined;
@@ -85,6 +120,13 @@ export default async function handler(req, res) {
         fetchOwnersFromTokens(STAKED_SEALS_CONTRACT),
       ]);
       owners = tokenOwnerResponses.flatMap((result) => (result.status === 'fulfilled' ? result.value : []));
+    }
+    if (!owners.length) {
+      const ownerOfResponses = await Promise.allSettled([
+        fetchOwnersFromOwnerOf(SAPPY_SEALS_CONTRACT),
+        fetchOwnersFromOwnerOf(STAKED_SEALS_CONTRACT),
+      ]);
+      owners = ownerOfResponses.flatMap((result) => (result.status === 'fulfilled' ? result.value : []));
     }
 
     owners.forEach((owner) => {
