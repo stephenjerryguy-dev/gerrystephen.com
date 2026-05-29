@@ -216,7 +216,10 @@
     state.error = "";
     render();
     try {
-      const response = await fetch(`/api/nfts?wallet=${encodeURIComponent(address)}`, { headers: { accept: "application/json" } });
+      let response = await fetch(`/api/nfts?wallet=${encodeURIComponent(address)}`, { headers: { accept: "application/json" } });
+      if (!response.ok && /^(127\.0\.0\.1|localhost)$/.test(location.hostname)) {
+        response = await fetch(`https://www.gerrystephen.com/api/nfts?wallet=${encodeURIComponent(address)}`, { headers: { accept: "application/json" } });
+      }
       const data = response.ok ? await response.json() : { nfts: [] };
       state.nfts = Array.isArray(data.nfts) ? data.nfts : [];
       state.delegatedWallets = Array.isArray(data.delegatedWallets) ? data.delegatedWallets : [];
