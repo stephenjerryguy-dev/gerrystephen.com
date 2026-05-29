@@ -192,7 +192,7 @@ header{
 
 /* ---------- community-made chain collections ---------- */
 .community-collections{padding-top:0;}
-.community-chain-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;}
+.community-chain-grid{display:grid;grid-template-columns:minmax(0,520px);gap:16px;}
 .community-chain-card{
   display:flex;flex-direction:column;gap:12px;background:var(--paper);border:1.5px solid var(--line);
   border-radius:var(--radius-sm);padding:10px;box-shadow:var(--shadow);min-width:0;transition:transform .15s,border-color .15s;
@@ -208,7 +208,6 @@ header{
   color:#fff;font-family:var(--font-pixel);font-weight:400;font-size:7px;letter-spacing:.04em;box-shadow:inset 0 0 0 1px rgba(255,255,255,.22);
 }
 .chain-mark.monad{background:linear-gradient(135deg,#6b4dff,#39d4ff);}
-.chain-mark.cardano{background:linear-gradient(135deg,#0033ad,#2a9df4);}
 
 /* ---------- showcase (memes / studio) ---------- */
 .showcase-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:36px;}

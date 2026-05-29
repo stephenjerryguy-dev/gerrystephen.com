@@ -28,7 +28,7 @@ window.sappyOpenDynamic = fallbackOpenDynamic;
 
 const settings = {
   appName: 'Sappy Sealfolio',
-  appLogoUrl: `${window.location.origin}/sappy-site/assets/sappy-seal-emoji.webp`,
+  appLogoUrl: `${window.location.origin}/sappy/assets/sappy-seal-emoji.webp`,
   apiBaseUrl: `${window.location.origin}/dynamic-api`,
   environmentId: SAPPY_DYNAMIC_ENV_ID,
   initialAuthenticationMode: 'connect-only',

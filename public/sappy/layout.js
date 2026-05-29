@@ -1,10 +1,10 @@
 /* ============ sappy. ecosystem hub — shared header + footer (layout.js) ============ */
 (function () {
   const L = window.Sappy.LINKS;
-  const sealEmoji = '<video class="sappy-emoji" autoplay muted loop playsinline poster="/sappy-site/assets/sappy-seal-emoji.webp" aria-hidden="true"><source src="/sappy-site/assets/sappy-seal-emoji.webm" type="video/webm"></video>';
+  const sealEmoji = '<video class="sappy-emoji" autoplay muted loop playsinline poster="/sappy/assets/sappy-seal-emoji.webp" aria-hidden="true"><source src="/sappy/assets/sappy-seal-emoji.webm" type="video/webm"></video>';
 
   function header(active) {
-    const root = "/sappy-site/";
+    const root = "/sappy/";
     const link = (href, label, id) =>
       `<a href="${root}${href}"${id === active ? ' class="active"' : ""}>${label}</a>`;
     return `

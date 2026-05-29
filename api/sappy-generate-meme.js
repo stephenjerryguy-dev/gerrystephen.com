@@ -1,3 +1,5 @@
+import { rateLimit } from "./_rate-limit.js";
+
 const escapeHtml = (value) => String(value || "")
   .replace(/&/g, "&amp;")
   .replace(/</g, "&lt;")
@@ -59,6 +61,7 @@ export default async function handler(req, res) {
     res.setHeader("allow", "POST");
     return res.status(405).json({ error: "method_not_allowed" });
   }
+  if (rateLimit(req, res, { name: "sappy-generate-meme", limit: 8, windowMs: 60_000 })) return;
 
   const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
   const prompt = String(body.prompt || body.concept || "").trim();
