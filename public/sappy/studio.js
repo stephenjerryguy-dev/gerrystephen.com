@@ -58,12 +58,12 @@
     if (plan !== undefined) state.aiPlan = plan;
     const btn = $("aigen");
     if (btn) {
-      btn.textContent = status === "loading" ? "Generating premium memes..." : "Generate premium memes";
+      btn.textContent = status === "loading" ? "Generating..." : "Create memes";
       btn.disabled = status === "loading";
     }
     const planEl = $("aiplan");
     if (planEl) {
-      planEl.innerHTML = state.aiPlan || "Describe a meme concept, pick a style, then generate polished outputs.";
+      planEl.innerHTML = state.aiPlan || "Describe the joke or moment. Gerry's AI Studio will shape it into polished Sappy-ready options.";
       planEl.classList.toggle("working", status === "loading");
     }
   }
@@ -114,19 +114,19 @@
       state.aiImages = json.images || [];
       setAIStatus("ready", json.plan || "Generated premium meme options.");
       renderAIResults();
-      S.toast(json.provider === "fallback" ? "Preview generated. Add XAI_API_KEY for Grok image output." : "Premium memes generated.");
+      S.toast(json.provider === "fallback" ? "Drafts generated." : "Memes generated.");
     } catch (e) {
       state.aiImages = [];
-      setAIStatus("error", "Generation did not complete. Add the image provider key and try again.");
+      setAIStatus("error", "Generation did not complete. Try a shorter concept or refresh the studio.");
       renderAIResults();
-      S.toast("AI generation needs provider setup.");
+      S.toast("Generation did not complete.");
     }
   }
 
   function applyAIPreset(prompt) {
     $("aiprompt").value = prompt;
     state.aiPrompt = prompt;
-    setAIStatus("idle", "Prompt loaded. Tune the style, then generate premium options.");
+    setAIStatus("idle", "Prompt loaded. Pick a format, then create your options.");
   }
 
   function render() {
@@ -134,14 +134,14 @@
       <div class="page-head">
         <span class="eyebrow">▪ GERRY'S AI STUDIO</span>
         <h1 class="section-title studio-title">Gerry's AI Studio.</h1>
-        <p class="section-sub">A premium meme lab for Sappy Seals: write a concept, choose the campaign style, and generate polished AI options built for X.</p>
+        <p class="section-sub">Turn a quick Sappy idea into polished meme drafts, banners, replies and campaign visuals built for X.</p>
       </div>
       <section class="ai-studio-shell">
         <div class="ai-command">
           <div>
-            <span class="eyebrow">▪ PREMIUM GENERATION</span>
-            <h2>Make it look like a real campaign asset.</h2>
-            <p>Designed for Grok/xAI image generation with a polished preview fallback. Bring a concept, not a layout chore.</p>
+            <span class="eyebrow">▪ AI MEME MAKER</span>
+            <h2>Start with the joke. Leave the art direction to Gerry.</h2>
+            <p>Pick a vibe, choose a format, and generate ready-to-post Sappy concepts without wrestling with a blank canvas.</p>
           </div>
           <textarea id="aiprompt" class="input ai-textarea" rows="5">${state.aiPrompt}</textarea>
           <div class="ai-prompt-presets">
@@ -152,14 +152,14 @@
             <label>Format<select id="airatio" class="input">${AI_RATIOS.map(([v, n]) => `<option value="${v}" ${state.aiRatio === v ? "selected" : ""}>${n} · ${v}</option>`).join("")}</select></label>
             <label>Outputs<select id="aicount" class="input">${[1, 2, 3, 4].map((n) => `<option value="${n}" ${state.aiCount === n ? "selected" : ""}>${n}</option>`).join("")}</select></label>
           </div>
-          <button class="btn btn-accent full ai-generate" id="aigen">Generate premium memes</button>
-          <div class="ai-plan" id="aiplan">Describe a meme concept, pick a style, then generate polished outputs.</div>
+          <button class="btn btn-accent full ai-generate" id="aigen">Create memes</button>
+          <div class="ai-plan" id="aiplan">Describe the joke or moment. Gerry's AI Studio will shape it into polished Sappy-ready options.</div>
         </div>
         <div class="ai-results" id="airesults"></div>
       </section>
       <section class="ai-note-strip">
-        <strong>Provider-ready:</strong>
-        <span>Set <code>XAI_API_KEY</code> on Vercel to use the Grok / xAI image lane. Without it, Gerry's AI Studio shows high-fidelity prompt previews instead of pretending generation happened.</span>
+        <strong>Best results:</strong>
+        <span>Use a clear reaction, a Sappy-specific moment, and where it should be posted: reply, banner, square meme, or story.</span>
       </section>`;
     renderAIResults();
     $("aigen").addEventListener("click", generatePremiumMemes);

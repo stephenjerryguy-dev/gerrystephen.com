@@ -254,11 +254,15 @@ window.Sappy = (function () {
   function openModal(html) { ensureModal(); modalEl.querySelector(".sm-body").innerHTML = html; modalEl.classList.add("show"); }
 
   function setConnected(handle, kind) {
-    try { localStorage.setItem("sappy_" + (kind || "x"), handle); } catch (e) {}
     if (kind === "wallet") {
+      try {
+        localStorage.setItem("sappy_wallet", JSON.stringify({ label: handle, connectedAt: Date.now() }));
+        localStorage.setItem("sappy_wallet_label", handle);
+      } catch (e) {}
       document.querySelectorAll("[data-connect]").forEach((b) => { b.innerHTML = "✓&nbsp; " + handle; });
       closeModal(); toast("Wallet connected — " + handle);
     } else {
+      try { localStorage.setItem("sappy_" + (kind || "x"), handle); } catch (e) {}
       closeModal(); toast("🦭  Welcome, " + handle + " — loading your Sealfolio…");
       if (window.__sappyConnectedX) window.__sappyConnectedX(handle);
     }
@@ -275,10 +279,6 @@ window.Sappy = (function () {
     modalEl.querySelector(".sm-x").addEventListener("click", startXLogin);
   }
 
-  const WALLETS = [
-    { n: "MetaMask", e: "🦊" }, { n: "WalletConnect", e: "🔗" },
-    { n: "Coinbase Wallet", e: "🔵" }, { n: "Rainbow", e: "🌈" },
-  ];
   async function syncDelegate(address) {
     if (!address) return;
     try {
@@ -311,19 +311,7 @@ window.Sappy = (function () {
       toast("Opening Dynamic wallet connect...");
       return;
     }
-    openModal(`
-      <div class="sm-logo"><span class="word">sappy<b>.</b></span></div>
-      <h3 class="sm-title">Connect wallet</h3>
-      <p class="sm-sub">Dynamic powers wallet login. Delegate.xyz support lets vault holders verify from a safer hot wallet.</p>
-      <button class="btn btn-accent sm-dynamic">Connect with Dynamic</button>
-      <a class="btn btn-ghost sm-delegate" href="https://delegate.xyz/" target="_blank" rel="noopener">Open Delegate.xyz</a>
-      <div class="sm-wallets">${WALLETS.map((w) => `<button class="btn btn-ghost sm-w" data-w="${w.n}"><span>${w.e}</span> ${w.n}</button>`).join("")}</div>
-      <p class="sm-fine">Dynamic is loading on this page. The wallet connection is read-only; always check every signature.</p>`);
-    modalEl.querySelector(".sm-dynamic").addEventListener("click", () => {
-      if (openDynamicWallet()) toast("Opening Dynamic wallet connect...");
-      else toast("Dynamic is still loading. Try again in a moment.");
-    });
-    modalEl.querySelectorAll(".sm-w").forEach((b) => b.addEventListener("click", () => setConnected("seal.eth", "wallet")));
+    toast("Wallet connect is loading. Try again in a moment.");
   }
 
   function startXLogin() {

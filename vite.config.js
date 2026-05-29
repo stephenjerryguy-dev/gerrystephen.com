@@ -23,7 +23,8 @@ export default defineConfig({
         monerge: resolve(__dirname, 'monerge.html'),
         moncade: resolve(__dirname, 'moncade.html'),
         moncadeGame: resolve(__dirname, 'moncade-game.html'),
-        sappy: resolve(__dirname, 'sappy.html')
+        sappy: resolve(__dirname, 'sappy.html'),
+        'sappy/sealfolio': resolve(__dirname, 'sappy/sealfolio.html')
       }
     }
   }

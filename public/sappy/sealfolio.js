@@ -27,7 +27,17 @@
   const score = 120 + pick(880);
   const rank = RANKS[Math.min(RANKS.length - 1, Math.floor(score / 200))];
   const vibe = VIBES[pick(VIBES.length)];
-  const walletShort = "0x" + seedNum.toString(16).padStart(4, "0").slice(0, 4) + "…" + (seedNum % 9999).toString(16).padStart(4, "0");
+  let walletShort = "Connect wallet";
+  try {
+    const cached = localStorage.getItem("sappy_wallet");
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed && (parsed.label || parsed.address)) walletShort = parsed.label || parsed.address;
+    }
+    walletShort = localStorage.getItem("sappy_wallet_label") || walletShort;
+  } catch (_) {
+    try { walletShort = localStorage.getItem("sappy_wallet_label") || walletShort; } catch (e) {}
+  }
 
   const BADGES = [
     { i: "🦭", n: "OG Seal", have: rnd() > .3 },
@@ -45,7 +55,7 @@
         <div class="folio-pfp sealframe" data-pin="1" data-kind="seal" data-id="${owned[0].id}" data-px="300"></div>
         <div class="folio-id">
           <div class="name">${handle}</div>
-          <div class="wallet">${walletShort}</div>
+          <div class="wallet" id="folio-wallet">${walletShort}</div>
           <div class="folio-chips">
             <span class="chip vibe">Vibe · ${vibe}</span>
             <span class="chip pixl">${bits} BITS claimable</span>
@@ -126,10 +136,22 @@
     }, 45);
   }
 
+  function syncWalletLabel(detail) {
+    if (!detail || !detail.address) return;
+    const label = detail.label || (detail.address.slice(0, 6) + "..." + detail.address.slice(-4));
+    const el = document.getElementById("folio-wallet");
+    if (el) el.textContent = label;
+    try {
+      localStorage.setItem("sappy_wallet", JSON.stringify({ address: detail.address, label, connectedAt: Date.now() }));
+      localStorage.setItem("sappy_wallet_label", label);
+    } catch (_) {}
+  }
+
   S.ready(function () {
     window.SappyLayout.mount("community");
     render();
     S.init();
     animateBits();
+    window.addEventListener("sappy-wallet-connected", (event) => syncWalletLabel(event.detail));
   });
 })();
