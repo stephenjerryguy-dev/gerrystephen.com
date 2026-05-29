@@ -85,6 +85,19 @@ async function fetchOwnersFromOwnerOf(contract, count = 160) {
       .filter(Boolean)
       .map((address) => ({ address, count: 1 }));
     if (owners.length) return owners;
+
+    const singleCalls = await Promise.all(body.slice(0, 80).map((call) => fetch(rpc, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(call),
+    })
+      .then((res) => (res.ok ? res.json() : undefined))
+      .catch(() => undefined)));
+    const singleOwners = singleCalls
+      .map((call) => decodeOwner(call?.result))
+      .filter(Boolean)
+      .map((address) => ({ address, count: 1 }));
+    if (singleOwners.length) return singleOwners;
   }
   return [];
 }
