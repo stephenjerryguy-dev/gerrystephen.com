@@ -144,7 +144,8 @@ function localImageFor(contract, tokenId) {
   return undefined;
 }
 
-function curatedEcosystemNfts(nfts) {
+function curatedEcosystemNfts(nfts, options = {}) {
+  const fullWallet = Boolean(options.fullWallet);
   const seen = new Set();
   const contractCounts = new Map();
   const collectionCounts = new Map();
@@ -200,6 +201,7 @@ function curatedEcosystemNfts(nfts) {
       return (aScore - bScore) || (contractRank(a) - contractRank(b)) || (numericTokenId(a) - numericTokenId(b));
     })
     .filter((nft) => {
+      if (fullWallet) return true;
       const contract = nft.contract?.toLowerCase?.() || 'unknown';
       const collection = `${nft.ecosystem}:${nft.collection || contract}`.toLowerCase();
       const contractCount = contractCounts.get(contract) || 0;
@@ -212,7 +214,7 @@ function curatedEcosystemNfts(nfts) {
       }
       return keep;
     })
-    .slice(0, 72);
+    .slice(0, fullWallet ? 500 : 72);
 }
 
 function ipfsToHttps(uri) {
@@ -368,21 +370,29 @@ async function fetchBlockscoutContractInstances(contract) {
 async function fetchReservoirNfts(wallet, contract, options = {}) {
   const api = options.api || RESERVOIR_API;
   const chain = options.chain || 'ethereum';
-  const params = new URLSearchParams({
-    limit: contract ? '20' : '48',
-    sortBy: 'floorAskPrice',
-    excludeSpam: 'true',
-    excludeNsfw: 'true',
-  });
-  if (contract) params.set('collection', contract);
+  const limit = options.fullWallet ? '200' : contract ? '20' : '48';
+  const normalized = [];
+  let continuation = undefined;
+  for (let page = 0; page < (options.fullWallet ? 8 : 1); page += 1) {
+    const params = new URLSearchParams({
+      limit,
+      sortBy: 'floorAskPrice',
+      excludeSpam: 'true',
+      excludeNsfw: 'true',
+    });
+    if (contract) params.set('collection', contract);
+    if (continuation) params.set('continuation', continuation);
 
-  const url = `${api}/users/${wallet}/tokens/v10?${params.toString()}`;
-  const response = await fetch(url, { headers: { accept: 'application/json' } });
-  if (!response.ok) return [];
-  const data = await response.json();
-  const normalized = (data.tokens || [])
-    .map((item) => normalizeToken(item, wallet, chain))
-    .filter(Boolean);
+    const url = `${api}/users/${wallet}/tokens/v10?${params.toString()}`;
+    const response = await fetch(url, { headers: { accept: 'application/json' } });
+    if (!response.ok) break;
+    const data = await response.json();
+    normalized.push(...((data.tokens || [])
+      .map((item) => normalizeToken(item, wallet, chain))
+      .filter(Boolean)));
+    continuation = data.continuation;
+    if (!continuation) break;
+  }
   return Promise.all(normalized.map(refreshNftMetadata));
 }
 
@@ -464,9 +474,9 @@ export default async function handler(req, res) {
       : WALLETS;
     const reservoirResponses = await Promise.allSettled(
       wallets.flatMap((wallet) => [
-        fetchReservoirNfts(wallet),
-        ...ecosystemContracts.map((contract) => fetchReservoirNfts(wallet, contract)),
-        fetchReservoirNfts(wallet, PIXSEALS_CONTRACT, { api: POLYGON_RESERVOIR_API, chain: 'matic' }),
+        fetchReservoirNfts(wallet, undefined, { fullWallet: Boolean(requestedWallet) }),
+        ...ecosystemContracts.map((contract) => fetchReservoirNfts(wallet, contract, { fullWallet: Boolean(requestedWallet) })),
+        fetchReservoirNfts(wallet, PIXSEALS_CONTRACT, { api: POLYGON_RESERVOIR_API, chain: 'matic', fullWallet: Boolean(requestedWallet) }),
       ])
     );
 
@@ -486,16 +496,17 @@ export default async function handler(req, res) {
       ...(requestedWallet ? [] : STATIC_PREVIEW_NFTS),
     ];
 
-    let nfts = curatedEcosystemNfts(allNfts.filter((nft) => nft.image));
+    let nfts = curatedEcosystemNfts(allNfts.filter((nft) => nft.image), { fullWallet: Boolean(requestedWallet) });
 
     if (!nfts.length) {
       nfts = curatedEcosystemNfts(blockscoutResponses
         .flatMap((result) => (result.status === 'fulfilled' ? result.value : []))
-        .filter((nft) => nft.image)
+        .filter((nft) => nft.image),
+        { fullWallet: Boolean(requestedWallet) }
       );
     }
 
-    res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');
+    res.setHeader('Cache-Control', requestedWallet ? 'no-store' : 's-maxage=3600, stale-while-revalidate=86400');
     res.status(200).json({ nfts, wallet: requestedWallet, delegatedWallets: requestedWallet ? wallets.slice(1) : [] });
   } catch (error) {
     res.status(200).json({ nfts: [] });

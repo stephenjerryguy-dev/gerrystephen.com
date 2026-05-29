@@ -204,6 +204,7 @@ header{
 .community-chain-card:hover{transform:translateY(-3px);border-color:var(--accent);}
 .community-chain-art{aspect-ratio:16/10;border-radius:12px;overflow:hidden;background:var(--ocean-mist);border:1px solid var(--line);display:block;}
 .community-chain-art img{width:100%;height:100%;object-fit:cover;display:block;}
+.community-chain-art.sealuminati-crop img{transform:scale(1.18);object-position:center 28%;}
 .chain-copy{padding:8px 6px;display:flex;flex-direction:column;justify-content:center;min-width:0;}
 .community-chain-card h3{font-family:var(--font-display);font-weight:900;font-size:clamp(26px,4vw,46px);margin:14px 0 0;letter-spacing:0;line-height:.98;}
 .community-chain-card p{margin:10px 0 0;color:var(--ink-soft);font-weight:700;font-size:16px;line-height:1.45;max-width:42ch;}
@@ -568,11 +569,14 @@ body.no-photos .sealframe img.seal-photo{opacity:0 !important;}
 .stake-card{background:var(--ocean-mist);border:1.5px solid var(--line);border-radius:var(--radius);padding:26px;display:grid;grid-template-columns:1fr auto;gap:24px;align-items:center;}
 .stake-card .pixl-bal{font-family:var(--font-display);font-weight:900;font-size:42px;color:var(--accent-deep);line-height:1;}
 .stake-card .bits-bal span:last-child{font-size:20px;}
+.stake-card .pending-bits{letter-spacing:.04em;}
 .bits-scramble{display:inline-block;min-width:5.6ch;filter:blur(.7px);letter-spacing:.03em;text-shadow:1px 0 0 rgba(30,147,214,.35),-1px 0 0 rgba(63,185,124,.25);}
 .bits-label{font-family:var(--font-pixel);font-size:9px;color:var(--ink-soft);letter-spacing:.06em;display:flex;align-items:center;gap:2px;}
 .stake-bar{height:12px;background:#d8e8f2;border-radius:99px;overflow:hidden;margin-top:14px;max-width:420px;}
 .stake-bar i{display:block;height:100%;background:linear-gradient(90deg,#1E93D6,#3FB97C);transition:width .45s ease;}
+.stake-bar.pending i{background:linear-gradient(90deg,#9bd6ff,#d9f0ff);}
 .stake-detail{color:var(--ink-soft);font-size:13.5px;margin-top:10px;}
+.stake-card .btn[disabled]{opacity:.62;cursor:not-allowed;box-shadow:none;}
 @media(max-width:900px){.folio-hero{grid-template-columns:1fr;text-align:center;justify-items:center;}.folio-statrow{grid-template-columns:repeat(2,1fr);}.seal-grid{grid-template-columns:repeat(2,1fr);}.badge-grid{grid-template-columns:repeat(3,1fr);}.stake-card{grid-template-columns:1fr;}}
 
 /* ---------- omnia band ---------- */

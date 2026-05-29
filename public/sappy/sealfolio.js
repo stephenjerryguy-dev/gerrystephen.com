@@ -3,6 +3,7 @@
   const S = window.Sappy;
   const qs = new URLSearchParams(location.search);
   const handle = qs.get("u") || "sappyseal_holder";
+  const urlWallet = qs.get("wallet") || "";
   const seedNum = parseInt(qs.get("seed") || "0", 10) || hashStr(handle);
 
   function hashStr(s) { let h = 2166136261 >>> 0; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
@@ -87,8 +88,6 @@
   function render() {
     const owned = normalizeOwned();
     const staked = owned.filter((o) => o.staked).length;
-    const bitsBase = Math.max(42, staked * (1200 + pick(3800)) + pick(900));
-    const bits = bitsBase.toLocaleString("en-US");
     const score = scoreFor(owned);
     const rank = RANKS[Math.min(RANKS.length - 1, Math.floor(score / 200))];
     const badges = badgesFor(owned, staked);
@@ -110,7 +109,7 @@
           <div class="wallet" id="folio-wallet">${walletShort}</div>
           <div class="folio-chips">
             <span class="chip vibe">Vibe · ${vibe}</span>
-            <span class="chip pixl">${bits} BITS claimable</span>
+            <span class="chip pixl">BITS pending</span>
             <a class="chip xh" href="https://x.com/${handle.replace(/^@/, "")}" target="_blank" rel="noopener">𝕏 @${handle.replace(/^@/, "")}</a>
           </div>
         </div>
@@ -148,21 +147,21 @@
               <div class="n">${o.name || `Sappy Seal #${o.id}`}</div>
               <div class="t">${o.trait}</div>
               ${o.wallet ? `<div class="t">${o.wallet}</div>` : ""}
-              ${o.staked ? '<span class="staked">⛓ STAKED · EARNING BITS</span>' : ""}
+              ${o.staked ? '<span class="staked">⛓ STAKED · BITS PENDING</span>' : ""}
             </div>
           </div>`).join("")}</div>
       </div>
 
       <div class="folio-sec">
-        <h2>Claimable BITS</h2>
+        <h2>BITS Status</h2>
         <div class="stake-card">
           <div>
-            <div class="bits-label"><span class="live-dot"></span>▸ CLAIMABLE BITS</div>
-            <div class="pixl-bal bits-bal"><span id="bits-count" data-base="${bitsBase}">${bits}</span> <span>BITS</span></div>
-            <div class="stake-bar"><i id="bits-bar" style="width:${Math.min(100, staked / nOwned * 100)}%"></i></div>
-            <div class="stake-detail">${staked} of ${nOwned} seals staked · live rewards fluctuate as the pool updates.</div>
+            <div class="bits-label"><span class="live-dot"></span>▸ BITS REVEAL</div>
+            <div class="pixl-bal bits-bal pending-bits"><span id="bits-count">PENDING</span></div>
+            <div class="stake-bar pending"><i id="bits-bar" style="width:${staked ? 100 : 28}%"></i></div>
+            <div class="stake-detail">${staked} staked seal${staked === 1 ? "" : "s"} detected · BITS are pending until Sappy Seals reveals them.</div>
           </div>
-          <button class="btn btn-accent">Claim BITS →</button>
+          <button class="btn btn-accent" disabled>Pending reveal</button>
         </div>
       </div>
 
@@ -181,20 +180,9 @@
 
   function animateBits() {
     const el = document.getElementById("bits-count");
-    const bar = document.getElementById("bits-bar");
     if (!el) return;
-    const base = +el.dataset.base || 100;
-    const formattedWidth = Math.max(6, base.toLocaleString("en-US").length);
-    el.classList.add("bits-scramble");
-    el.setAttribute("aria-label", "Claimable BITS unrevealed");
-    setInterval(() => {
-      let scramble = "";
-      for (let i = 0; i < formattedWidth; i++) {
-        scramble += i === 2 || i === 6 ? "," : Math.floor(Math.random() * 10);
-      }
-      el.textContent = scramble.replace(/^,/, "").replace(/,$/, "");
-      if (bar) bar.style.width = `${28 + Math.random() * 64}%`;
-    }, 45);
+    el.textContent = "PENDING";
+    el.setAttribute("aria-label", "BITS reveal pending");
   }
 
   function syncWalletLabel(detail) {
@@ -252,6 +240,8 @@
     try {
       const cached = JSON.parse(localStorage.getItem("sappy_wallet") || "{}");
       if (cached.address) syncWalletLabel(cached);
+      else if (/^0x[a-fA-F0-9]{40}$/.test(urlWallet)) syncWalletLabel({ address: urlWallet, label: `${urlWallet.slice(0, 6)}...${urlWallet.slice(-4)}` });
     } catch (_) {}
+    if (!state.address && /^0x[a-fA-F0-9]{40}$/.test(urlWallet)) syncWalletLabel({ address: urlWallet, label: `${urlWallet.slice(0, 6)}...${urlWallet.slice(-4)}` });
   });
 })();
