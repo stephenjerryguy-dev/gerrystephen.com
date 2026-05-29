@@ -1,7 +1,11 @@
 import { rateLimit } from './_rate-limit.js';
 
 const RESERVOIR_API = 'https://api.reservoir.tools';
-const ETH_RPC = 'https://eth.llamarpc.com';
+const ETH_RPCS = [
+  'https://ethereum.publicnode.com',
+  'https://eth.llamarpc.com',
+  'https://cloudflare-eth.com',
+];
 const OWNER_OF_SELECTOR = '0x6352211e';
 const SAPPY_SEALS_CONTRACT = '0x364c828ee171616a39897688a831c2499ad972ec';
 const STAKED_SEALS_CONTRACT = '0x1c70d0a86475cc707b48aa79f112857e7957274f';
@@ -68,17 +72,21 @@ async function fetchOwnersFromOwnerOf(contract, count = 160) {
       params: [{ to: contract, data: ownerOfData(tokenId) }, 'latest'],
     };
   });
-  const response = await fetch(ETH_RPC, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) return [];
-  const calls = await response.json();
-  return (Array.isArray(calls) ? calls : [])
-    .map((call) => decodeOwner(call.result))
-    .filter(Boolean)
-    .map((address) => ({ address, count: 1 }));
+  for (const rpc of ETH_RPCS) {
+    const response = await fetch(rpc, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    }).catch(() => undefined);
+    if (!response?.ok) continue;
+    const calls = await response.json().catch(() => []);
+    const owners = (Array.isArray(calls) ? calls : [])
+      .map((call) => decodeOwner(call.result))
+      .filter(Boolean)
+      .map((address) => ({ address, count: 1 }));
+    if (owners.length) return owners;
+  }
+  return [];
 }
 
 async function fetchOwnersFromTokens(contract) {
