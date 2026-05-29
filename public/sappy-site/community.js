@@ -18,10 +18,10 @@
       </div>
 
       <div class="quick-links">
-        <a class="qlink" href="${S.LINKS.x}" target="_blank" rel="noopener"><span class="qi">𝕏</span><div>@sappyseals<small>97.8K on X</small></div></a>
-        <a class="qlink" href="${S.LINKS.meme}" target="_blank" rel="noopener"><span class="qi">🖼</span><div>Meme Machine<small>generate &amp; reply</small></div></a>
-        <a class="qlink" href="${S.LINKS.omnia}" target="_blank" rel="noopener"><span class="qi">🌍</span><div>Omnia<small>the game world</small></div></a>
-        <a class="qlink" href="${S.LINKS.opensea}" target="_blank" rel="noopener"><span class="qi">⛵</span><div>OpenSea<small>collect a seal</small></div></a>
+        <a class="qlink" href="${S.LINKS.x}" target="_blank" rel="noopener"><span class="qi logo"><img src="https://cdn.simpleicons.org/x/111820" alt="" loading="lazy"></span><div>@sappyseals<small>97.8K on X</small></div></a>
+        <a class="qlink" href="${S.LINKS.meme}" target="_blank" rel="noopener"><span class="qi logo"><img src="https://www.google.com/s2/favicons?sz=128&domain=mememachine.sappyseals.io" alt="" loading="lazy"></span><div>Meme Machine<small>generate &amp; reply</small></div></a>
+        <a class="qlink" href="${S.LINKS.omnia}" target="_blank" rel="noopener"><span class="qi logo"><img src="https://www.google.com/s2/favicons?sz=128&domain=omnia.lol" alt="" loading="lazy"></span><div>Omnia<small>the game world</small></div></a>
+        <a class="qlink" href="${S.LINKS.opensea}" target="_blank" rel="noopener"><span class="qi logo"><img src="https://cdn.simpleicons.org/opensea/2081e2" alt="" loading="lazy"></span><div>OpenSea<small>collect a seal</small></div></a>
       </div>
 
       <div class="folio-sec" style="margin-top:46px;">

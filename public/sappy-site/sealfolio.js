@@ -113,13 +113,17 @@
     const bar = document.getElementById("bits-bar");
     if (!el) return;
     const base = +el.dataset.base || 100;
-    let current = base;
+    const formattedWidth = Math.max(6, base.toLocaleString("en-US").length);
+    el.classList.add("bits-scramble");
+    el.setAttribute("aria-label", "Claimable BITS unrevealed");
     setInterval(() => {
-      const drift = Math.round((Math.random() - 0.38) * Math.max(9, base * 0.015));
-      current = Math.max(0, current + drift);
-      el.textContent = current.toLocaleString("en-US");
-      if (bar) bar.style.width = `${Math.max(8, Math.min(100, (current / (base * 1.8)) * 100))}%`;
-    }, 1100);
+      let scramble = "";
+      for (let i = 0; i < formattedWidth; i++) {
+        scramble += i === 2 || i === 6 ? "," : Math.floor(Math.random() * 10);
+      }
+      el.textContent = scramble.replace(/^,/, "").replace(/,$/, "");
+      if (bar) bar.style.width = `${28 + Math.random() * 64}%`;
+    }, 45);
   }
 
   S.ready(function () {

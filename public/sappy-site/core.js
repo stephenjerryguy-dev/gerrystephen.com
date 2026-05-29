@@ -279,13 +279,50 @@ window.Sappy = (function () {
     { n: "MetaMask", e: "🦊" }, { n: "WalletConnect", e: "🔗" },
     { n: "Coinbase Wallet", e: "🔵" }, { n: "Rainbow", e: "🌈" },
   ];
+  async function syncDelegate(address) {
+    if (!address) return;
+    try {
+      const r = await fetch("https://api.delegate.xyz/registry/v2/" + encodeURIComponent(address), { signal: TIMEOUT(8000) });
+      if (!r.ok) throw new Error("delegate_api");
+      const j = await r.json();
+      const incoming = Array.isArray(j.incoming) ? j.incoming.length : Array.isArray(j.delegateTo) ? j.delegateTo.length : 0;
+      const outgoing = Array.isArray(j.outgoing) ? j.outgoing.length : Array.isArray(j.delegations) ? j.delegations.length : 0;
+      try { localStorage.setItem("sappy_delegate_" + address.toLowerCase(), JSON.stringify({ incoming, outgoing, checkedAt: Date.now() })); } catch (e) {}
+      toast("Delegate.xyz checked — " + (incoming + outgoing) + " delegation" + (incoming + outgoing === 1 ? "" : "s") + " found.");
+    } catch (e) {
+      toast("Wallet connected. Delegate.xyz will be checked again in production.");
+    }
+  }
+  function openDynamicWallet() {
+    if (window.sappyOpenDynamic) {
+      window.sappyOpenDynamic();
+      return true;
+    }
+    const host = document.querySelector("#sappy-dynamic-widget .dynamic-shadow-dom");
+    const btn = host && host.shadowRoot && host.shadowRoot.querySelector('[data-testid="ConnectButton"], button');
+    if (btn) {
+      btn.click();
+      return true;
+    }
+    return false;
+  }
   function walletModal() {
+    if (openDynamicWallet()) {
+      toast("Opening Dynamic wallet connect...");
+      return;
+    }
     openModal(`
       <div class="sm-logo"><span class="word">sappy<b>.</b></span></div>
-      <h3 class="sm-title">Connect a wallet</h3>
-      <p class="sm-sub">Connect to verify ownership and balances across the pod.</p>
+      <h3 class="sm-title">Connect wallet</h3>
+      <p class="sm-sub">Dynamic powers wallet login. Delegate.xyz support lets vault holders verify from a safer hot wallet.</p>
+      <button class="btn btn-accent sm-dynamic">Connect with Dynamic</button>
+      <a class="btn btn-ghost sm-delegate" href="https://delegate.xyz/" target="_blank" rel="noopener">Open Delegate.xyz</a>
       <div class="sm-wallets">${WALLETS.map((w) => `<button class="btn btn-ghost sm-w" data-w="${w.n}"><span>${w.e}</span> ${w.n}</button>`).join("")}</div>
-      <p class="sm-fine">Demo mode — no real wallet connected. X login lives on your Sealfolio.</p>`);
+      <p class="sm-fine">Dynamic is loading on this page. The wallet connection is read-only; always check every signature.</p>`);
+    modalEl.querySelector(".sm-dynamic").addEventListener("click", () => {
+      if (openDynamicWallet()) toast("Opening Dynamic wallet connect...");
+      else toast("Dynamic is still loading. Try again in a moment.");
+    });
     modalEl.querySelectorAll(".sm-w").forEach((b) => b.addEventListener("click", () => setConnected("seal.eth", "wallet")));
   }
 
@@ -314,6 +351,15 @@ window.Sappy = (function () {
   function wireLogin() {
     document.querySelectorAll("[data-x-login]").forEach((b) => b.addEventListener("click", (e) => { e.preventDefault(); xModal(); }));
     document.querySelectorAll("[data-connect]").forEach((b) => b.addEventListener("click", (e) => { e.preventDefault(); walletModal(); }));
+    window.addEventListener("sappy-wallet-connected", (event) => {
+      const address = event.detail && event.detail.address;
+      if (!address) return;
+      setConnected(event.detail.label || (address.slice(0, 6) + "..." + address.slice(-4)), "wallet");
+      syncDelegate(address);
+    });
+    window.addEventListener("sappy-wallet-status", (event) => {
+      if (event.detail && event.detail.status) toast(event.detail.status);
+    });
     window.sappyXLogin = xModal; window.sappyWallet = walletModal;
   }
 

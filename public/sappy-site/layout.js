@@ -1,6 +1,7 @@
 /* ============ sappy. ecosystem hub — shared header + footer (layout.js) ============ */
 (function () {
   const L = window.Sappy.LINKS;
+  const sealEmoji = '<video class="sappy-emoji" autoplay muted loop playsinline poster="/sappy-site/assets/sappy-seal-emoji.webp" aria-hidden="true"><source src="/sappy-site/assets/sappy-seal-emoji.webm" type="video/webm"></video>';
 
   function header(active) {
     const root = "/sappy-site/";
@@ -21,7 +22,7 @@
           ${link("community.html", "Community", "community")}
         </nav>
         <div class="nav-right">
-          <a class="btn btn-ghost btn-sm hide-sm" href="${root}sealfolio.html">🦭&nbsp; Sealfolio</a>
+          <a class="btn btn-ghost btn-sm hide-sm" href="${root}sealfolio.html">${sealEmoji}<span>Sealfolio</span></a>
           <button class="btn btn-dark btn-sm" data-connect>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:1px;"><path d="M3 8a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2"/><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M16 13.5h.01"/></svg>
             Connect Wallet
