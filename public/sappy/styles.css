@@ -556,6 +556,7 @@ body.no-photos .sealframe img.seal-photo{opacity:0 !important;}
 .seal-card .sealframe{width:100%;aspect-ratio:1/1;}
 .seal-card .token-art{display:block;text-decoration:none;}
 .seal-card .token-art img{width:100%;height:100%;object-fit:cover;}
+.seal-card .token-art-missing{display:grid;place-items:center;background:linear-gradient(135deg,#e9f6ff,#fff8ed);color:var(--ink-soft);font-family:var(--font-pixel);font-size:10px;line-height:1.45;text-align:center;}
 .seal-card .cap{padding:13px 15px;}
 .seal-card .cap .n{font-weight:800;font-size:15px;}
 .seal-card .cap .t{color:var(--ink-soft);font-size:12px;margin-top:3px;}

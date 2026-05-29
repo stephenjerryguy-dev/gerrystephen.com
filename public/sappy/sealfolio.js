@@ -82,6 +82,9 @@
         <img class="seal-photo show" src="${o.image}" alt="${o.name || `Sappy asset #${o.id}`}" loading="lazy" referrerpolicy="no-referrer">
       </a>`;
     }
+    if (Array.isArray(state.nfts)) {
+      return `<div class="sealframe token-art token-art-missing"><span>ART<br>PENDING</span></div>`;
+    }
     return `<div class="sealframe" data-pin="1" data-kind="seal" data-id="${o.id}" data-px="320"></div>`;
   }
 

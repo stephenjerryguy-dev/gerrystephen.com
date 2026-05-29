@@ -108,6 +108,8 @@ const ECOSYSTEMS = [
     previewContracts: [INKFINITY_CONTRACT],
   },
 ];
+const SAPPY_ECOSYSTEM = ECOSYSTEMS.find((ecosystem) => ecosystem.id === 'sappy');
+const SAPPY_CONTRACTS = new Set(SAPPY_ECOSYSTEM.contracts.map((contract) => contract.toLowerCase()));
 
 function ecosystemForNft(nft) {
   const contract = nft?.contract?.toLowerCase?.();
@@ -119,6 +121,10 @@ function ecosystemForNft(nft) {
     (ecosystem.id === 'inkfinity' && ecosystem.keywords.some((keyword) => haystack.includes(keyword)))
     || ecosystem.strictKeywords?.some((keyword) => haystack.includes(keyword))
   );
+}
+
+function isCoveredSappyContract(nft) {
+  return SAPPY_CONTRACTS.has(nft?.contract?.toLowerCase?.());
 }
 
 function normalizeCollectionName(name, contract) {
@@ -181,6 +187,7 @@ function curatedEcosystemNfts(nfts, options = {}) {
   return nfts
     .map((nft) => {
       const ecosystem = ecosystemForNft(nft);
+      if (fullWallet && (!ecosystem || ecosystem.id !== 'sappy' || !isCoveredSappyContract(nft))) return null;
       return ecosystem ? { ...nft, ecosystem: ecosystem.id, ecosystemLabel: ecosystem.label } : null;
     })
     .filter(Boolean)
@@ -468,7 +475,7 @@ export default async function handler(req, res) {
     const requestedWallet = typeof req.query?.wallet === 'string' && ADDRESS_RE.test(req.query.wallet)
       ? req.query.wallet
       : undefined;
-    const ecosystemContracts = ECOSYSTEMS.flatMap((ecosystem) => ecosystem.contracts);
+    const ecosystemContracts = SAPPY_ECOSYSTEM.contracts;
     const wallets = requestedWallet
       ? [requestedWallet, ...await fetchDelegateWallets(requestedWallet)]
       : WALLETS;
