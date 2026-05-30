@@ -65,7 +65,41 @@ function parseCollection(collection) {
   };
 }
 
-async function fetchStats() {
+function parseStats(stats) {
+  const floorEth = numberFrom(
+    stats?.floorAskPrice,
+    stats?.floorAsk?.price?.amount?.decimal,
+    stats?.floorPrice,
+    stats?.floor
+  );
+  const floorUsd = numberFrom(
+    stats?.floorAsk?.price?.amount?.usd,
+    stats?.floorAskPriceUsd,
+    stats?.floorUsd
+  );
+  const holders = numberFrom(
+    stats?.ownerCount,
+    stats?.owners,
+    stats?.ownersCount
+  );
+  const change24h = percentFrom(
+    stats?.floorSaleChange?.['1day'],
+    stats?.day1FloorSaleChange,
+    stats?.day1?.floorSaleChange,
+    stats?.day1?.floorChange
+  );
+
+  return {
+    floorEth: floorEth ?? FALLBACK.floorEth,
+    floorUsd: floorUsd ?? FALLBACK.floorUsd,
+    change24h: change24h ?? FALLBACK.change24h,
+    holders: holders ?? FALLBACK.holders,
+    updatedAt: new Date().toISOString(),
+    source: 'reservoir',
+  };
+}
+
+async function fetchCollectionStats() {
   const params = new URLSearchParams({
     id: SAPPY_SEALS_CONTRACT,
     includeTopBid: 'false',
@@ -78,6 +112,33 @@ async function fetchStats() {
   const collection = data?.collections?.[0];
   if (!collection) throw new Error('reservoir_empty');
   return parseCollection(collection);
+}
+
+async function fetchAggregateStats() {
+  const params = new URLSearchParams({
+    collection: SAPPY_SEALS_CONTRACT,
+  });
+  const response = await fetch(`${RESERVOIR_API}/stats/v2?${params.toString()}`, {
+    headers: reservoirHeaders(),
+  });
+  if (!response.ok) throw new Error(`reservoir_stats_${response.status}`);
+  const data = await response.json();
+  const stats = data?.stats || data;
+  if (!stats || typeof stats !== 'object') throw new Error('reservoir_stats_empty');
+  return parseStats(stats);
+}
+
+async function fetchStats() {
+  const attempts = [fetchCollectionStats, fetchAggregateStats];
+  let lastError;
+  for (const attempt of attempts) {
+    try {
+      return await attempt();
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError || new Error('stats_unavailable');
 }
 
 export default async function handler(req, res) {
