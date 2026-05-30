@@ -103,6 +103,39 @@ function parseStats(stats) {
   };
 }
 
+function parseOpenSeaStats(data) {
+  const total = data?.total || data?.stats || data;
+  const oneDay = Array.isArray(data?.intervals)
+    ? data.intervals.find((item) => item?.interval === 'one_day' || item?.interval === 'oneDay' || item?.interval === '1d')
+    : undefined;
+  const floorEth = numberFrom(
+    total?.floor_price,
+    total?.floorPrice,
+    data?.floor_price,
+    data?.floorPrice
+  );
+  const holders = numberFrom(
+    total?.num_owners,
+    total?.owner_count,
+    total?.owners,
+    data?.num_owners
+  );
+  const change24h = percentFrom(
+    oneDay?.floor_price_diff,
+    oneDay?.floorPriceDiff,
+    data?.floor_price_diff
+  );
+  if (!Number.isFinite(floorEth) && !Number.isFinite(holders)) throw new Error('opensea_empty');
+  return {
+    floorEth: floorEth ?? FALLBACK.floorEth,
+    floorUsd: FALLBACK.floorUsd,
+    change24h: change24h ?? FALLBACK.change24h,
+    holders: holders ?? FALLBACK.holders,
+    updatedAt: new Date().toISOString(),
+    source: 'opensea',
+  };
+}
+
 async function fetchCollectionStats() {
   const queries = [
     new URLSearchParams({ id: SAPPY_SEALS_CONTRACT, includeTopBid: 'false' }),
@@ -183,8 +216,17 @@ async function fetchTokenFloorStats() {
   throw new Error('reservoir_token_floor_empty');
 }
 
+async function fetchOpenSeaStats() {
+  const response = await fetch('https://api.opensea.io/api/v2/collections/sappy-seals/stats', {
+    headers: { accept: 'application/json' },
+  });
+  if (!response.ok) throw new Error(`opensea_${response.status}`);
+  const data = await response.json();
+  return parseOpenSeaStats(data);
+}
+
 async function fetchStats() {
-  const attempts = [fetchCollectionStats, fetchAggregateStats, fetchTokenFloorStats];
+  const attempts = [fetchCollectionStats, fetchAggregateStats, fetchTokenFloorStats, fetchOpenSeaStats];
   let lastError;
   const errors = [];
   for (const attempt of attempts) {
