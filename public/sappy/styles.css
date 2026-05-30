@@ -597,6 +597,7 @@ body.no-photos .sealframe img.seal-photo{opacity:0 !important;}
 .badge .emoji-badge img{object-fit:cover;transform:scale(1.05);}
 .role-sticker-media{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;transform:scale(1.08);}
 .role-sticker-video{background:#e8f7ff;}
+.role-sticker-seal{object-fit:contain;padding:5px;background:linear-gradient(145deg,#e8f7ff,#fff6de);}
 .emoji-face{width:100%;height:100%;display:block;position:relative;background:transparent;filter:drop-shadow(0 4px 4px rgba(12,35,50,.22));}
 .emoji-face::before,.emoji-face::after{position:absolute;display:grid;place-items:center;border-radius:999px;font-weight:900;font-family:Arial,sans-serif;line-height:1;text-shadow:0 1px 0 rgba(255,255,255,.7);}
 .emoji-face::after{right:-2px;bottom:-3px;width:24px;height:24px;background:#fff;border:2px solid rgba(20,39,55,.12);font-size:15px;box-shadow:0 8px 14px -10px rgba(0,0,0,.65);}

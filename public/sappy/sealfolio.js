@@ -220,8 +220,8 @@
       </div>
 
       <div class="folio-sec">
-        <h2>Badges & Discord Roles</h2>
-        <p class="badge-note">All Sappy badge slots are shown. Holding badges unlock from the connected wallet; Discord roles unlock after the matching Discord role comes through.</p>
+        <h2>Badges & Holder Roles</h2>
+        <p class="badge-note">All Sappy badge slots are shown. Holding badges unlock from the connected wallet; holder roles unlock after the matching connected role comes through.</p>
         <div class="badge-grid">${badges.map((b) => `
           <div class="badge ${b.have ? "" : "locked"} ${b.discord ? "discord-role" : ""} ${b.tier === "exclusive" ? "exclusive-role" : "easy-role"} accent-${b.accent || "blue"}">
             <a class="bi badge-sticker emoji-badge" href="${EMOJI_PACKS[b.tier || "easy"]}" target="_blank" rel="noopener" aria-label="Open ${b.tier === "exclusive" ? "Sappy Originals" : "Sappy Seals Emojis 2"} emoji set">
@@ -229,7 +229,7 @@
               ${b.role ? `<span class="role-dot" style="background:${b.role.color || "#5865F2"}"></span>` : ""}
             </a>
             <div class="bn">${b.n}</div>
-            <div class="bt">${b.discord ? "Discord role" : "Holding badge"}</div>
+            <div class="bt">${b.discord ? "Holder role" : "Holding badge"}</div>
           </div>`).join("")}</div>
       </div>
 
@@ -241,9 +241,9 @@
   }
 
   function stickerVariant(badge) {
-    const key = hashStr(`${badge.n}:${badge.icon || ""}`) % 5;
-    if (badge.tier === "exclusive") return key % 2 === 0 ? "video" : "a";
-    return key % 2 === 0 ? "a" : "b";
+    const key = hashStr(`${badge.n}:${badge.icon || ""}`) % 6;
+    if (badge.tier === "exclusive") return ["video", "seal-video", "a"][key % 3];
+    return ["b", "seal-static", "a", "seal-video"][key % 4];
   }
 
   function renderSticker(badge) {
@@ -252,6 +252,14 @@
       return `<video class="role-sticker-media role-sticker-video" autoplay muted loop playsinline poster="/sappy/assets/stickers/sappy-role-a.webp" aria-hidden="true">
         <source src="/sappy/assets/stickers/sappy-role-animated.webm" type="video/webm">
       </video><span class="emoji-face icon-${badge.icon || "seal"}" aria-hidden="true"></span>`;
+    }
+    if (variant === "seal-video") {
+      return `<video class="role-sticker-media role-sticker-video role-sticker-seal" autoplay muted loop playsinline poster="/sappy/assets/sappy-seal-emoji.webp" aria-hidden="true">
+        <source src="/sappy/assets/sappy-seal-emoji.webm" type="video/webm">
+      </video><span class="emoji-face icon-${badge.icon || "seal"}" aria-hidden="true"></span>`;
+    }
+    if (variant === "seal-static") {
+      return `<img class="role-sticker-media role-sticker-seal" src="/sappy/assets/sappy-seal-emoji.webp" alt="" aria-hidden="true" loading="lazy"><span class="emoji-face icon-${badge.icon || "seal"}" aria-hidden="true"></span>`;
     }
     return `<img class="role-sticker-media" src="/sappy/assets/stickers/sappy-role-${variant}.webp" alt="" aria-hidden="true" loading="lazy"><span class="emoji-face icon-${badge.icon || "seal"}" aria-hidden="true"></span>`;
   }
