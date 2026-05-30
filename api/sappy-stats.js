@@ -128,7 +128,7 @@ function parseOpenSeaStats(data) {
   if (!Number.isFinite(floorEth) && !Number.isFinite(holders)) throw new Error('opensea_empty');
   return {
     floorEth: floorEth ?? FALLBACK.floorEth,
-    floorUsd: FALLBACK.floorUsd,
+    floorUsd: null,
     change24h: change24h ?? FALLBACK.change24h,
     holders: holders ?? FALLBACK.holders,
     updatedAt: new Date().toISOString(),

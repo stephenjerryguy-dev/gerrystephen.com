@@ -40,8 +40,10 @@
       if (Number.isFinite(floorEth)) {
         setStat("[data-stat='floor']", `${formatNumber(floorEth, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} Ξ`, floorEth);
       }
-      if (Number.isFinite(floorUsd)) {
+      if (Number.isFinite(floorUsd) && floorUsd > 0) {
         setStat("[data-stat='floor-meta']", `$${formatNumber(Math.round(floorUsd))} · Sappy Seals`);
+      } else if (Number.isFinite(floorEth)) {
+        setStat("[data-stat='floor-meta']", "live floor · Sappy Seals");
       }
       if (Number.isFinite(change24h)) {
         const sign = change24h >= 0 ? "+" : "";
