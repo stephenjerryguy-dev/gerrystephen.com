@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   DynamicContextProvider,
@@ -30,10 +30,12 @@ function fallbackOpenDynamic() {
 window.sappyOpenDynamic = fallbackOpenDynamic;
 
 function fallbackOpenDynamicSocial(provider) {
+  window.__sappyPendingDynamicSocial = provider || 'twitter';
   window.dispatchEvent(new CustomEvent('sappy-wallet-status', {
-    detail: { status: `Dynamic ${provider || 'social'} connect is still loading.` },
+    detail: { status: `Dynamic ${provider || 'social'} connect is loading. Try again in a moment.` },
   }));
 }
+fallbackOpenDynamicSocial.isFallback = true;
 window.sappyOpenDynamicSocial = fallbackOpenDynamicSocial;
 
 const settings = {
@@ -79,13 +81,15 @@ const SOCIAL_PROVIDERS = {
 
 function socialDetail(provider, account) {
   const handle = account?.username || account?.publicIdentifier || account?.displayName || '';
+  const accountId = account?.accountId || account?.id || '';
   return {
     provider,
-    accountId: account?.accountId || account?.id || '',
+    accountId,
     avatar: account?.avatar || '',
     displayName: account?.displayName || handle,
     handle: handle ? handle.replace(/^@/, '') : '',
     publicIdentifier: account?.publicIdentifier || '',
+    connected: Boolean(accountId || handle),
     source: 'dynamic',
   };
 }
@@ -105,7 +109,6 @@ function SappyDynamicBridge() {
     },
   });
   const wallets = useUserWallets();
-  const allowedSessionRef = useRef(false);
 
   const clearLocalWallet = () => {
     try {
@@ -115,7 +118,7 @@ function SappyDynamicBridge() {
   };
 
   useEffect(() => {
-    window.sappyOpenDynamic = () => {
+    const openWallet = () => {
       try {
         sessionStorage.setItem('sappy_dynamic_connecting', String(Date.now()));
         sessionStorage.setItem('sappy_dynamic_next', window.location.href);
@@ -127,11 +130,12 @@ function SappyDynamicBridge() {
       }
       setShowAuthFlow?.(true, DYNAMIC_AUTH_OPTIONS);
     };
+    window.sappyOpenDynamic = openWallet;
     window.sappyLogoutDynamic = async () => {
       await handleLogOut?.();
       window.dispatchEvent(new CustomEvent('sappy-wallet-connected', { detail: { address: '' } }));
     };
-    window.sappyOpenDynamicSocial = async (providerKey) => {
+    const openSocial = async (providerKey) => {
       const provider = SOCIAL_PROVIDERS[String(providerKey || '').toLowerCase()];
       if (!provider) {
         window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: 'That Dynamic social provider is not supported yet.' } }));
@@ -159,11 +163,28 @@ function SappyDynamicBridge() {
       }
       window.setTimeout(() => {
         const account = getLinkedAccountInformation?.(provider) || getLinkedAccounts?.(provider)?.[0];
-        window.dispatchEvent(new CustomEvent('sappy-social-connected', { detail: socialDetail(provider, account) }));
+        if (account) {
+          window.dispatchEvent(new CustomEvent('sappy-social-connected', { detail: socialDetail(provider, account) }));
+        } else {
+          window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: `${provider === ProviderEnum.Twitter ? 'X' : 'Discord'} connect did not finish. Complete it in Dynamic and try again.` } }));
+        }
       }, 500);
     };
+    openSocial.isFallback = false;
+    window.sappyOpenDynamicSocial = openSocial;
+    const onWalletRequest = () => openWallet();
+    const onSocialRequest = (event) => openSocial(event.detail?.provider || event.detail);
+    window.addEventListener('sappy-dynamic-wallet-request', onWalletRequest);
+    window.addEventListener('sappy-dynamic-social-request', onSocialRequest);
+    const pendingSocial = window.__sappyPendingDynamicSocial;
+    if (pendingSocial) {
+      delete window.__sappyPendingDynamicSocial;
+      window.setTimeout(() => openSocial(pendingSocial), 0);
+    }
     window.dispatchEvent(new CustomEvent('sappy-dynamic-ready'));
     return () => {
+      window.removeEventListener('sappy-dynamic-wallet-request', onWalletRequest);
+      window.removeEventListener('sappy-dynamic-social-request', onSocialRequest);
       window.sappyOpenDynamic = fallbackOpenDynamic;
       window.sappyOpenDynamicSocial = fallbackOpenDynamicSocial;
       delete window.sappyLogoutDynamic;
@@ -181,20 +202,11 @@ function SappyDynamicBridge() {
 
   useEffect(() => {
     clearLocalWallet();
-    const wallet = wallets?.find?.((item) => /^EVM|ETH$/i.test(String(item?.chain || ''))) || wallets?.[0] || primaryWallet;
-    if (!wallet?.address || allowedSessionRef.current) return;
-    let connectingAt = 0;
-    try { connectingAt = Number(sessionStorage.getItem('sappy_dynamic_connecting') || 0); } catch (_) {}
-    const isReturningFromActiveConnect = connectingAt && Date.now() - connectingAt < 10 * 60 * 1000;
-    if (isReturningFromActiveConnect) return;
-    handleLogOut?.();
-    window.dispatchEvent(new CustomEvent('sappy-wallet-connected', { detail: { address: '' } }));
-  }, [handleLogOut, primaryWallet, wallets]);
+  }, [primaryWallet, wallets]);
 
   useEffect(() => {
     const wallet = wallets?.find?.((item) => /^EVM|ETH$/i.test(String(item?.chain || ''))) || wallets?.[0] || primaryWallet;
     if (!wallet?.address) return;
-    allowedSessionRef.current = true;
     let next = '';
     try {
       next = sessionStorage.getItem('sappy_dynamic_next') || '';
@@ -211,7 +223,8 @@ function SappyDynamicBridge() {
 
   useEffect(() => {
     const syncFromDynamic = (params) => {
-      const wallet = params?.userWallets?.find?.((item) => /^EVM|ETH$/i.test(String(item?.chain || ''))) || params?.userWallets?.[0];
+      const userWallets = Array.isArray(params?.userWallets) ? params.userWallets : Array.isArray(params) ? params : [];
+      const wallet = userWallets?.find?.((item) => /^EVM|ETH$/i.test(String(item?.chain || ''))) || userWallets?.[0] || params?.wallet || params?.primaryWallet;
       if (wallet?.address) {
         window.dispatchEvent(new CustomEvent('sappy-wallet-connected', {
           detail: { address: wallet.address, label: short(wallet.address), source: 'dynamic' },
@@ -219,12 +232,22 @@ function SappyDynamicBridge() {
       }
     };
     try { dynamicEvents.on('userWalletsChanged', syncFromDynamic); } catch (_) {}
+    const syncPrimaryWallet = (wallet) => syncFromDynamic({ wallet });
+    const syncWalletFailure = () => {
+      window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: 'Dynamic wallet connect did not finish. Please try again.' } }));
+    };
+    try { dynamicEvents.on('userWalletsPopulated', syncFromDynamic); } catch (_) {}
+    try { dynamicEvents.on('primaryWalletChanged', syncPrimaryWallet); } catch (_) {}
     try { dynamicEvents.on('walletAdded', (_wallet, userWallets) => syncFromDynamic({ userWallets })); } catch (_) {}
     try { dynamicEvents.on('walletRemoved', (_wallet, userWallets) => syncFromDynamic({ userWallets })); } catch (_) {}
+    try { dynamicEvents.on('walletConnectionFailed', syncWalletFailure); } catch (_) {}
     return () => {
       try { dynamicEvents.off('userWalletsChanged', syncFromDynamic); } catch (_) {}
+      try { dynamicEvents.off('userWalletsPopulated', syncFromDynamic); } catch (_) {}
+      try { dynamicEvents.off('primaryWalletChanged', syncPrimaryWallet); } catch (_) {}
       try { dynamicEvents.off('walletAdded', syncFromDynamic); } catch (_) {}
       try { dynamicEvents.off('walletRemoved', syncFromDynamic); } catch (_) {}
+      try { dynamicEvents.off('walletConnectionFailed', syncWalletFailure); } catch (_) {}
     };
   }, []);
 

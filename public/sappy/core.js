@@ -293,13 +293,8 @@ window.Sappy = (function () {
       window.sappyOpenDynamic();
       return true;
     }
-    const host = document.querySelector("#sappy-dynamic-widget .dynamic-shadow-dom");
-    const btn = host && host.shadowRoot && host.shadowRoot.querySelector('[data-testid="ConnectButton"], button');
-    if (btn) {
-      btn.click();
-      return true;
-    }
-    return false;
+    window.dispatchEvent(new CustomEvent("sappy-dynamic-wallet-request"));
+    return true;
   }
   function walletModal() {
     if (openDynamicWallet()) {
@@ -310,11 +305,12 @@ window.Sappy = (function () {
   }
 
   function openDynamicSocial(provider) {
-    if (window.sappyOpenDynamicSocial) {
+    if (window.sappyOpenDynamicSocial && !window.sappyOpenDynamicSocial.isFallback) {
       window.sappyOpenDynamicSocial(provider);
       return true;
     }
-    return false;
+    window.dispatchEvent(new CustomEvent("sappy-dynamic-social-request", { detail: { provider } }));
+    return true;
   }
 
   async function startXLogin() {
@@ -360,6 +356,7 @@ window.Sappy = (function () {
       const detail = event.detail || {};
       const provider = String(detail.provider || "").toLowerCase();
       const handle = detail.handle || detail.displayName || detail.publicIdentifier || "";
+      if (!detail.connected) return;
       if (provider === "twitter") {
         try { localStorage.setItem("sappy_x", handle); } catch (e) {}
         toast(handle ? "X connected — @" + handle : "X connected through Dynamic.");
