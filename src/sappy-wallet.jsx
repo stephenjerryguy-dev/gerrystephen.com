@@ -28,12 +28,19 @@ const wagmiConfig = createConfig({
   },
 });
 const queryClient = new QueryClient();
+function setDynamicActive(active) {
+  document.body.classList.toggle('sappy-dynamic-active', Boolean(active));
+  document.body.classList.toggle('dynamic-no-scroll', Boolean(active));
+}
+
 function fallbackOpenDynamic() {
+  setDynamicActive(true);
   const widgetButton = document.querySelector('#sappy-dynamic-widget button, #sappy-dynamic-widget [role="button"]');
   if (widgetButton) {
     widgetButton.click();
     return;
   }
+  setDynamicActive(false);
   window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: 'Dynamic is still loading. Try again in a moment.' } }));
 }
 window.sappyOpenDynamic = fallbackOpenDynamic;
@@ -56,12 +63,27 @@ const settings = {
   walletConnectors: [EthereumWalletConnectors],
   defaultNumberOfWalletsToShow: 8,
   events: {
-    onAuthFlowOpen: () => window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: 'Dynamic wallet modal open' } })),
+    onAuthFlowOpen: () => {
+      setDynamicActive(true);
+      window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: 'Dynamic wallet modal open' } }));
+    },
     onAuthInit: () => window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: 'Connecting with Dynamic' } })),
-    onAuthSuccess: () => window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: 'Dynamic wallet connected' } })),
-    onAuthFailure: () => window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: 'Dynamic connect needs another try' } })),
-    onAuthCancel: () => window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: 'Wallet connect cancelled' } })),
-    onLogout: () => window.dispatchEvent(new CustomEvent('sappy-wallet-connected', { detail: { address: '' } })),
+    onAuthSuccess: () => {
+      setDynamicActive(false);
+      window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: 'Dynamic wallet connected' } }));
+    },
+    onAuthFailure: () => {
+      setDynamicActive(false);
+      window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: 'Dynamic connect needs another try' } }));
+    },
+    onAuthCancel: () => {
+      setDynamicActive(false);
+      window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: 'Wallet connect cancelled' } }));
+    },
+    onLogout: () => {
+      setDynamicActive(false);
+      window.dispatchEvent(new CustomEvent('sappy-wallet-connected', { detail: { address: '' } }));
+    },
   },
   cssOverrides: `
     .dynamic-shadow-dom { --dynamic-font-family-primary: Archivo, Inter, system-ui, sans-serif; }
@@ -144,6 +166,7 @@ function SappyDynamicBridge() {
   useEffect(() => {
     const openWallet = () => {
       delete window.__sappyPendingDynamicWallet;
+      setDynamicActive(true);
       try {
         sessionStorage.setItem('sappy_dynamic_connecting', String(Date.now()));
         sessionStorage.setItem('sappy_dynamic_next', window.location.href);
@@ -169,6 +192,7 @@ function SappyDynamicBridge() {
       const authenticated = Boolean(user || primaryWallet?.address || wallets?.length);
       if (!authenticated) {
         window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: 'Create your Sealfolio with your wallet first. Then link X or Discord for next-time login.' } }));
+        setDynamicActive(true);
         setShowAuthFlow?.(true);
         return;
       }
@@ -178,9 +202,11 @@ function SappyDynamicBridge() {
       } catch (_) {}
       const existing = getLinkedAccountInformation?.(provider) || getLinkedAccounts?.(provider)?.[0];
       if (existing) {
+        setDynamicActive(false);
         window.dispatchEvent(new CustomEvent('sappy-social-connected', { detail: socialDetail(provider, existing) }));
         return;
       }
+      setDynamicActive(true);
       window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: `Opening Dynamic ${provider === ProviderEnum.Twitter ? 'X' : 'Discord'} connect...` } }));
       const options = {
         forcePopup: true,
@@ -197,6 +223,7 @@ function SappyDynamicBridge() {
         const detail = refreshed || socialDetail(provider, account);
         if (detail.connected) {
           connected = true;
+          setDynamicActive(false);
           window.dispatchEvent(new CustomEvent('sappy-social-connected', { detail }));
           break;
         }

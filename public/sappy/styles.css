@@ -801,7 +801,16 @@ body.eco-dark .chip.poly{background:rgba(150,90,255,.2);color:#cbb0ff;}
 .dynamic-zksync-approval > .dynamic-shadow-dom,
 .dyn-passkey-recovery-id > .dynamic-shadow-dom,
 .dynamic-send-balance > .dynamic-shadow-dom,
-.dynamic-edit-user-field > .dynamic-shadow-dom{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;pointer-events:auto;}
+.dynamic-edit-user-field > .dynamic-shadow-dom{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;pointer-events:none!important;}
+body.sappy-dynamic-active .dynamic-modal > .dynamic-shadow-dom,
+body.sappy-dynamic-active .dynamic-send-transaction > .dynamic-shadow-dom,
+body.sappy-dynamic-active .dynamic-sign-message > .dynamic-shadow-dom,
+body.sappy-dynamic-active .dynamic-sync-wallet > .dynamic-shadow-dom,
+body.sappy-dynamic-active .dynamic-prompt-to-add-network > .dynamic-shadow-dom,
+body.sappy-dynamic-active .dynamic-zksync-approval > .dynamic-shadow-dom,
+body.sappy-dynamic-active .dyn-passkey-recovery-id > .dynamic-shadow-dom,
+body.sappy-dynamic-active .dynamic-send-balance > .dynamic-shadow-dom,
+body.sappy-dynamic-active .dynamic-edit-user-field > .dynamic-shadow-dom{pointer-events:auto!important;}
 .sappy-dynamic-dock{position:fixed;right:18px;bottom:18px;z-index:99999;display:block;}
 .sappy-dynamic-dock,.sappy-dynamic-dock *{pointer-events:auto;}
 .sappy-dynamic-dock:empty{display:none;}
