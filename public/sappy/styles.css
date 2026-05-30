@@ -547,6 +547,8 @@ body.no-photos .sealframe img.seal-photo{opacity:0 !important;}
 .folio-claim{background:linear-gradient(120deg,#16689B,#1E93D6);color:#fff;border-radius:var(--radius);padding:22px 26px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;box-shadow:var(--shadow-lg);margin-top:22px;}
 .folio-claim .ct h3{margin:0;font-family:var(--font-display);font-weight:800;font-size:20px;}
 .folio-claim .ct p{margin:5px 0 0;color:rgba(255,255,255,.85);font-size:14.5px;}
+.folio-connect-actions{display:flex;gap:10px;justify-content:flex-end;align-items:center;flex-wrap:wrap;}
+.folio-connect-actions .btn{min-height:48px;}
 .folio-statrow{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-top:30px;}
 .fstat{background:var(--paper);border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:18px;box-shadow:var(--shadow);text-align:center;}
 .fstat .v{font-family:var(--font-display);font-weight:900;font-size:30px;line-height:1;}
@@ -568,8 +570,11 @@ body.no-photos .sealframe img.seal-photo{opacity:0 !important;}
 .badge-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;}
 .badge{background:var(--paper);border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:16px 10px;text-align:center;box-shadow:var(--shadow);}
 .badge.locked{opacity:.4;filter:grayscale(.7);}
-.badge .bi{font-size:30px;}
+.badge .bi{height:34px;display:grid;place-items:center;}
+.badge .bi img{width:32px;height:32px;object-fit:contain;border-radius:8px;}
+.badge .role-dot{width:18px;height:18px;border-radius:50%;box-shadow:0 0 0 5px rgba(88,101,242,.12);}
 .badge .bn{font-size:12px;font-weight:700;margin-top:7px;}
+.badge.discord-role{background:#f7f8ff;}
 .stake-card{background:var(--ocean-mist);border:1.5px solid var(--line);border-radius:var(--radius);padding:26px;display:grid;grid-template-columns:1fr auto;gap:24px;align-items:center;}
 .stake-card .pixl-bal{font-family:var(--font-display);font-weight:900;font-size:42px;color:var(--accent-deep);line-height:1;}
 .stake-card .bits-bal span:last-child{font-size:20px;}

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   DynamicContextProvider,
@@ -15,6 +15,7 @@ const DYNAMIC_AUTH_OPTIONS = {
   initializeWalletConnect: true,
   clearErrors: true,
   performMultiWalletChecks: false,
+  authMode: 'connect-and-sign',
 };
 function fallbackOpenDynamic() {
   const widgetButton = document.querySelector('#sappy-dynamic-widget button');
@@ -31,8 +32,7 @@ const settings = {
   appLogoUrl: `${window.location.origin}/sappy/assets/sappy-seal-emoji.webp`,
   apiBaseUrl: `${window.location.origin}/dynamic-api`,
   environmentId: SAPPY_DYNAMIC_ENV_ID,
-  initialAuthenticationMode: 'connect-only',
-  enableVisitTrackingOnConnectOnly: true,
+  initialAuthenticationMode: 'connect-and-sign',
   theme: 'light',
   walletConnectors: [EthereumWalletConnectors],
   defaultNumberOfWalletsToShow: 8,
@@ -66,9 +66,21 @@ function SappyDynamicBridge() {
   const { setShowAuthFlow, handleLogOut, user, primaryWallet } = useDynamicContext();
   const { setShowLinkNewWalletModal } = useDynamicModals();
   const wallets = useUserWallets();
+  const allowedSessionRef = useRef(false);
+
+  const clearLocalWallet = () => {
+    try {
+      localStorage.removeItem('sappy_wallet');
+      localStorage.removeItem('sappy_wallet_label');
+    } catch (_) {}
+  };
 
   useEffect(() => {
     window.sappyOpenDynamic = () => {
+      try {
+        sessionStorage.setItem('sappy_dynamic_connecting', String(Date.now()));
+        sessionStorage.setItem('sappy_dynamic_next', window.location.href);
+      } catch (_) {}
       const authenticated = Boolean(user || primaryWallet?.address || wallets?.length);
       if (authenticated) {
         setShowLinkNewWalletModal?.(true);
@@ -88,11 +100,33 @@ function SappyDynamicBridge() {
   }, [setShowAuthFlow, setShowLinkNewWalletModal, handleLogOut, user, primaryWallet, wallets]);
 
   useEffect(() => {
+    clearLocalWallet();
+    const wallet = wallets?.find?.((item) => /^EVM|ETH$/i.test(String(item?.chain || ''))) || wallets?.[0] || primaryWallet;
+    if (!wallet?.address || allowedSessionRef.current) return;
+    let connectingAt = 0;
+    try { connectingAt = Number(sessionStorage.getItem('sappy_dynamic_connecting') || 0); } catch (_) {}
+    const isReturningFromActiveConnect = connectingAt && Date.now() - connectingAt < 10 * 60 * 1000;
+    if (isReturningFromActiveConnect) return;
+    handleLogOut?.();
+    window.dispatchEvent(new CustomEvent('sappy-wallet-connected', { detail: { address: '' } }));
+  }, [handleLogOut, primaryWallet, wallets]);
+
+  useEffect(() => {
     const wallet = wallets?.find?.((item) => /^EVM|ETH$/i.test(String(item?.chain || ''))) || wallets?.[0] || primaryWallet;
     if (!wallet?.address) return;
+    allowedSessionRef.current = true;
+    let next = '';
+    try {
+      next = sessionStorage.getItem('sappy_dynamic_next') || '';
+      sessionStorage.removeItem('sappy_dynamic_connecting');
+      sessionStorage.removeItem('sappy_dynamic_next');
+    } catch (_) {}
     window.dispatchEvent(new CustomEvent('sappy-wallet-connected', {
       detail: { address: wallet.address, label: short(wallet.address), source: 'dynamic' },
     }));
+    if (next && next !== window.location.href && next.startsWith(window.location.origin)) {
+      window.location.href = next;
+    }
   }, [primaryWallet, wallets]);
 
   useEffect(() => {

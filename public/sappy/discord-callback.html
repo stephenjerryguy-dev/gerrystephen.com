@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Connecting Discord — sappy.</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main class="wrap" style="min-height:70vh;display:grid;place-items:center;text-align:center;">
+  <div>
+    <div class="brand" style="justify-content:center;"><span class="word">sappy<b>.</b></span></div>
+    <h1 class="section-title" style="margin-top:20px;">Connecting Discord</h1>
+    <p class="section-sub" id="discord-status">Reading your roles...</p>
+  </div>
+</main>
+<script>
+(async function () {
+  const status = document.getElementById("discord-status");
+  const params = new URLSearchParams(location.search);
+  const code = params.get("code");
+  const state = params.get("state");
+  let stored = {};
+  try { stored = JSON.parse(localStorage.getItem("sappy_discord_oauth") || "{}"); } catch (e) {}
+  const finish = (message, next) => {
+    status.textContent = message;
+    setTimeout(() => { location.href = next || "/sappy/sealfolio.html"; }, 900);
+  };
+  if (!code || !state || !stored.state || state !== stored.state) {
+    finish("Discord authorization could not be verified.", stored.next);
+    return;
+  }
+  try {
+    const response = await fetch("/api/discord-oauth", {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({ code, redirectUri: location.origin + "/sappy/discord-callback.html" }),
+    });
+    const data = await response.json();
+    if (!response.ok || !data.user) throw new Error(data.error || "discord_failed");
+    localStorage.setItem("sappy_discord", JSON.stringify({ user: data.user, roles: data.roles || [], connectedAt: Date.now() }));
+    finish("Discord connected as " + (data.user.username || data.user.handle) + ".", stored.next);
+  } catch (e) {
+    finish("Discord needs the app credentials and server bot access finished.", stored.next);
+  }
+})();
+</script>
+</body>
+</html>

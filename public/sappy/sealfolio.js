@@ -29,16 +29,6 @@
   const state = { address: "", nfts: null, delegatedWallets: [], loading: false, error: "" };
   const vibe = VIBES[pick(VIBES.length)];
   let walletShort = "Connect wallet";
-  try {
-    const cached = localStorage.getItem("sappy_wallet");
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      if (parsed && (parsed.label || parsed.address)) walletShort = parsed.label || parsed.address;
-    }
-    walletShort = localStorage.getItem("sappy_wallet_label") || walletShort;
-  } catch (_) {
-    try { walletShort = localStorage.getItem("sappy_wallet_label") || walletShort; } catch (e) {}
-  }
 
   function normalizeOwned() {
     if (!state.nfts) return state.address ? [] : sampleOwned;
@@ -66,14 +56,25 @@
 
   function badgesFor(owned, staked) {
     const has = (needle) => owned.some((nft) => `${nft.collection} ${nft.name || ""}`.toLowerCase().includes(needle));
+    const discord = discordRoles();
     return [
-      { i: "🦭", n: "OG Seal", have: owned.some((nft) => /sappy seal/i.test(`${nft.collection} ${nft.name || ""}`)) },
-      { i: "💎", n: "Staker", have: staked > 0 },
-      { i: "🌊", n: "Omnia", have: has("omnia") },
-      { i: "🎨", n: "Pixseal", have: has("pixseal") },
-      { i: "🏆", n: "Artifact", have: has("artifact") },
-      { i: "🔑", n: "Key Holder", have: has("key") || has("faithful") },
+      { logo: "/sappy/assets/sappy-app-icon-192.png", n: "OG Seal", have: owned.some((nft) => /sappy seal/i.test(`${nft.collection} ${nft.name || ""}`)) },
+      { logo: "/sappy/assets/sappy-app-icon-192.png", n: "Staker", have: staked > 0 },
+      { logo: "/sappy/assets/omnia-logo.png", n: "Omnia", have: has("omnia") },
+      { logo: "/sappy/assets/sappy-seal-emoji.webp", n: "Pixseal", have: has("pixseal") },
+      { logo: "/sappy/assets/digital-artifact-1.png", n: "Artifact", have: has("artifact") },
+      { logo: "/sappy/assets/sappy-seal-emoji.webp", n: "Key Holder", have: has("key") || has("faithful") },
+      ...discord.map((role) => ({ role, n: role.name, have: true, discord: true })),
     ];
+  }
+
+  function discordRoles() {
+    try {
+      const connected = JSON.parse(localStorage.getItem("sappy_discord") || "{}");
+      return Array.isArray(connected.roles) ? connected.roles.slice(0, 18) : [];
+    } catch (_) {
+      return [];
+    }
   }
 
   function renderTokenArt(o) {
@@ -128,7 +129,10 @@
           <h3>${statusCopy[0]}</h3>
           <p>${statusCopy[1]}</p>
         </div>
-        <button class="btn btn-x" data-x-login>𝕏&nbsp; Connect your X</button>
+        <div class="folio-connect-actions">
+          <button class="btn btn-x" data-x-login>𝕏&nbsp; Connect your X</button>
+          <button class="btn btn-ghost" data-discord-login><img class="btn-logo" src="https://cdn.simpleicons.org/discord/5865F2" alt="" aria-hidden="true"> Connect Discord</button>
+        </div>
       </div>
 
       <div class="folio-statrow">
@@ -169,9 +173,12 @@
       </div>
 
       <div class="folio-sec">
-        <h2>Badges</h2>
+        <h2>Badges & Discord Roles</h2>
         <div class="badge-grid">${badges.map((b) => `
-          <div class="badge ${b.have ? "" : "locked"}"><div class="bi">${b.i}</div><div class="bn">${b.n}</div></div>`).join("")}</div>
+          <div class="badge ${b.have ? "" : "locked"} ${b.discord ? "discord-role" : ""}">
+            <div class="bi">${b.role ? `<span class="role-dot" style="background:${b.role.color || "#5865F2"}"></span>` : `<img src="${b.logo}" alt="" loading="lazy">`}</div>
+            <div class="bn">${b.n}</div>
+          </div>`).join("")}</div>
       </div>
 
       <div class="folio-sec" style="text-align:center;padding:30px 0 6px;color:var(--ink-soft);font-style:italic;">
@@ -244,6 +251,14 @@
         S.xModal();
       });
     });
+    document.querySelectorAll("[data-discord-login]").forEach((button) => {
+      if (button.dataset.wired) return;
+      button.dataset.wired = "1";
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        S.discordLogin();
+      });
+    });
   }
 
   S.ready(function () {
@@ -252,11 +267,6 @@
     S.init();
     animateBits();
     window.addEventListener("sappy-wallet-connected", (event) => syncWalletLabel(event.detail));
-    try {
-      const cached = JSON.parse(localStorage.getItem("sappy_wallet") || "{}");
-      if (cached.address) syncWalletLabel(cached);
-      else if (/^0x[a-fA-F0-9]{40}$/.test(urlWallet)) syncWalletLabel({ address: urlWallet, label: `${urlWallet.slice(0, 6)}...${urlWallet.slice(-4)}` });
-    } catch (_) {}
     if (!state.address && /^0x[a-fA-F0-9]{40}$/.test(urlWallet)) syncWalletLabel({ address: urlWallet, label: `${urlWallet.slice(0, 6)}...${urlWallet.slice(-4)}` });
   });
 })();

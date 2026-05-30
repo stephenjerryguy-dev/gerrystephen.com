@@ -255,11 +255,6 @@ window.Sappy = (function () {
 
   function setConnected(handle, kind) {
     if (kind === "wallet") {
-      try {
-        const cached = JSON.parse(localStorage.getItem("sappy_wallet") || "{}");
-        localStorage.setItem("sappy_wallet", JSON.stringify({ ...cached, label: handle, connectedAt: Date.now() }));
-        localStorage.setItem("sappy_wallet_label", handle);
-      } catch (e) {}
       document.querySelectorAll("[data-connect]").forEach((b) => { b.innerHTML = "✓&nbsp; " + handle; });
       closeModal(); toast("Wallet connected — " + handle);
     } else {
@@ -279,6 +274,18 @@ window.Sappy = (function () {
         .catch(() => "");
     }
     return xClientIdPromise;
+  }
+
+  let discordClientIdPromise = null;
+  async function getDiscordClientId() {
+    if (window.SAPPY_DISCORD_CLIENT_ID) return window.SAPPY_DISCORD_CLIENT_ID;
+    if (!discordClientIdPromise) {
+      discordClientIdPromise = fetch("/api/discord-config", { headers: { accept: "application/json" } })
+        .then((r) => r.ok ? r.json() : {})
+        .then((j) => j.clientId || "")
+        .catch(() => "");
+    }
+    return discordClientIdPromise;
   }
 
   function xModal() {
@@ -345,6 +352,24 @@ window.Sappy = (function () {
     }
   }
 
+  async function startDiscordLogin() {
+    const cid = await getDiscordClientId();
+    if (cid) {
+      const redirect = location.origin + "/sappy/discord-callback.html";
+      const state = Math.random().toString(36).slice(2);
+      try {
+        localStorage.setItem("sappy_discord_oauth", JSON.stringify({ state, next: location.href, createdAt: Date.now() }));
+      } catch (e) {}
+      const url = "https://discord.com/oauth2/authorize?response_type=code&client_id=" + encodeURIComponent(cid) +
+        "&redirect_uri=" + encodeURIComponent(redirect) + "&scope=" + encodeURIComponent("identify guilds.members.read") +
+        "&state=" + encodeURIComponent(state);
+      location.href = url;
+      toast("Opening Discord authorization...");
+    } else {
+      toast("Discord connection needs the Discord app client id configured first.");
+    }
+  }
+
   let toastEl = null;
   function toast(msg) {
     if (!toastEl) { toastEl = document.getElementById("x-toast") || (function () { const d = document.createElement("div"); d.id = "x-toast"; document.body.appendChild(d); return d; })(); }
@@ -366,17 +391,13 @@ window.Sappy = (function () {
         return;
       }
       const label = event.detail.label || (address.slice(0, 6) + "..." + address.slice(-4));
-      try {
-        localStorage.setItem("sappy_wallet", JSON.stringify({ address, label, connectedAt: Date.now() }));
-        localStorage.setItem("sappy_wallet_label", label);
-      } catch (e) {}
       setConnected(label, "wallet");
       syncDelegate(address);
     });
     window.addEventListener("sappy-wallet-status", (event) => {
       if (event.detail && event.detail.status) toast(event.detail.status);
     });
-    window.sappyXLogin = xModal; window.sappyWallet = walletModal;
+    window.sappyXLogin = xModal; window.sappyWallet = walletModal; window.sappyDiscordLogin = startDiscordLogin;
   }
 
   function init() {
@@ -392,5 +413,5 @@ window.Sappy = (function () {
 
   return { GW, SEAL_CID, sealUrls, ipfsToHttp, randId, ethCall, decodeAbiString, fetchJson,
     addPhoto, resolveContract, hydrate, reroll, buildFrame, runStats, countUp,
-    renderTeam, renderDir, toast, xModal, walletModal, init, ready, TEAM, HOLDERS, LINKS, BRAND };
+    renderTeam, renderDir, toast, xModal, walletModal, discordLogin: startDiscordLogin, init, ready, TEAM, HOLDERS, LINKS, BRAND };
 })();
