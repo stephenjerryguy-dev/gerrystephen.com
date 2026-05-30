@@ -151,8 +151,24 @@ function normalizeCollectionName(name, contract) {
 
 function normalizeItemName(name, contract) {
   const normalizedContract = contract?.toLowerCase?.();
-  if (normalizedContract === OMNIA_PETS_CONTRACT) return name?.replace(/Genesis Pixl Pet/gi, 'Omnia Pet');
-  if (normalizedContract === OMNIA_ITEMS_CONTRACT) return name?.replace(/Pixelverse/gi, 'Omnia');
+  const raw = typeof name === 'string' ? name : '';
+  if (normalizedContract === '0x364c828ee171616a39897688a831c2499ad972ec' || normalizedContract === '0x1c70d0a86475cc707b48aa79f112857e7957274f') {
+    const id = raw.match(/#?\s*(\d+)/)?.[1];
+    return id ? `Sappy Seal #${id}` : raw || 'Sappy Seal';
+  }
+  if (normalizedContract === OMNIA_PETS_CONTRACT) {
+    return raw
+      .replace(/Genesis\s+Pixl\s+Pet/gi, 'Omnia Pet')
+      .replace(/\bPixl\s+Pet\b/gi, 'Omnia Pet')
+      .replace(/\bPixelverse\b/gi, 'Omnia')
+      .replace(/\bPixlverse\b/gi, 'Omnia');
+  }
+  if (normalizedContract === OMNIA_ITEMS_CONTRACT) {
+    return raw
+      .replace(/\bPixelverse\b/gi, 'Omnia')
+      .replace(/\bPixlverse\b/gi, 'Omnia')
+      .replace(/\bPixl\b/gi, 'Omnia');
+  }
   return name;
 }
 
