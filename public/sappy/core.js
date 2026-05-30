@@ -264,37 +264,13 @@ window.Sappy = (function () {
     }
   }
 
-  let xClientIdPromise = null;
-  async function getXClientId() {
-    if (window.SAPPY_X_CLIENT_ID) return window.SAPPY_X_CLIENT_ID;
-    if (!xClientIdPromise) {
-      xClientIdPromise = fetch("/api/x-config", { headers: { accept: "application/json" } })
-        .then((r) => r.ok ? r.json() : {})
-        .then((j) => j.clientId || "")
-        .catch(() => "");
-    }
-    return xClientIdPromise;
-  }
-
-  let discordClientIdPromise = null;
-  async function getDiscordClientId() {
-    if (window.SAPPY_DISCORD_CLIENT_ID) return window.SAPPY_DISCORD_CLIENT_ID;
-    if (!discordClientIdPromise) {
-      discordClientIdPromise = fetch("/api/discord-config", { headers: { accept: "application/json" } })
-        .then((r) => r.ok ? r.json() : {})
-        .then((j) => j.clientId || "")
-        .catch(() => "");
-    }
-    return discordClientIdPromise;
-  }
-
   function xModal() {
     openModal(`
       <div class="sm-logo"><span class="word">sappy<b>.</b></span></div>
       <h3 class="sm-title">Connect your X</h3>
-      <p class="sm-sub">Link your X to claim your Sealfolio identity and display your profile alongside your connected wallet collection.</p>
+      <p class="sm-sub">Link your X through Dynamic to claim your Sealfolio identity and display your profile alongside your connected wallet collection.</p>
       <button class="btn btn-x sm-x">𝕏&nbsp; Continue with X</button>
-      <p class="sm-fine">You will be sent to X to authorize the public profile connection.</p>`);
+      <p class="sm-fine">Dynamic will only open the X provider for this action.</p>`);
     modalEl.querySelector(".sm-x").addEventListener("click", startXLogin);
   }
 
@@ -333,41 +309,24 @@ window.Sappy = (function () {
     toast("Wallet connect is loading. Try again in a moment.");
   }
 
-  async function startXLogin() {
-    const cid = await getXClientId();
-    if (cid) {
-      const redirect = location.origin + "/sappy/x-callback.html";
-      const state = Math.random().toString(36).slice(2);
-      const verifier = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-      try {
-        localStorage.setItem("sappy_x_oauth", JSON.stringify({ state, verifier, next: location.href, createdAt: Date.now() }));
-      } catch (e) {}
-      const url = "https://twitter.com/i/oauth2/authorize?response_type=code&client_id=" + encodeURIComponent(cid) +
-        "&redirect_uri=" + encodeURIComponent(redirect) + "&scope=" + encodeURIComponent("tweet.read users.read") +
-        "&state=" + encodeURIComponent(state) + "&code_challenge=" + encodeURIComponent(verifier) + "&code_challenge_method=plain";
-      location.href = url;
-      toast("Opening X authorization...");
-    } else {
-      toast("X login needs the X app client id configured first.");
+  function openDynamicSocial(provider) {
+    if (window.sappyOpenDynamicSocial) {
+      window.sappyOpenDynamicSocial(provider);
+      return true;
     }
+    return false;
+  }
+
+  async function startXLogin() {
+    closeModal();
+    if (openDynamicSocial("twitter")) return;
+    toast("Dynamic X connect is loading. Try again in a moment.");
   }
 
   async function startDiscordLogin() {
-    const cid = await getDiscordClientId();
-    if (cid) {
-      const redirect = location.origin + "/sappy/discord-callback.html";
-      const state = Math.random().toString(36).slice(2);
-      try {
-        localStorage.setItem("sappy_discord_oauth", JSON.stringify({ state, next: location.href, createdAt: Date.now() }));
-      } catch (e) {}
-      const url = "https://discord.com/oauth2/authorize?response_type=code&client_id=" + encodeURIComponent(cid) +
-        "&redirect_uri=" + encodeURIComponent(redirect) + "&scope=" + encodeURIComponent("identify guilds.members.read") +
-        "&state=" + encodeURIComponent(state);
-      location.href = url;
-      toast("Opening Discord authorization...");
-    } else {
-      toast("Discord connection needs the Discord app client id configured first.");
-    }
+    closeModal();
+    if (openDynamicSocial("discord")) return;
+    toast("Dynamic Discord connect is loading. Try again in a moment.");
   }
 
   let toastEl = null;
@@ -396,6 +355,31 @@ window.Sappy = (function () {
     });
     window.addEventListener("sappy-wallet-status", (event) => {
       if (event.detail && event.detail.status) toast(event.detail.status);
+    });
+    window.addEventListener("sappy-social-connected", (event) => {
+      const detail = event.detail || {};
+      const provider = String(detail.provider || "").toLowerCase();
+      const handle = detail.handle || detail.displayName || detail.publicIdentifier || "";
+      if (provider === "twitter") {
+        try { localStorage.setItem("sappy_x", handle); } catch (e) {}
+        toast(handle ? "X connected — @" + handle : "X connected through Dynamic.");
+        if (window.__sappyConnectedX && handle) window.__sappyConnectedX(handle);
+      }
+      if (provider === "discord") {
+        try {
+          localStorage.setItem("sappy_discord", JSON.stringify({
+            user: {
+              id: detail.accountId,
+              username: handle || detail.displayName || "Discord",
+              avatar: detail.avatar || "",
+              source: "dynamic",
+            },
+            roles: [],
+            connectedAt: Date.now(),
+          }));
+        } catch (e) {}
+        toast(handle ? "Discord connected — " + handle : "Discord connected through Dynamic.");
+      }
     });
     window.sappyXLogin = xModal; window.sappyWallet = walletModal; window.sappyDiscordLogin = startDiscordLogin;
   }

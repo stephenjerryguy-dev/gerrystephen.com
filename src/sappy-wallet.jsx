@@ -6,9 +6,11 @@ import {
   dynamicEvents,
   useDynamicContext,
   useDynamicModals,
+  useSocialAccounts,
   useUserWallets,
 } from '@dynamic-labs/sdk-react-core';
 import { EthereumWalletConnectors } from '@dynamic-labs/ethereum';
+import { ProviderEnum } from '@dynamic-labs/sdk-api-core';
 
 const SAPPY_DYNAMIC_ENV_ID = window.SAPPY_DYNAMIC_ENV_ID || import.meta.env.VITE_SAPPY_DYNAMIC_ENV_ID || '7f5ed078-ee9f-49aa-b9d6-8a90434aaf40';
 const DYNAMIC_AUTH_OPTIONS = {
@@ -26,6 +28,13 @@ function fallbackOpenDynamic() {
   window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: 'Dynamic is still loading. Try again in a moment.' } }));
 }
 window.sappyOpenDynamic = fallbackOpenDynamic;
+
+function fallbackOpenDynamicSocial(provider) {
+  window.dispatchEvent(new CustomEvent('sappy-wallet-status', {
+    detail: { status: `Dynamic ${provider || 'social'} connect is still loading.` },
+  }));
+}
+window.sappyOpenDynamicSocial = fallbackOpenDynamicSocial;
 
 const settings = {
   appName: 'Sappy Sealfolio',
@@ -62,9 +71,39 @@ function short(address) {
   return address ? `${address.slice(0, 6)}...${address.slice(-4)}` : '';
 }
 
+const SOCIAL_PROVIDERS = {
+  discord: ProviderEnum.Discord,
+  x: ProviderEnum.Twitter,
+  twitter: ProviderEnum.Twitter,
+};
+
+function socialDetail(provider, account) {
+  const handle = account?.username || account?.publicIdentifier || account?.displayName || '';
+  return {
+    provider,
+    accountId: account?.accountId || account?.id || '',
+    avatar: account?.avatar || '',
+    displayName: account?.displayName || handle,
+    handle: handle ? handle.replace(/^@/, '') : '',
+    publicIdentifier: account?.publicIdentifier || '',
+    source: 'dynamic',
+  };
+}
+
 function SappyDynamicBridge() {
   const { setShowAuthFlow, handleLogOut, user, primaryWallet } = useDynamicContext();
   const { setShowLinkNewWalletModal } = useDynamicModals();
+  const {
+    getLinkedAccountInformation,
+    getLinkedAccounts,
+    linkSocialAccount,
+    signInWithSocialAccount,
+  } = useSocialAccounts({
+    onError: (error) => {
+      const message = error?.message || error?.code || 'Dynamic social connect needs another try.';
+      window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: message } }));
+    },
+  });
   const wallets = useUserWallets();
   const allowedSessionRef = useRef(false);
 
@@ -92,12 +131,53 @@ function SappyDynamicBridge() {
       await handleLogOut?.();
       window.dispatchEvent(new CustomEvent('sappy-wallet-connected', { detail: { address: '' } }));
     };
+    window.sappyOpenDynamicSocial = async (providerKey) => {
+      const provider = SOCIAL_PROVIDERS[String(providerKey || '').toLowerCase()];
+      if (!provider) {
+        window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: 'That Dynamic social provider is not supported yet.' } }));
+        return;
+      }
+      try {
+        sessionStorage.setItem(`sappy_dynamic_${provider}_connecting`, String(Date.now()));
+        sessionStorage.setItem('sappy_dynamic_next', window.location.href);
+      } catch (_) {}
+      const existing = getLinkedAccountInformation?.(provider) || getLinkedAccounts?.(provider)?.[0];
+      if (existing) {
+        window.dispatchEvent(new CustomEvent('sappy-social-connected', { detail: socialDetail(provider, existing) }));
+        return;
+      }
+      window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: `Opening Dynamic ${provider === ProviderEnum.Twitter ? 'X' : 'Discord'} connect...` } }));
+      const options = {
+        forcePopup: true,
+        redirectUrl: window.location.href,
+        showWidgetAfterConnection: false,
+      };
+      if (user || primaryWallet?.address || wallets?.length) {
+        await linkSocialAccount?.(provider, options);
+      } else {
+        await signInWithSocialAccount?.(provider, options);
+      }
+      window.setTimeout(() => {
+        const account = getLinkedAccountInformation?.(provider) || getLinkedAccounts?.(provider)?.[0];
+        window.dispatchEvent(new CustomEvent('sappy-social-connected', { detail: socialDetail(provider, account) }));
+      }, 500);
+    };
     window.dispatchEvent(new CustomEvent('sappy-dynamic-ready'));
     return () => {
       window.sappyOpenDynamic = fallbackOpenDynamic;
+      window.sappyOpenDynamicSocial = fallbackOpenDynamicSocial;
       delete window.sappyLogoutDynamic;
     };
-  }, [setShowAuthFlow, setShowLinkNewWalletModal, handleLogOut, user, primaryWallet, wallets]);
+  }, [setShowAuthFlow, setShowLinkNewWalletModal, handleLogOut, user, primaryWallet, wallets, getLinkedAccountInformation, getLinkedAccounts, linkSocialAccount, signInWithSocialAccount]);
+
+  useEffect(() => {
+    [ProviderEnum.Twitter, ProviderEnum.Discord].forEach((provider) => {
+      const account = getLinkedAccountInformation?.(provider) || getLinkedAccounts?.(provider)?.[0];
+      if (account) {
+        window.dispatchEvent(new CustomEvent('sappy-social-connected', { detail: socialDetail(provider, account) }));
+      }
+    });
+  }, [user, getLinkedAccountInformation, getLinkedAccounts]);
 
   useEffect(() => {
     clearLocalWallet();
