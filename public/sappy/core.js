@@ -265,13 +265,7 @@ window.Sappy = (function () {
   }
 
   function xModal() {
-    openModal(`
-      <div class="sm-logo"><span class="word">sappy<b>.</b></span></div>
-      <h3 class="sm-title">Connect your X</h3>
-      <p class="sm-sub">Link your X through Dynamic to claim your Sealfolio identity and display your profile alongside your connected wallet collection.</p>
-      <button class="btn btn-x sm-x">𝕏&nbsp; Continue with X</button>
-      <p class="sm-fine">Dynamic will only open the X provider for this action.</p>`);
-    modalEl.querySelector(".sm-x").addEventListener("click", startXLogin);
+    startXLogin();
   }
 
   async function syncDelegate(address) {

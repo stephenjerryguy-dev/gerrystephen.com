@@ -29,7 +29,7 @@ const wagmiConfig = createConfig({
 });
 const queryClient = new QueryClient();
 function fallbackOpenDynamic() {
-  const widgetButton = document.querySelector('#sappy-dynamic-widget button');
+  const widgetButton = document.querySelector('#sappy-dynamic-widget button, #sappy-dynamic-widget [role="button"]');
   if (widgetButton) {
     widgetButton.click();
     return;
@@ -293,7 +293,7 @@ function SappyWalletRoot() {
       <WagmiProvider config={wagmiConfig}>
         <QueryClientProvider client={queryClient}>
           <DynamicWagmiConnector>
-            <div id="sappy-dynamic-widget" aria-hidden="true" style={{ position: 'fixed', left: '-9999px', top: 0, width: 1, height: 1, overflow: 'hidden', opacity: 0.01 }}>
+            <div id="sappy-dynamic-widget" className="sappy-dynamic-dock">
               <DynamicWidget />
             </div>
             <SappyDynamicBridge />

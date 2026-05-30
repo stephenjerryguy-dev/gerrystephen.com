@@ -53,19 +53,12 @@
     { n: "Beater", kind: "discord", tier: "easy", icon: "bat", accent: "blue" },
   ];
 
-  const sampleOwned = [];
-  const nOwned = 3 + pick(6);
-  const used = new Set();
-  for (let i = 0; i < nOwned; i++) {
-    let id; do { id = pick(10000); } while (used.has(id)); used.add(id);
-    sampleOwned.push({ id, trait: TRAITS[pick(TRAITS.length)], collection: "Sappy Seals", staked: rnd() > 0.5 });
-  }
   const state = { address: "", nfts: null, delegatedWallets: [], loading: false, error: "" };
   const vibe = VIBES[pick(VIBES.length)];
   let walletShort = "Connect wallet";
 
   function normalizeOwned() {
-    if (!state.nfts) return state.address ? [] : sampleOwned;
+    if (!state.nfts) return [];
     return state.nfts.map((nft) => {
       const contract = nft.contract?.toLowerCase?.() || "";
       const id = String(nft.tokenId || "").replace(/\D/g, "") || nft.tokenId || "";
@@ -85,7 +78,7 @@
 
   function scoreFor(owned) {
     if (state.nfts) return Math.min(999, owned.length * 42 + owned.filter((o) => o.staked).length * 85 + state.delegatedWallets.length * 30);
-    return 120 + pick(880);
+    return 0;
   }
 
   function badgesFor(owned, staked) {
@@ -133,21 +126,23 @@
   function render() {
     const owned = normalizeOwned();
     const staked = owned.filter((o) => o.staked).length;
-    const score = scoreFor(owned);
-    const rank = RANKS[Math.min(RANKS.length - 1, Math.floor(score / 200))];
     const badges = badgesFor(owned, staked);
-    const first = owned[0] || sampleOwned[0];
+    const first = owned[0] || null;
     const isReal = Array.isArray(state.nfts);
+    const hasProfile = isReal && owned.length > 0;
+    const score = hasProfile ? scoreFor(owned) : 0;
+    const rank = hasProfile ? RANKS[Math.min(RANKS.length - 1, Math.floor(score / 200))] : "Unclaimed";
     const statusCopy = state.loading
       ? ["Syncing your wallet.", "Pulling Sappy Seals, staked Seals, Pixseals, Omnia items, keys and artifacts from the covered contracts."]
       : isReal
         ? [`${owned.length} ecosystem asset${owned.length === 1 ? "" : "s"} found.`, state.delegatedWallets.length ? `Includes ${state.delegatedWallets.length} Delegate.xyz vault${state.delegatedWallets.length === 1 ? "" : "s"}.` : "Direct wallet holdings shown."]
-        : ["Connect your wallet.", "Your real Sappy ecosystem assets will replace this sample Sealfolio."];
+        : ["Create your Sealfolio.", "Connect and sign with Dynamic to build your real Sappy identity from wallet holdings, Delegate.xyz vaults and linked socials."];
     document.getElementById("folio").innerHTML = `
       <a class="folio-back" href="community.html">← Back to the Pod</a>
       <div class="folio-hero">
-        <div class="folio-pfp sealframe" data-pin="1" data-kind="${first.image ? "none" : "seal"}" data-id="${first.id}" data-px="300">
-          ${first.image ? `<img class="seal-photo show" src="${first.image}" alt="${first.name || "Sealfolio profile asset"}" referrerpolicy="no-referrer">` : ""}
+        <div class="folio-pfp sealframe ${first ? "" : "folio-pfp-empty"}" data-pin="${first && !first.image ? "1" : "0"}" data-kind="${first && !first.image ? "seal" : "none"}" data-id="${first ? first.id : ""}" data-px="300">
+          ${first?.image ? `<img class="seal-photo show" src="${first.image}" alt="${first.name || "Sealfolio profile asset"}" referrerpolicy="no-referrer">` : ""}
+          ${!first ? `<img class="seal-photo show" src="/sappy/assets/sappy-seal-emoji.webp" alt="Sappy Sealfolio">` : ""}
         </div>
         <div class="folio-id">
           <div class="name">${handle}</div>
@@ -185,10 +180,15 @@
       </div>
 
       <div class="folio-sec">
-        <h2>${isReal ? "Your Sappy ecosystem" : `${handle}'s sample Seals`}</h2>
+        <h2>${hasProfile ? "Claim your Sealfolio" : "Create your Sealfolio"}</h2>
         ${state.loading ? '<div class="folio-loading">Loading connected wallet collection...</div>' : ""}
         ${isReal && !owned.length ? '<div class="folio-loading">No covered Sappy ecosystem NFTs were found in this wallet yet. If they are in a delegated vault, make sure Delegate.xyz points to this wallet.</div>' : ""}
-        <div class="seal-grid">${owned.map((o) => `
+        ${!isReal && !state.loading ? `<div class="folio-empty-create">
+          <h3>Your Sealfolio is waiting.</h3>
+          <p>Connect your wallet to create it. Once your Sappy ecosystem holdings are found, this becomes a claimable profile.</p>
+          <button class="btn btn-accent" data-connect>Create your Sealfolio →</button>
+        </div>` : ""}
+        ${owned.length ? `<div class="seal-grid">${owned.map((o) => `
           <div class="seal-card">
             ${renderTokenArt(o)}
             <div class="cap">
@@ -197,7 +197,7 @@
               ${o.wallet ? `<div class="t">${o.wallet}</div>` : ""}
               ${o.staked ? '<span class="staked">⛓ STAKED · BITS PENDING</span>' : ""}
             </div>
-          </div>`).join("")}</div>
+          </div>`).join("")}</div>` : ""}
       </div>
 
       <div class="folio-sec">
@@ -303,6 +303,14 @@
       button.addEventListener("click", (event) => {
         event.preventDefault();
         S.discordLogin();
+      });
+    });
+    document.querySelectorAll("[data-connect]").forEach((button) => {
+      if (button.dataset.folioWired) return;
+      button.dataset.folioWired = "1";
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        S.walletModal();
       });
     });
   }
