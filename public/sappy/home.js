@@ -1,5 +1,63 @@
 /* ============ home.js — homepage init ============ */
 (function () {
+  const LOCAL_HOST = /^(127\.0\.0\.1|localhost)$/.test(location.hostname);
+
+  function formatNumber(value, options) {
+    return Number(value).toLocaleString("en-US", options || {});
+  }
+
+  async function fetchJsonWithProdFallback(path) {
+    const endpoints = [path];
+    if (LOCAL_HOST) endpoints.push(`https://www.gerrystephen.com${path}`);
+
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(endpoint, { headers: { accept: "application/json" } });
+        const type = response.headers.get("content-type") || "";
+        if (!response.ok || !type.includes("application/json")) continue;
+        return await response.json();
+      } catch (error) {}
+    }
+    return null;
+  }
+
+  function setStat(selector, text, dataTo) {
+    const el = document.querySelector(selector);
+    if (!el) return;
+    el.textContent = text;
+    if (dataTo !== undefined) el.dataset.to = String(dataTo);
+    el.dataset.live = "1";
+  }
+
+  function mountLiveStats() {
+    fetchJsonWithProdFallback("/api/sappy-stats").then((stats) => {
+      if (!stats) return;
+      const floorEth = Number(stats.floorEth);
+      const floorUsd = Number(stats.floorUsd);
+      const change24h = Number(stats.change24h);
+      const holders = Number(stats.holders);
+
+      if (Number.isFinite(floorEth)) {
+        setStat("[data-stat='floor']", `${formatNumber(floorEth, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} Ξ`, floorEth);
+      }
+      if (Number.isFinite(floorUsd)) {
+        setStat("[data-stat='floor-meta']", `$${formatNumber(Math.round(floorUsd))} · Sappy Seals`);
+      }
+      if (Number.isFinite(change24h)) {
+        const sign = change24h >= 0 ? "+" : "";
+        const changeEl = document.querySelector("[data-stat='change']");
+        setStat("[data-stat='change']", `${sign}${formatNumber(change24h, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`, change24h);
+        if (changeEl) changeEl.classList.toggle("down", change24h < 0);
+      }
+      if (Number.isFinite(holders)) {
+        const holderText = formatNumber(Math.round(holders));
+        setStat("[data-stat='holders']", holderText, holders);
+        const holderLine = document.querySelector("[data-stat='holder-line']");
+        if (holderLine) holderLine.innerHTML = `<b>${holderText} holders</b> and growing — you're early. you're sappy.`;
+      }
+    });
+  }
+
   function mountParallax() {
     const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduce) return;
@@ -43,6 +101,7 @@
   window.Sappy.ready(function () {
     window.SappyLayout.mount("home");
     window.Sappy.init();
+    mountLiveStats();
     mountParallax();
   });
 })();

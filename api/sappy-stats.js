@@ -1,0 +1,101 @@
+import { rateLimit } from './_rate-limit.js';
+
+const RESERVOIR_API = 'https://api.reservoir.tools';
+const SAPPY_SEALS_CONTRACT = '0x364c828ee171616a39897688a831c2499ad972ec';
+const FALLBACK = {
+  floorEth: 0.122,
+  floorUsd: 305,
+  change24h: 0,
+  holders: 3885,
+  updatedAt: null,
+  source: 'fallback',
+};
+
+function reservoirHeaders() {
+  return {
+    accept: 'application/json',
+    ...(process.env.RESERVOIR_API_KEY ? { 'x-api-key': process.env.RESERVOIR_API_KEY } : {}),
+  };
+}
+
+function numberFrom(...values) {
+  for (const value of values) {
+    const number = Number(value);
+    if (Number.isFinite(number)) return number;
+  }
+  return undefined;
+}
+
+function percentFrom(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return undefined;
+  return Math.abs(number) <= 1 ? number * 100 : number;
+}
+
+function parseCollection(collection) {
+  const floorEth = numberFrom(
+    collection?.floorAsk?.price?.amount?.decimal,
+    collection?.floorAskPrice,
+    collection?.floorAsk?.price?.amount?.native
+  );
+  const floorUsd = numberFrom(
+    collection?.floorAsk?.price?.amount?.usd,
+    collection?.floorAsk?.price?.netAmount?.usd
+  );
+  const holders = numberFrom(
+    collection?.ownerCount,
+    collection?.owners,
+    collection?.ownersCount
+  );
+  const change24h = percentFrom(
+    collection?.floorSaleChange?.['1day'],
+    collection?.floorAsk?.price?.change?.['1day'],
+    collection?.volumeChange?.['1day'],
+    collection?.day1?.floorChange,
+    collection?.day1?.floorAskChange
+  );
+
+  return {
+    floorEth: floorEth ?? FALLBACK.floorEth,
+    floorUsd: floorUsd ?? FALLBACK.floorUsd,
+    change24h: change24h ?? FALLBACK.change24h,
+    holders: holders ?? FALLBACK.holders,
+    updatedAt: new Date().toISOString(),
+    source: 'reservoir',
+  };
+}
+
+async function fetchStats() {
+  const params = new URLSearchParams({
+    id: SAPPY_SEALS_CONTRACT,
+    includeTopBid: 'false',
+  });
+  const response = await fetch(`${RESERVOIR_API}/collections/v7?${params.toString()}`, {
+    headers: reservoirHeaders(),
+  });
+  if (!response.ok) throw new Error(`reservoir_${response.status}`);
+  const data = await response.json();
+  const collection = data?.collections?.[0];
+  if (!collection) throw new Error('reservoir_empty');
+  return parseCollection(collection);
+}
+
+export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept');
+  if (req.method === 'OPTIONS') {
+    res.status(204).end();
+    return;
+  }
+  if (rateLimit(req, res, { name: 'sappy-stats', limit: 60, windowMs: 60_000 })) return;
+
+  try {
+    const stats = await fetchStats();
+    res.setHeader('Cache-Control', 's-maxage=180, stale-while-revalidate=900');
+    res.status(200).json(stats);
+  } catch (error) {
+    res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
+    res.status(200).json({ ...FALLBACK, updatedAt: new Date().toISOString() });
+  }
+}
