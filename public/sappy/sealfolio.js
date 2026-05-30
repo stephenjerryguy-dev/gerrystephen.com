@@ -171,8 +171,7 @@
             <button class="btn btn-x" data-x-login>𝕏&nbsp; Link X</button>
             <button class="btn btn-ghost" data-discord-login><img class="btn-logo" src="https://cdn.simpleicons.org/discord/5865F2" alt="" aria-hidden="true"> Link Discord</button>
           ` : `
-            <button class="btn btn-accent" data-connect>Create with Wallet →</button>
-            <span class="social-lock">X and Discord unlock after wallet creation.</span>
+            <button class="btn btn-accent" data-connect>Connect Wallet →</button>
           `}
         </div>
       </div>
