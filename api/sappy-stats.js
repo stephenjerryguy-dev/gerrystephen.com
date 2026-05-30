@@ -175,14 +175,18 @@ async function fetchTokenFloorStats() {
 async function fetchStats() {
   const attempts = [fetchCollectionStats, fetchAggregateStats, fetchTokenFloorStats];
   let lastError;
+  const errors = [];
   for (const attempt of attempts) {
     try {
       return await attempt();
     } catch (error) {
       lastError = error;
+      errors.push(`${attempt.name}:${error?.message || error}`);
     }
   }
-  throw lastError || new Error('stats_unavailable');
+  const error = lastError || new Error('stats_unavailable');
+  error.attempts = errors;
+  throw error;
 }
 
 export default async function handler(req, res) {
@@ -201,6 +205,10 @@ export default async function handler(req, res) {
     res.status(200).json(stats);
   } catch (error) {
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
-    res.status(200).json({ ...FALLBACK, updatedAt: new Date().toISOString() });
+    res.status(200).json({
+      ...FALLBACK,
+      updatedAt: new Date().toISOString(),
+      ...(req.query?.debug === '1' ? { debug: error?.attempts || [error?.message] } : {}),
+    });
   }
 }
