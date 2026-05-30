@@ -28,12 +28,6 @@ const wagmiConfig = createConfig({
   },
 });
 const queryClient = new QueryClient();
-const DYNAMIC_AUTH_OPTIONS = {
-  initializeWalletConnect: true,
-  clearErrors: true,
-  performMultiWalletChecks: false,
-  authMode: 'connect-and-sign',
-};
 function fallbackOpenDynamic() {
   const widgetButton = document.querySelector('#sappy-dynamic-widget button');
   if (widgetButton) {
@@ -56,7 +50,6 @@ window.sappyOpenDynamicSocial = fallbackOpenDynamicSocial;
 const settings = {
   appName: 'Sappy Sealfolio',
   appLogoUrl: `${window.location.origin}/sappy/assets/sappy-seal-emoji.webp`,
-  apiBaseUrl: `${window.location.origin}/dynamic-api`,
   environmentId: SAPPY_DYNAMIC_ENV_ID,
   initialAuthenticationMode: 'connect-and-sign',
   theme: 'light',
@@ -159,7 +152,7 @@ function SappyDynamicBridge() {
         setShowLinkNewWalletModal?.(true);
         return;
       }
-      setShowAuthFlow?.(true, DYNAMIC_AUTH_OPTIONS);
+      setShowAuthFlow?.(true);
     };
     window.sappyOpenDynamic = openWallet;
     window.sappyLogoutDynamic = async () => {
@@ -295,19 +288,19 @@ function SappyDynamicBridge() {
 }
 
 function SappyWalletRoot() {
-    return (
-    <WagmiProvider config={wagmiConfig}>
-      <QueryClientProvider client={queryClient}>
-        <DynamicContextProvider settings={settings}>
+  return (
+    <DynamicContextProvider settings={settings}>
+      <WagmiProvider config={wagmiConfig}>
+        <QueryClientProvider client={queryClient}>
           <DynamicWagmiConnector>
             <div id="sappy-dynamic-widget" aria-hidden="true" style={{ position: 'fixed', left: '-9999px', top: 0, width: 1, height: 1, overflow: 'hidden', opacity: 0.01 }}>
               <DynamicWidget />
             </div>
             <SappyDynamicBridge />
           </DynamicWagmiConnector>
-        </DynamicContextProvider>
-      </QueryClientProvider>
-    </WagmiProvider>
+        </QueryClientProvider>
+      </WagmiProvider>
+    </DynamicContextProvider>
   );
 }
 

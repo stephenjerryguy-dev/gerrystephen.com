@@ -4,7 +4,6 @@
   "cleanUrls": true,
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/dynamic-api/:path*", "destination": "https://app.dynamicauth.com/api/v0/:path*" },
     { "source": "/fresh", "destination": "/" },
     { "source": "/reset-app", "destination": "/" },
     { "source": "/monerge", "destination": "/monerge.html" },

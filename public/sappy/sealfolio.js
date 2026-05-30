@@ -23,34 +23,34 @@
     easy: "https://t.me/addemoji/SappySealsEmojis2",
   };
   const BADGE_CATALOG = [
-    { n: "OG Seal", kind: "holding", test: (ctx) => ctx.hasSeal, tier: "exclusive" },
-    { n: "Staker", kind: "holding", test: (ctx) => ctx.staked > 0, tier: "exclusive" },
-    { n: "Omnia", kind: "holding", test: (ctx) => ctx.has("omnia"), tier: "easy" },
-    { n: "Pixseal", kind: "holding", test: (ctx) => ctx.has("pixseal"), tier: "easy" },
-    { n: "Artifact", kind: "holding", test: (ctx) => ctx.has("artifact"), tier: "exclusive" },
-    { n: "Key Holder", kind: "holding", test: (ctx) => ctx.has("key") || ctx.has("faithful"), tier: "exclusive" },
-    { n: "Whale (15)", kind: "discord", tier: "exclusive" },
-    { n: "Baby Whale (5)", kind: "discord", tier: "exclusive" },
-    { n: "Seal (1)", kind: "discord", tier: "easy" },
-    { n: "Omnia Pet Master (50)", kind: "discord", tier: "exclusive" },
-    { n: "Omnia Pet (1)", kind: "discord", tier: "easy" },
-    { n: "Founders Pass Holder", kind: "discord", tier: "exclusive" },
-    { n: "BTC Digital Artifact Holder", kind: "discord", tier: "exclusive" },
-    { n: "Sealuminati Holder", kind: "discord", tier: "exclusive" },
-    { n: "Member", kind: "discord", tier: "easy" },
-    { n: "Shill Sergeant", kind: "discord", tier: "easy" },
-    { n: "Whitelist Opportunities", kind: "discord", tier: "easy" },
-    { n: "Airdrops", kind: "discord", tier: "easy" },
-    { n: "Event Pings", kind: "discord", tier: "easy" },
-    { n: "The Triple Scoop", kind: "discord", tier: "exclusive" },
-    { n: "Daily Mints", kind: "discord", tier: "easy" },
-    { n: "M Whale (15)", kind: "discord", tier: "exclusive" },
-    { n: "M Baby Whale (5)", kind: "discord", tier: "exclusive" },
-    { n: "Omnia Pet Trainer (5)", kind: "discord", tier: "easy" },
-    { n: "Omnia Pet Maxi (15)", kind: "discord", tier: "exclusive" },
-    { n: "Omnia Pet Sensei (25)", kind: "discord", tier: "exclusive" },
-    { n: "1M Pixl Holder", kind: "discord", tier: "exclusive" },
-    { n: "Beater", kind: "discord", tier: "easy" },
+    { n: "OG Seal", kind: "holding", test: (ctx) => ctx.hasSeal, tier: "exclusive", icon: "seal", accent: "blue" },
+    { n: "Staker", kind: "holding", test: (ctx) => ctx.staked > 0, tier: "exclusive", icon: "diamond", accent: "green" },
+    { n: "Omnia", kind: "holding", test: (ctx) => ctx.has("omnia"), tier: "easy", icon: "globe", accent: "aqua" },
+    { n: "Pixseal", kind: "holding", test: (ctx) => ctx.has("pixseal"), tier: "easy", icon: "palette", accent: "pink" },
+    { n: "Artifact", kind: "holding", test: (ctx) => ctx.has("artifact"), tier: "exclusive", icon: "bitcoin", accent: "gold" },
+    { n: "Key Holder", kind: "holding", test: (ctx) => ctx.has("key") || ctx.has("faithful"), tier: "exclusive", icon: "key", accent: "violet" },
+    { n: "Whale (15)", kind: "discord", tier: "exclusive", icon: "whale", accent: "blue" },
+    { n: "Baby Whale (5)", kind: "discord", tier: "exclusive", icon: "baby-whale", accent: "aqua" },
+    { n: "Seal (1)", kind: "discord", tier: "easy", icon: "seal", accent: "green" },
+    { n: "Omnia Pet Master (50)", kind: "discord", tier: "exclusive", icon: "crown", accent: "gold" },
+    { n: "Omnia Pet (1)", kind: "discord", tier: "easy", icon: "pet", accent: "aqua" },
+    { n: "Founders Pass Holder", kind: "discord", tier: "exclusive", icon: "pass", accent: "violet" },
+    { n: "BTC Digital Artifact Holder", kind: "discord", tier: "exclusive", icon: "bitcoin", accent: "gold" },
+    { n: "Sealuminati Holder", kind: "discord", tier: "exclusive", icon: "allseeing", accent: "violet" },
+    { n: "Member", kind: "discord", tier: "easy", icon: "member", accent: "green" },
+    { n: "Shill Sergeant", kind: "discord", tier: "easy", icon: "megaphone", accent: "blue" },
+    { n: "Whitelist Opportunities", kind: "discord", tier: "easy", icon: "list", accent: "gold" },
+    { n: "Airdrops", kind: "discord", tier: "easy", icon: "drop", accent: "aqua" },
+    { n: "Event Pings", kind: "discord", tier: "easy", icon: "bell", accent: "pink" },
+    { n: "The Triple Scoop", kind: "discord", tier: "exclusive", icon: "scoop", accent: "pink" },
+    { n: "Daily Mints", kind: "discord", tier: "easy", icon: "mint", accent: "green" },
+    { n: "M Whale (15)", kind: "discord", tier: "exclusive", icon: "m-whale", accent: "blue" },
+    { n: "M Baby Whale (5)", kind: "discord", tier: "exclusive", icon: "m-baby-whale", accent: "aqua" },
+    { n: "Omnia Pet Trainer (5)", kind: "discord", tier: "easy", icon: "trainer", accent: "green" },
+    { n: "Omnia Pet Maxi (15)", kind: "discord", tier: "exclusive", icon: "maxi", accent: "violet" },
+    { n: "Omnia Pet Sensei (25)", kind: "discord", tier: "exclusive", icon: "sensei", accent: "gold" },
+    { n: "1M Pixl Holder", kind: "discord", tier: "exclusive", icon: "pixl", accent: "pink" },
+    { n: "Beater", kind: "discord", tier: "easy", icon: "bat", accent: "blue" },
   ];
 
   const sampleOwned = [];
@@ -217,9 +217,9 @@
         <h2>Badges & Discord Roles</h2>
         <p class="badge-note">All Sappy badge slots are shown. Exclusive roles point to Sappy Originals; lighter roles point to Sappy Seals Emojis 2. Holding badges unlock from the connected wallet; Discord roles unlock after the matching Discord role comes through.</p>
         <div class="badge-grid">${badges.map((b) => `
-          <div class="badge ${b.have ? "" : "locked"} ${b.discord ? "discord-role" : ""} ${b.tier === "exclusive" ? "exclusive-role" : "easy-role"}">
+          <div class="badge ${b.have ? "" : "locked"} ${b.discord ? "discord-role" : ""} ${b.tier === "exclusive" ? "exclusive-role" : "easy-role"} accent-${b.accent || "blue"}">
             <a class="bi badge-sticker emoji-badge" href="${EMOJI_PACKS[b.tier || "easy"]}" target="_blank" rel="noopener" aria-label="Open ${b.tier === "exclusive" ? "Sappy Originals" : "Sappy Seals Emojis 2"} emoji set">
-              <img src="assets/sappy-seal-emoji.webp" alt="" aria-hidden="true" loading="lazy">
+              <span class="emoji-face icon-${b.icon || "seal"}" aria-hidden="true"></span>
               ${b.role ? `<span class="role-dot" style="background:${b.role.color || "#5865F2"}"></span>` : ""}
             </a>
             <div class="bn">${b.n}</div>
