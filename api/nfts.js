@@ -9,6 +9,7 @@ const WALLETS = [
 const RESERVOIR_API = 'https://api.reservoir.tools';
 const POLYGON_RESERVOIR_API = 'https://api-polygon.reservoir.tools';
 const BLOCKSCOUT_API = 'https://eth.blockscout.com/api/v2';
+const OPENSEA_API = 'https://api.opensea.io/api/v2';
 const ETH_RPC = 'https://eth.llamarpc.com';
 const TOKEN_URI_SELECTOR = '0xc87b56dd';
 const ERC1155_URI_SELECTOR = '0x0e89341c';
@@ -24,6 +25,15 @@ const LOCAL_INKFINITY_IMAGES = {
   3: 'assets/inkfinity-thoughts.png',
 };
 const FORCE_METADATA_REFRESH = new Set([OMNIA_PETS_CONTRACT, OMNIA_ITEMS_CONTRACT, INKFINITY_CONTRACT]);
+const FORCE_OPENSEA_REFRESH = new Set([
+  '0x1c70d0a86475cc707b48aa79f112857e7957274f',
+  '0x364c828ee171616a39897688a831c2499ad972ec',
+  OMNIA_PETS_CONTRACT,
+  OMNIA_ITEMS_CONTRACT,
+  '0x3d3ad7b00e885d3d969e03bfcbaed80fb3df6667',
+  PIXSEALS_CONTRACT,
+  DIGITAL_ARTIFACT_CONTRACT,
+].map((contract) => contract.toLowerCase()));
 const STATIC_PREVIEW_NFTS = [
   {
     name: 'Digital Artifact #93',
@@ -129,10 +139,13 @@ function isCoveredSappyContract(nft) {
 
 function normalizeCollectionName(name, contract) {
   const normalizedContract = contract?.toLowerCase?.();
+  if (normalizedContract === '0x364c828ee171616a39897688a831c2499ad972ec') return 'Sappy Seals';
+  if (normalizedContract === '0x1c70d0a86475cc707b48aa79f112857e7957274f') return 'Staked Sappy Seals';
   if (normalizedContract === OMNIA_PETS_CONTRACT) return 'Omnia Pets';
   if (normalizedContract === OMNIA_ITEMS_CONTRACT) return 'Omnia items';
   if (normalizedContract === INKFINITY_CONTRACT) return 'Inkfinity Canvas';
   if (normalizedContract === PIXSEALS_CONTRACT) return 'Pixseals by Sappy Seals';
+  if (normalizedContract === DIGITAL_ARTIFACT_CONTRACT) return 'Digital Artifacts';
   return name;
 }
 
@@ -230,6 +243,37 @@ function ipfsToHttps(uri) {
   if (uri.startsWith('ipfs://')) return `https://ipfs.io/ipfs/${uri.slice(7)}`;
   if (uri.startsWith('ar://')) return `https://arweave.net/${uri.slice(5)}`;
   return uri;
+}
+
+function openseaHeaders() {
+  return {
+    accept: 'application/json',
+    ...(process.env.OPENSEA_API_KEY ? { 'x-api-key': process.env.OPENSEA_API_KEY } : {}),
+  };
+}
+
+function openseaChain(chain) {
+  const normalized = `${chain || 'ethereum'}`.toLowerCase();
+  if (normalized === 'polygon') return 'matic';
+  return normalized;
+}
+
+async function fetchOpenSeaNft(chain, contract, tokenId) {
+  if (!process.env.OPENSEA_API_KEY || !contract || !tokenId) return undefined;
+  const response = await fetch(`${OPENSEA_API}/chain/${openseaChain(chain)}/contract/${contract}/nfts/${tokenId}`, {
+    headers: openseaHeaders(),
+  }).catch(() => undefined);
+  if (!response?.ok) return undefined;
+  const data = await response.json().catch(() => null);
+  const nft = data?.nft || data;
+  if (!nft) return undefined;
+  return {
+    name: nft.name,
+    collection: nft.collection || nft.collection_slug,
+    image: ipfsToHttps(nft.image_url || nft.display_image_url || nft.image),
+    animationUrl: ipfsToHttps(nft.animation_url || nft.display_animation_url),
+    href: nft.opensea_url || `https://opensea.io/item/${openseaChain(chain)}/${contract}/${tokenId}`,
+  };
 }
 
 function tokenCallData(selector, tokenId) {
@@ -420,15 +464,20 @@ async function fetchDelegateWallets(wallet) {
 }
 
 async function refreshNftMetadata(nft) {
+  const openSea = FORCE_OPENSEA_REFRESH.has(nft.contract?.toLowerCase?.())
+    ? await fetchOpenSeaNft(nft.chain, nft.contract, nft.tokenId).catch(() => undefined)
+    : undefined;
   const needsRefresh = FORCE_METADATA_REFRESH.has(nft.contract?.toLowerCase?.());
-  const metadata = needsRefresh || !nft.image
+  const metadata = !openSea && (needsRefresh || !nft.image)
     ? await fetchTokenMetadata(nft.contract, nft.tokenId).catch(() => undefined)
     : undefined;
 
   return {
     ...nft,
-    name: normalizeItemName(metadata?.name || nft.name, nft.contract),
-    image: metadata?.image || nft.image,
+    name: normalizeItemName(openSea?.name || metadata?.name || nft.name, nft.contract),
+    collection: normalizeCollectionName(openSea?.collection || nft.collection, nft.contract),
+    image: openSea?.image || openSea?.animationUrl || metadata?.image || nft.image,
+    href: openSea?.href || nft.href,
   };
 }
 

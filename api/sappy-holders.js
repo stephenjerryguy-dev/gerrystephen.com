@@ -9,6 +9,7 @@ const ETH_RPCS = [
 const OWNER_OF_SELECTOR = '0x6352211e';
 const SAPPY_SEALS_CONTRACT = '0x364c828ee171616a39897688a831c2499ad972ec';
 const STAKED_SEALS_CONTRACT = '0x1c70d0a86475cc707b48aa79f112857e7957274f';
+const OPENSEA_API = 'https://api.opensea.io/api/v2';
 
 const SAMPLE = [
   { address: '0xCf3b8981AbAa56a8E41117b0c721C05F608400A7', count: 47 },
@@ -25,6 +26,55 @@ function reservoirHeaders() {
 
 function shortAddress(address) {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
+
+function openseaHeaders() {
+  return {
+    accept: 'application/json',
+    ...(process.env.OPENSEA_API_KEY ? { 'x-api-key': process.env.OPENSEA_API_KEY } : {}),
+  };
+}
+
+function pickTwitter(account) {
+  const socials = account?.social_media_accounts || account?.socialMediaAccounts || [];
+  const twitter = socials.find((item) => /twitter|x/i.test(`${item.platform || item.type || item.provider || ''}`));
+  const username = twitter?.username || twitter?.handle || twitter?.url?.split('/').filter(Boolean).pop();
+  return username ? username.replace(/^@/, '') : undefined;
+}
+
+async function fetchOpenSeaProfile(address) {
+  if (!process.env.OPENSEA_API_KEY) return null;
+  const response = await fetch(`${OPENSEA_API}/accounts/${address}`, { headers: openseaHeaders() }).catch(() => undefined);
+  if (!response?.ok) return null;
+  const account = await response.json().catch(() => null);
+  if (!account) return null;
+  const xHandle = pickTwitter(account);
+  return {
+    label: xHandle ? `@${xHandle}` : (account.username || account.name || undefined),
+    xHandle,
+    openseaUsername: account.username,
+    profileImage: account.profile_image_url || account.profileImageUrl,
+    profileUrl: account.address ? `https://opensea.io/${account.address}` : undefined,
+  };
+}
+
+async function enrichHolders(holders) {
+  if (!process.env.OPENSEA_API_KEY || !holders.length) return holders;
+  const profiles = await Promise.allSettled(holders.slice(0, 32).map((holder) => fetchOpenSeaProfile(holder.address)));
+  return holders.map((holder, index) => {
+    const profile = profiles[index]?.status === 'fulfilled' ? profiles[index].value : null;
+    if (!profile) return holder;
+    const label = profile.label || holder.label;
+    return {
+      ...holder,
+      label,
+      xHandle: profile.xHandle,
+      openseaUsername: profile.openseaUsername,
+      profileImage: profile.profileImage,
+      profileUrl: profile.profileUrl,
+      profile: `/sappy/sealfolio.html?wallet=${holder.address}&u=${encodeURIComponent((profile.xHandle || label || holder.label).replace(/^@/, ''))}`,
+    };
+  });
 }
 
 function holderCount(owner) {
@@ -157,7 +207,7 @@ export default async function handler(req, res) {
       aggregate.set(key, current);
     });
 
-    const holders = [...aggregate.values()]
+    const holders = await enrichHolders([...aggregate.values()]
       .sort((a, b) => b.count - a.count)
       .slice(0, 32)
       .map((holder, index) => ({
@@ -166,7 +216,7 @@ export default async function handler(req, res) {
         count: holder.count,
         rank: index + 1,
         profile: `/sappy/sealfolio.html?wallet=${holder.address}&u=${shortAddress(holder.address)}`,
-      }));
+      })));
 
     res.setHeader('Cache-Control', 's-maxage=900, stale-while-revalidate=3600');
     res.status(200).json({ holders: holders.length ? holders : SAMPLE.map((holder, index) => ({

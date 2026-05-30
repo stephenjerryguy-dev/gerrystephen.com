@@ -357,7 +357,14 @@ window.Sappy = (function () {
     document.querySelectorAll("[data-connect]").forEach((b) => b.addEventListener("click", (e) => { e.preventDefault(); walletModal(); }));
     window.addEventListener("sappy-wallet-connected", (event) => {
       const address = event.detail && event.detail.address;
-      if (!address) return;
+      if (!address) {
+        try {
+          localStorage.removeItem("sappy_wallet");
+          localStorage.removeItem("sappy_wallet_label");
+        } catch (e) {}
+        document.querySelectorAll("[data-connect]").forEach((b) => { b.innerHTML = "Connect Wallet"; });
+        return;
+      }
       const label = event.detail.label || (address.slice(0, 6) + "..." + address.slice(-4));
       try {
         localStorage.setItem("sappy_wallet", JSON.stringify({ address, label, connectedAt: Date.now() }));

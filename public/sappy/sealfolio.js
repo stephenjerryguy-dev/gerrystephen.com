@@ -41,7 +41,7 @@
   }
 
   function normalizeOwned() {
-    if (!state.nfts) return sampleOwned;
+    if (!state.nfts) return state.address ? [] : sampleOwned;
     return state.nfts.map((nft) => {
       const contract = nft.contract?.toLowerCase?.() || "";
       const id = String(nft.tokenId || "").replace(/\D/g, "") || nft.tokenId || "";

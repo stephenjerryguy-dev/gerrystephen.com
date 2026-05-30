@@ -136,6 +136,33 @@ function parseOpenSeaStats(data) {
   };
 }
 
+async function fetchEthUsd() {
+  const response = await fetch('https://api.coinbase.com/v2/prices/ETH-USD/spot', {
+    headers: { accept: 'application/json' },
+  });
+  if (!response.ok) throw new Error(`coinbase_${response.status}`);
+  const data = await response.json();
+  return numberFrom(data?.data?.amount, data?.amount);
+}
+
+async function addUsdEstimate(stats) {
+  if (Number.isFinite(Number(stats?.floorUsd)) && Number(stats.floorUsd) > 0) return stats;
+  const floorEth = Number(stats?.floorEth);
+  if (!Number.isFinite(floorEth) || floorEth <= 0) return stats;
+  try {
+    const ethUsd = await fetchEthUsd();
+    if (!Number.isFinite(ethUsd)) return stats;
+    return {
+      ...stats,
+      floorUsd: floorEth * ethUsd,
+      ethUsd,
+      usdEstimated: true,
+    };
+  } catch (error) {
+    return stats;
+  }
+}
+
 async function fetchCollectionStats() {
   const queries = [
     new URLSearchParams({ id: SAPPY_SEALS_CONTRACT, includeTopBid: 'false' }),
@@ -253,7 +280,7 @@ export default async function handler(req, res) {
   if (rateLimit(req, res, { name: 'sappy-stats', limit: 60, windowMs: 60_000 })) return;
 
   try {
-    const stats = await fetchStats();
+    const stats = await addUsdEstimate(await fetchStats());
     res.setHeader('Cache-Control', 's-maxage=180, stale-while-revalidate=900');
     res.status(200).json(stats);
   } catch (error) {

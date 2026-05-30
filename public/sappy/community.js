@@ -3,7 +3,26 @@
   const S = window.Sappy;
   const NAMES = ["wabdoteth", "diakou", "stormrdoteth", "DylanKentish", "lilstovetop", "pixlpilled", "arfarf", "sealmaxi", "coldwater", "blubber", "icefloe", "frostbite", "sappykorea", "norekme", "sealchemist", "podfather"];
   const VIBES = ["ARF ARF", "WAGBO", "Diamond Flipper", "Pod Leader", "New Collector", "Staker", "Whale", "Cold Water Club"];
-  const state = { holders: null, loading: false };
+  const state = { holders: null, loading: false, totalHolders: null };
+
+  const isLocal = /^(127\.0\.0\.1|localhost)$/.test(location.hostname);
+  async function fetchJson(path) {
+    const urls = [path];
+    if (isLocal) urls.push(`https://www.gerrystephen.com${path}`);
+    for (const url of urls) {
+      try {
+        const response = await fetch(url, { headers: { accept: "application/json" } });
+        const type = response.headers.get("content-type") || "";
+        if (!response.ok || !type.includes("application/json")) continue;
+        return await response.json();
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  function fmt(n) {
+    return Number(n).toLocaleString("en-US");
+  }
 
   function render() {
     const members = state.holders || NAMES.map((h, i) => {
@@ -26,11 +45,11 @@
       </div>
 
       <div class="folio-sec" style="margin-top:46px;">
-        <h2>${state.holders ? "Live holders from the contracts" : "3,885 holders and growing"}</h2>
+        <h2>${state.totalHolders ? `${fmt(state.totalHolders)} holders across the pod` : state.holders ? "Live holders from the contracts" : "Live holders and growing"}</h2>
         ${state.loading ? '<div class="folio-loading">Loading holder list from Sappy Seals and staked Sappy Seals...</div>' : ""}
         <div class="pod-grid">${members.map((m) => `
           <a class="pod-card" href="${m.href}">
-            <div class="sealframe" data-pin="1" data-kind="seal" data-id="${m.id}" data-px="320"></div>
+            ${m.image ? `<img class="pod-pfp" src="${m.image}" alt="${m.h} profile picture" referrerpolicy="no-referrer" loading="lazy">` : `<div class="sealframe" data-pin="1" data-kind="seal" data-id="${m.id}" data-px="320"></div>`}
             <div class="info"><div class="n">${m.h}</div><div class="t">${m.vibe}</div><div class="cnt">${m.n} ${m.n === 1 ? "SEAL" : "SEALS"}</div></div>
           </a>`).join("")}</div>
       </div>`;
@@ -40,12 +59,12 @@
     state.loading = true;
     render();
     try {
-      let response = await fetch("/api/sappy-holders", { headers: { accept: "application/json" } });
-      if (!response.ok && /^(127\.0\.0\.1|localhost)$/.test(location.hostname)) {
-        response = await fetch("https://www.gerrystephen.com/api/sappy-holders", { headers: { accept: "application/json" } });
-      }
-      const data = response.ok ? await response.json() : { holders: [] };
-      const holders = Array.isArray(data.holders) ? data.holders : [];
+      const [data, stats] = await Promise.all([
+        fetchJson("/api/sappy-holders"),
+        fetchJson("/api/sappy-stats"),
+      ]);
+      if (Number.isFinite(Number(stats?.holders))) state.totalHolders = Number(stats.holders);
+      const holders = Array.isArray(data?.holders) ? data.holders : [];
       if (holders.length) {
         state.holders = holders.map((holder, index) => {
           const seed = 3200 + index * 97;
@@ -55,6 +74,7 @@
             n: holder.count || 1,
             seed,
             id: (seed * 5) % 10000,
+            image: holder.profileImage,
             href: holder.profile || `sealfolio.html?wallet=${holder.address}&u=${holder.label || holder.address}`,
           };
         });

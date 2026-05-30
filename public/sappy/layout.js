@@ -33,16 +33,7 @@
   }
 
   function footer(active) {
-    const teamBand = active === "community" ? `
-    <section class="band team-band" id="team">
-      <div class="wrap">
-        <span class="eyebrow" style="display:block;text-align:center;">▪ THE POD · CORE TEAM &amp; ECOSYSTEM</span>
-        <h2 class="section-title" style="text-align:center;margin-top:12px;">Built by seals, for seals.</h2>
-        <p class="section-sub" style="margin:14px auto 36px;text-align:center;">The Sappy-affiliated accounts steering the collection, the studio and the world — live from X.</p>
-        <div class="team-grid" id="team-grid"></div>
-      </div>
-    </section>` : "";
-    return teamBand + `
+    return `
     <footer id="community-foot">
       <div class="wrap">
         <div class="foot-top">
@@ -71,7 +62,6 @@
       const f = document.getElementById("site-footer");
       if (h) h.innerHTML = header(active);
       if (f) f.innerHTML = footer(active);
-      window.Sappy.renderTeam(document.getElementById("team-grid"));
       window.Sappy.renderDir(document.getElementById("dir"));
     },
   };
