@@ -270,8 +270,32 @@ function openseaHeaders() {
 
 function openseaChain(chain) {
   const normalized = `${chain || 'ethereum'}`.toLowerCase();
-  if (normalized === 'polygon') return 'matic';
+  if (normalized === 'polygon' || normalized === 'matic') return 'matic';
   return normalized;
+}
+
+function normalizeOpenSeaNft(item, wallet = 'collection', chain = 'ethereum') {
+  const contract = typeof item?.contract === 'string'
+    ? item.contract
+    : item?.contract?.address || item?.asset_contract?.address;
+  const tokenId = item?.identifier || item?.token_id || item?.tokenId;
+  if (!contract || !tokenId) return null;
+  const collectionName = typeof item?.collection === 'string'
+    ? item.collection
+    : item?.collection?.name || item?.collection?.slug;
+
+  return {
+    name: normalizeItemName(item?.name || `${collectionName || 'NFT'} #${tokenId}`, contract),
+    collection: normalizeCollectionName(collectionName || 'Collected NFT', contract),
+    image: localImageFor(contract, tokenId) || ipfsToHttps(item?.display_image_url || item?.image_url || item?.image || item?.metadata?.image),
+    animationUrl: ipfsToHttps(item?.display_animation_url || item?.animation_url),
+    href: item?.opensea_url || `https://opensea.io/item/${openseaChain(chain)}/${contract}/${tokenId}`,
+    contract,
+    tokenId,
+    chain: openseaChain(chain),
+    wallet: wallet === 'collection' ? 'collection' : `${wallet.slice(0, 6)}...${wallet.slice(-4)}`,
+    source: 'opensea',
+  };
 }
 
 async function fetchOpenSeaNft(chain, contract, tokenId) {
@@ -290,6 +314,27 @@ async function fetchOpenSeaNft(chain, contract, tokenId) {
     animationUrl: ipfsToHttps(nft.animation_url || nft.display_animation_url),
     href: nft.opensea_url || `https://opensea.io/item/${openseaChain(chain)}/${contract}/${tokenId}`,
   };
+}
+
+async function fetchOpenSeaAccountNfts(wallet, chain = 'ethereum') {
+  if (!process.env.OPENSEA_API_KEY || !ADDRESS_RE.test(wallet)) return [];
+  const normalized = [];
+  let next = undefined;
+  for (let page = 0; page < 4; page += 1) {
+    const params = new URLSearchParams({ limit: '200' });
+    if (next) params.set('next', next);
+    const response = await fetch(`${OPENSEA_API}/chain/${openseaChain(chain)}/account/${wallet}/nfts?${params.toString()}`, {
+      headers: openseaHeaders(),
+    }).catch(() => undefined);
+    if (!response?.ok) break;
+    const data = await response.json().catch(() => ({}));
+    normalized.push(...(data.nfts || [])
+      .map((item) => normalizeOpenSeaNft(item, wallet, chain))
+      .filter(Boolean));
+    next = data.next;
+    if (!next) break;
+  }
+  return normalized;
 }
 
 function tokenCallData(selector, tokenId) {
@@ -558,6 +603,14 @@ export default async function handler(req, res) {
         fetchReservoirNfts(wallet, PIXSEALS_CONTRACT, { api: POLYGON_RESERVOIR_API, chain: 'matic', fullWallet: Boolean(requestedWallet) }),
       ])
     );
+    const openseaResponses = await Promise.allSettled(
+      requestedWallet
+        ? wallets.flatMap((wallet) => [
+          fetchOpenSeaAccountNfts(wallet, 'ethereum'),
+          fetchOpenSeaAccountNfts(wallet, 'matic'),
+        ])
+        : []
+    );
 
     const blockscoutResponses = await Promise.allSettled(wallets.map(fetchBlockscoutNfts));
     const previewResponses = requestedWallet ? [] : await Promise.allSettled(
@@ -568,6 +621,7 @@ export default async function handler(req, res) {
       fetchContractSampleNfts(INKFINITY_CONTRACT),
     ]);
     const allNfts = [
+      ...openseaResponses.flatMap((result) => (result.status === 'fulfilled' ? result.value : [])),
       ...reservoirResponses.flatMap((result) => (result.status === 'fulfilled' ? result.value : [])),
       ...blockscoutResponses.flatMap((result) => (result.status === 'fulfilled' ? result.value : [])),
       ...previewResponses.flatMap((result) => (result.status === 'fulfilled' ? result.value : [])),

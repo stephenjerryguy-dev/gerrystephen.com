@@ -10,6 +10,11 @@ const OWNER_OF_SELECTOR = '0x6352211e';
 const SAPPY_SEALS_CONTRACT = '0x364c828ee171616a39897688a831c2499ad972ec';
 const STAKED_SEALS_CONTRACT = '0x1c70d0a86475cc707b48aa79f112857e7957274f';
 const OPENSEA_API = 'https://api.opensea.io/api/v2';
+const BLOCKED_HOLDER_ADDRESSES = new Set([
+  SAPPY_SEALS_CONTRACT,
+  STAKED_SEALS_CONTRACT,
+  '0x0000000000000000000000000000000000000000',
+]);
 
 const SAMPLE = [
   { address: '0xCf3b8981AbAa56a8E41117b0c721C05F608400A7', count: 47 },
@@ -60,7 +65,7 @@ async function fetchOpenSeaProfile(address) {
 
 async function enrichHolders(holders) {
   if (!process.env.OPENSEA_API_KEY || !holders.length) return holders;
-  const profiles = await Promise.allSettled(holders.slice(0, 32).map((holder) => fetchOpenSeaProfile(holder.address)));
+  const profiles = await Promise.allSettled(holders.slice(0, 48).map((holder) => fetchOpenSeaProfile(holder.address)));
   return holders.map((holder, index) => {
     const profile = profiles[index]?.status === 'fulfilled' ? profiles[index].value : null;
     if (!profile) return holder;
@@ -72,6 +77,7 @@ async function enrichHolders(holders) {
       openseaUsername: profile.openseaUsername,
       profileImage: profile.profileImage,
       profileUrl: profile.profileUrl,
+      claimable: Boolean(profile.xHandle),
       profile: `/sappy/sealfolio.html?wallet=${holder.address}&u=${encodeURIComponent((profile.xHandle || label || holder.label).replace(/^@/, ''))}`,
     };
   });
@@ -96,6 +102,36 @@ async function fetchTopOwners() {
       count: holderCount(owner),
     }))
     .filter((owner) => /^0x[a-fA-F0-9]{40}$/.test(owner.address));
+}
+
+async function fetchOpenSeaTopHolders() {
+  if (!process.env.OPENSEA_API_KEY) return [];
+  const holders = [];
+  let next = undefined;
+  for (let page = 0; page < 3; page += 1) {
+    const params = new URLSearchParams({ limit: '100' });
+    if (next) params.set('next', next);
+    const response = await fetch(`${OPENSEA_API}/collections/sappy-seals/holders?${params.toString()}`, {
+      headers: openseaHeaders(),
+    });
+    if (!response.ok) break;
+    const data = await response.json().catch(() => ({}));
+    holders.push(...(data.holders || [])
+      .map((holder) => ({
+        address: holder.address,
+        count: Number(holder.quantity || holder.count || 0) || 0,
+        percentage: Number(holder.percentage || 0) || 0,
+        source: 'opensea',
+      }))
+      .filter((holder) => (
+        /^0x[a-fA-F0-9]{40}$/.test(holder.address)
+        && holder.count > 0
+        && !BLOCKED_HOLDER_ADDRESSES.has(holder.address.toLowerCase())
+      )));
+    next = data.next;
+    if (!next) break;
+  }
+  return holders;
 }
 
 function ownerFromToken(item) {
@@ -184,7 +220,8 @@ export default async function handler(req, res) {
 
   try {
     const aggregate = new Map();
-    let owners = await fetchTopOwners();
+    let owners = await fetchOpenSeaTopHolders();
+    if (!owners.length) owners = await fetchTopOwners();
     if (!owners.length) {
       const tokenOwnerResponses = await Promise.allSettled([
         fetchOwnersFromTokens(SAPPY_SEALS_CONTRACT),
@@ -207,9 +244,9 @@ export default async function handler(req, res) {
       aggregate.set(key, current);
     });
 
-    const holders = await enrichHolders([...aggregate.values()]
+    const enriched = await enrichHolders([...aggregate.values()]
       .sort((a, b) => b.count - a.count)
-      .slice(0, 32)
+      .slice(0, 48)
       .map((holder, index) => ({
         address: holder.address,
         label: shortAddress(holder.address),
@@ -217,6 +254,8 @@ export default async function handler(req, res) {
         rank: index + 1,
         profile: `/sappy/sealfolio.html?wallet=${holder.address}&u=${shortAddress(holder.address)}`,
       })));
+    const xLinked = enriched.filter((holder) => holder.xHandle);
+    const holders = (xLinked.length ? [...xLinked, ...enriched.filter((holder) => !holder.xHandle)] : enriched).slice(0, 32);
 
     res.setHeader('Cache-Control', 's-maxage=900, stale-while-revalidate=3600');
     res.status(200).json({ holders: holders.length ? holders : SAMPLE.map((holder, index) => ({

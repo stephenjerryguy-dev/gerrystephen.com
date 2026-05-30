@@ -6,13 +6,28 @@ import {
   dynamicEvents,
   useDynamicContext,
   useDynamicModals,
+  useRefreshUser,
   useSocialAccounts,
   useUserWallets,
 } from '@dynamic-labs/sdk-react-core';
+import { DynamicWagmiConnector } from '@dynamic-labs/wagmi-connector';
 import { EthereumWalletConnectors } from '@dynamic-labs/ethereum';
 import { ProviderEnum } from '@dynamic-labs/sdk-api-core';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { http } from 'viem';
+import { mainnet, polygon } from 'viem/chains';
+import { createConfig, WagmiProvider } from 'wagmi';
 
 const SAPPY_DYNAMIC_ENV_ID = window.SAPPY_DYNAMIC_ENV_ID || import.meta.env.VITE_SAPPY_DYNAMIC_ENV_ID || '7f5ed078-ee9f-49aa-b9d6-8a90434aaf40';
+const wagmiConfig = createConfig({
+  chains: [mainnet, polygon],
+  multiInjectedProviderDiscovery: false,
+  transports: {
+    [mainnet.id]: http(),
+    [polygon.id]: http(),
+  },
+});
+const queryClient = new QueryClient();
 const DYNAMIC_AUTH_OPTIONS = {
   initializeWalletConnect: true,
   clearErrors: true,
@@ -94,9 +109,25 @@ function socialDetail(provider, account) {
   };
 }
 
+function socialDetailFromUser(provider, dynamicUser) {
+  const credential = dynamicUser?.verifiedCredentials?.find?.((item) => (
+    item?.format === 'oauth' && (item?.oauthProvider === provider || item?.provider === provider)
+  ));
+  if (!credential) return null;
+  return socialDetail(provider, {
+    accountId: credential.oauthAccountId,
+    avatar: credential.oauthAccountPhotos?.[0],
+    displayName: credential.oauthDisplayName,
+    id: credential.id,
+    publicIdentifier: credential.publicIdentifier,
+    username: credential.oauthUsername,
+  });
+}
+
 function SappyDynamicBridge() {
   const { setShowAuthFlow, handleLogOut, user, primaryWallet } = useDynamicContext();
   const { setShowLinkNewWalletModal } = useDynamicModals();
+  const refreshUser = useRefreshUser();
   const {
     getLinkedAccountInformation,
     getLinkedAccounts,
@@ -161,14 +192,23 @@ function SappyDynamicBridge() {
       } else {
         await signInWithSocialAccount?.(provider, options);
       }
-      window.setTimeout(() => {
-        const account = getLinkedAccountInformation?.(provider) || getLinkedAccounts?.(provider)?.[0];
-        if (account) {
-          window.dispatchEvent(new CustomEvent('sappy-social-connected', { detail: socialDetail(provider, account) }));
-        } else {
-          window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: `${provider === ProviderEnum.Twitter ? 'X' : 'Discord'} connect did not finish. Complete it in Dynamic and try again.` } }));
+      const label = provider === ProviderEnum.Twitter ? 'X' : 'Discord';
+      let connected = false;
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        const refreshedUser = await refreshUser?.().catch(() => null);
+        const refreshed = socialDetailFromUser(provider, refreshedUser);
+        const account = refreshed ? null : (getLinkedAccountInformation?.(provider) || getLinkedAccounts?.(provider)?.[0]);
+        const detail = refreshed || socialDetail(provider, account);
+        if (detail.connected) {
+          connected = true;
+          window.dispatchEvent(new CustomEvent('sappy-social-connected', { detail }));
+          break;
         }
-      }, 500);
+        await new Promise((resolve) => window.setTimeout(resolve, 700));
+      }
+      if (!connected) {
+        window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: `${label} opened in Dynamic. Finish the popup and the linked profile will appear here.` } }));
+      }
     };
     openSocial.isFallback = false;
     window.sappyOpenDynamicSocial = openSocial;
@@ -189,7 +229,7 @@ function SappyDynamicBridge() {
       window.sappyOpenDynamicSocial = fallbackOpenDynamicSocial;
       delete window.sappyLogoutDynamic;
     };
-  }, [setShowAuthFlow, setShowLinkNewWalletModal, handleLogOut, user, primaryWallet, wallets, getLinkedAccountInformation, getLinkedAccounts, linkSocialAccount, signInWithSocialAccount]);
+  }, [setShowAuthFlow, setShowLinkNewWalletModal, handleLogOut, user, primaryWallet, wallets, getLinkedAccountInformation, getLinkedAccounts, linkSocialAccount, signInWithSocialAccount, refreshUser]);
 
   useEffect(() => {
     [ProviderEnum.Twitter, ProviderEnum.Discord].forEach((provider) => {
@@ -256,12 +296,18 @@ function SappyDynamicBridge() {
 
 function SappyWalletRoot() {
     return (
-    <DynamicContextProvider settings={settings}>
-      <div id="sappy-dynamic-widget" aria-hidden="true" style={{ position: 'fixed', left: '-9999px', top: 0, width: 1, height: 1, overflow: 'hidden', opacity: 0.01 }}>
-        <DynamicWidget />
-      </div>
-      <SappyDynamicBridge />
-    </DynamicContextProvider>
+    <WagmiProvider config={wagmiConfig}>
+      <QueryClientProvider client={queryClient}>
+        <DynamicContextProvider settings={settings}>
+          <DynamicWagmiConnector>
+            <div id="sappy-dynamic-widget" aria-hidden="true" style={{ position: 'fixed', left: '-9999px', top: 0, width: 1, height: 1, overflow: 'hidden', opacity: 0.01 }}>
+              <DynamicWidget />
+            </div>
+            <SappyDynamicBridge />
+          </DynamicWagmiConnector>
+        </DynamicContextProvider>
+      </QueryClientProvider>
+    </WagmiProvider>
   );
 }
 

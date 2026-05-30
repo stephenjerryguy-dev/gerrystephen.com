@@ -50,7 +50,7 @@
         <div class="pod-grid">${members.map((m) => `
           <a class="pod-card" href="${m.href}">
             ${m.image ? `<img class="pod-pfp" src="${m.image}" alt="${m.h} profile picture" referrerpolicy="no-referrer" loading="lazy">` : `<div class="sealframe" data-pin="1" data-kind="seal" data-id="${m.id}" data-px="320"></div>`}
-            <div class="info"><div class="n">${m.h}</div><div class="t">${m.vibe}</div><div class="cnt">${m.n} ${m.n === 1 ? "SEAL" : "SEALS"}</div></div>
+            <div class="info"><div class="n">${m.h}</div><div class="t">${m.vibe}</div><div class="cnt">${m.n} ${m.n === 1 ? "SEAL" : "SEALS"}${m.claimable ? " · X-LINKED" : ""}</div></div>
           </a>`).join("")}</div>
       </div>`;
   }
@@ -75,6 +75,7 @@
             seed,
             id: (seed * 5) % 10000,
             image: holder.profileImage,
+            claimable: Boolean(holder.claimable || holder.xHandle),
             href: holder.profile || `sealfolio.html?wallet=${holder.address}&u=${holder.label || holder.address}`,
           };
         });

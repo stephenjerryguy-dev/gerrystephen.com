@@ -63,7 +63,7 @@
     }
     const planEl = $("aiplan");
     if (planEl) {
-      planEl.innerHTML = state.aiPlan || "Describe the joke or moment. Gerry's AI Studio will shape it into polished Sappy-ready options.";
+      planEl.innerHTML = state.aiPlan || "Describe the joke or moment. Claude will shape it into polished Sappy-ready options.";
       planEl.classList.toggle("working", status === "loading");
     }
   }
@@ -96,7 +96,7 @@
     state.aiStyle = $("aistyle").value;
     state.aiRatio = $("airatio").value;
     state.aiCount = Math.max(1, Math.min(4, +$("aicount").value || 2));
-    setAIStatus("loading", "Strengthening the prompt, choosing composition notes, and sending it to the premium image lane...");
+    setAIStatus("loading", "Claude is shaping the joke, captions, composition notes, and premium Sappy prompt direction...");
     try {
       const r = await fetch("/api/sappy-generate-meme", {
         method: "POST",
@@ -114,7 +114,7 @@
       state.aiImages = json.images || [];
       setAIStatus("ready", json.plan || "Generated premium meme options.");
       renderAIResults();
-      S.toast(json.provider === "fallback" ? "Drafts generated." : "Memes generated.");
+      S.toast(json.provider === "fallback" ? "Drafts generated." : json.provider === "claude" ? "Claude concepts generated." : "Memes generated.");
     } catch (e) {
       state.aiImages = [];
       setAIStatus("error", "Generation did not complete. Try a shorter concept or refresh the studio.");
@@ -134,13 +134,13 @@
       <div class="page-head">
         <span class="eyebrow">▪ GERRY'S AI STUDIO</span>
         <h1 class="section-title studio-title">Gerry's AI Studio.</h1>
-        <p class="section-sub">Turn a quick Sappy idea into polished meme drafts, banners, replies and campaign visuals built for X.</p>
+        <p class="section-sub">Turn a quick Sappy idea into polished meme drafts, banners, replies and campaign visuals built for X, powered by Claude.</p>
       </div>
       <section class="ai-studio-shell">
         <div class="ai-command">
           <div>
             <span class="eyebrow">▪ AI MEME MAKER</span>
-            <h2>Start with the joke. Leave the art direction to Gerry.</h2>
+            <h2>Start with the joke. Let Claude sharpen it for the pod.</h2>
             <p>Pick a vibe, choose a format, and generate ready-to-post Sappy concepts without wrestling with a blank canvas.</p>
           </div>
           <textarea id="aiprompt" class="input ai-textarea" rows="5">${state.aiPrompt}</textarea>
@@ -153,7 +153,7 @@
             <label>Outputs<select id="aicount" class="input">${[1, 2, 3, 4].map((n) => `<option value="${n}" ${state.aiCount === n ? "selected" : ""}>${n}</option>`).join("")}</select></label>
           </div>
           <button class="btn btn-accent full ai-generate" id="aigen">Create memes</button>
-          <div class="ai-plan" id="aiplan">Describe the joke or moment. Gerry's AI Studio will shape it into polished Sappy-ready options.</div>
+          <div class="ai-plan" id="aiplan">Describe the joke or moment. Claude will shape it into polished Sappy-ready options.</div>
         </div>
         <div class="ai-results" id="airesults"></div>
       </section>

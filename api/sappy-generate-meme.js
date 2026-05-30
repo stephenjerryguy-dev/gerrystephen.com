@@ -40,19 +40,65 @@ function fallbackSvg({ concept, style, aspectRatio }, index) {
       </g>
       <text x="${w * .06}" y="${h * .11}" font-family="Arial, sans-serif" font-size="${Math.max(22, w * .028)}" font-weight="900" fill="#15689b" letter-spacing="2">${label} PREVIEW</text>
       <text x="${w * .06}" y="${h * .9}" font-family="Arial, sans-serif" font-size="${Math.max(42, w * .062)}" font-weight="900" fill="#15202a">${title}</text>
-      <text x="${w * .06}" y="${h * .95}" font-family="Arial, sans-serif" font-size="${Math.max(18, w * .018)}" font-weight="700" fill="#446274">Add XAI_API_KEY for rendered Grok image output</text>
+      <text x="${w * .06}" y="${h * .95}" font-family="Arial, sans-serif" font-size="${Math.max(18, w * .018)}" font-weight="700" fill="#446274">Claude concept preview · premium Sappy direction</text>
     </svg>`;
 }
 
-function fallbackResponse(body) {
+function fallbackResponse(body, claudePlan) {
   const count = Math.max(1, Math.min(4, Number(body.n) || 2));
+  const concepts = Array.isArray(claudePlan?.concepts) ? claudePlan.concepts : [];
   return {
-    provider: "fallback",
-    plan: "Preview mode: the studio built production prompts and placeholder art. Add XAI_API_KEY on Vercel for real Grok/xAI image output.",
+    provider: claudePlan ? "claude" : "fallback",
+    plan: claudePlan?.plan || "Preview mode: add ANTHROPIC_API_KEY on Vercel for Claude-powered meme direction.",
+    captions: claudePlan?.captions || [],
     images: Array.from({ length: count }, (_, i) => ({
-      model: `prompt preview ${i + 1}`,
-      svg: fallbackSvg(body, i),
+      model: claudePlan ? `Claude concept ${i + 1}` : `prompt preview ${i + 1}`,
+      revisedPrompt: concepts[i]?.prompt || body.prompt,
+      caption: concepts[i]?.caption,
+      svg: fallbackSvg({ ...body, concept: concepts[i]?.caption || body.concept || body.prompt }, i),
     })),
+  };
+}
+
+function safeJson(text) {
+  try { return JSON.parse(text); } catch (_) {}
+  const match = String(text || "").match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try { return JSON.parse(match[0]); } catch (_) { return null; }
+}
+
+async function buildClaudePlan(body, prompt) {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) return null;
+  const count = Math.max(1, Math.min(4, Number(body.n) || 2));
+  const upstream = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": key,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5",
+      max_tokens: 1200,
+      temperature: 0.8,
+      system: "You are Gerry's AI Studio for the Sappy Seals ecosystem. Create polished, consumer-ready meme concepts for X. Keep it Sappy-native, never mention Okay Bears, and avoid generic AI slop.",
+      messages: [{
+        role: "user",
+        content: `Return only valid JSON with keys plan, captions, concepts. concepts must have ${count} items. Each item needs caption and prompt. User request: ${prompt}`,
+      }],
+    }),
+  });
+  if (!upstream.ok) throw new Error(`anthropic_${upstream.status}`);
+  const json = await upstream.json();
+  const text = (json.content || []).map((part) => part.text || "").join("\n").trim();
+  const parsed = safeJson(text);
+  if (!parsed) throw new Error("anthropic_bad_json");
+  return {
+    plan: parsed.plan || "Claude shaped the concept, caption direction, and premium prompt pack.",
+    captions: Array.isArray(parsed.captions) ? parsed.captions : [],
+    concepts: Array.isArray(parsed.concepts) ? parsed.concepts.slice(0, count) : [],
+    model: json.model || process.env.ANTHROPIC_MODEL || "claude",
   };
 }
 
@@ -67,42 +113,12 @@ export default async function handler(req, res) {
   const prompt = String(body.prompt || body.concept || "").trim();
   if (!prompt) return res.status(400).json({ error: "missing_prompt" });
 
-  const key = process.env.XAI_API_KEY;
-  if (!key) return res.status(200).json(fallbackResponse(body));
-
+  let claudePlan = null;
   try {
-    const count = Math.max(1, Math.min(4, Number(body.n) || 2));
-    const upstream = await fetch("https://api.x.ai/v1/images/generations", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${key}`,
-      },
-      body: JSON.stringify({
-        model: process.env.XAI_IMAGE_MODEL || "grok-imagine-image-quality",
-        prompt,
-        n: count,
-        aspect_ratio: body.aspectRatio || "1:1",
-        response_format: "url",
-      }),
-    });
-    if (!upstream.ok) throw new Error(`xai_${upstream.status}`);
-    const json = await upstream.json();
-    const images = (json.data || []).map((item, i) => ({
-      model: json.model || process.env.XAI_IMAGE_MODEL || "grok-imagine-image-quality",
-      url: item.url || (item.b64_json ? `data:image/png;base64,${item.b64_json}` : ""),
-      revisedPrompt: item.revised_prompt,
-      index: i,
-    })).filter((item) => item.url);
-    if (!images.length) throw new Error("empty_generation");
-    return res.status(200).json({
-      provider: "xai",
-      plan: "Generated with the configured Grok/xAI image lane.",
-      images,
-    });
+    claudePlan = await buildClaudePlan(body, prompt);
   } catch (error) {
-    const fallback = fallbackResponse(body);
-    fallback.plan = "The xAI image lane did not return an image, so the studio showed prompt previews instead. Check the provider key/model and try again.";
-    return res.status(200).json(fallback);
+    claudePlan = null;
   }
+
+  return res.status(200).json(fallbackResponse(body, claudePlan));
 };

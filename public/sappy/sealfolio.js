@@ -32,6 +32,7 @@
     { n: "Omnia Pet (1)", kind: "discord", sticker: 7263 },
     { n: "Founders Pass Holder", kind: "discord", sticker: 777 },
     { n: "BTC Digital Artifact Holder", kind: "discord", sticker: 93 },
+    { n: "Sealuminati Holder", kind: "discord", sticker: 3669 },
     { n: "Member", kind: "discord", sticker: 2023 },
     { n: "Shill Sergeant", kind: "discord", sticker: 444 },
     { n: "Whitelist Opportunities", kind: "discord", sticker: 888 },
@@ -94,9 +95,10 @@
     };
     return BADGE_CATALOG.map((badge) => {
       const role = discord.find((item) => normalizeRole(item.name) === normalizeRole(badge.n));
-      const have = badge.kind === "discord" ? roleNames.has(normalizeRole(badge.n)) : badge.test(ctx);
+      const discordMatch = badge.kind === "discord" && (roleNames.has(normalizeRole(badge.n)) || (badge.n === "Sealuminati Holder" && has("sealuminati")));
+      const have = badge.kind === "discord" ? discordMatch : badge.test(ctx);
       return { ...badge, have, role, discord: badge.kind === "discord" };
-    });
+    }).filter((badge, index, badges) => badges.findIndex((item) => normalizeRole(item.n) === normalizeRole(badge.n)) === index);
   }
 
   function normalizeRole(name) {
