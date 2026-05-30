@@ -575,7 +575,13 @@ body.no-photos .sealframe img.seal-photo{opacity:0 !important;}
 .badge.locked::after{background:#c9c4b8;box-shadow:0 0 0 4px rgba(120,110,96,.12);}
 .badge .bi{height:58px;display:grid;place-items:center;}
 .badge .badge-sticker{width:54px;height:54px;border-radius:16px;border:4px solid #fff;box-shadow:0 10px 20px -14px rgba(0,0,0,.55);overflow:hidden;background:#dff6ff;}
+.badge .emoji-badge{position:relative;margin:auto;text-decoration:none;background:linear-gradient(145deg,#e6fbff,#fff4d8);}
+.badge.exclusive-role .emoji-badge{background:linear-gradient(145deg,#1b2c5f,#8f5dff 52%,#52dcff);box-shadow:0 14px 28px -16px rgba(62,76,190,.8);}
+.badge.easy-role .emoji-badge{background:linear-gradient(145deg,#dff6ff,#ffffff 55%,#d7ffe8);}
+.badge .emoji-badge::after{content:"";position:absolute;inset:-4px;border-radius:18px;border:1px solid rgba(30,147,214,.22);pointer-events:none;}
+.badge.exclusive-role .emoji-badge::after{border-color:rgba(255,255,255,.58);}
 .badge .badge-sticker svg,.badge .badge-sticker img{width:100%;height:100%;display:block;}
+.badge .emoji-badge img{object-fit:cover;transform:scale(1.05);}
 .badge .role-dot{position:absolute;left:50%;bottom:2px;width:12px;height:12px;border-radius:50%;box-shadow:0 0 0 4px rgba(88,101,242,.18);}
 .badge .bn{font-size:12px;font-weight:800;margin-top:8px;line-height:1.2;}
 .badge .bt{font-size:10px;font-weight:800;color:var(--ink-soft);margin-top:5px;text-transform:uppercase;letter-spacing:.02em;}
