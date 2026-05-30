@@ -1,6 +1,10 @@
 import { rateLimit } from './_rate-limit.js';
 
 const RESERVOIR_API = 'https://api.reservoir.tools';
+const RESERVOIR_APIS = [
+  RESERVOIR_API,
+  'https://api-mainnet.magiceden.dev/v3/rtp/ethereum',
+];
 const SAPPY_SEALS_CONTRACT = '0x364c828ee171616a39897688a831c2499ad972ec';
 const FALLBACK = {
   floorEth: 0.122,
@@ -107,13 +111,15 @@ async function fetchCollectionStats() {
   ];
 
   for (const params of queries) {
-    const response = await fetch(`${RESERVOIR_API}/collections/v7?${params.toString()}`, {
-      headers: reservoirHeaders(),
-    });
-    if (!response.ok) continue;
-    const data = await response.json();
-    const collection = data?.collections?.[0];
-    if (collection) return parseCollection(collection);
+    for (const baseUrl of RESERVOIR_APIS) {
+      const response = await fetch(`${baseUrl}/collections/v7?${params.toString()}`, {
+        headers: reservoirHeaders(),
+      });
+      if (!response.ok) continue;
+      const data = await response.json();
+      const collection = data?.collections?.[0];
+      if (collection) return parseCollection(collection);
+    }
   }
   throw new Error('reservoir_collection_empty');
 }
@@ -126,13 +132,15 @@ async function fetchAggregateStats() {
   ];
 
   for (const params of queries) {
-    const response = await fetch(`${RESERVOIR_API}/stats/v2?${params.toString()}`, {
-      headers: reservoirHeaders(),
-    });
-    if (!response.ok) continue;
-    const data = await response.json();
-    const stats = data?.stats || data;
-    if (stats && typeof stats === 'object') return parseStats(stats);
+    for (const baseUrl of RESERVOIR_APIS) {
+      const response = await fetch(`${baseUrl}/stats/v2?${params.toString()}`, {
+        headers: reservoirHeaders(),
+      });
+      if (!response.ok) continue;
+      const data = await response.json();
+      const stats = data?.stats || data;
+      if (stats && typeof stats === 'object') return parseStats(stats);
+    }
   }
   throw new Error('reservoir_stats_empty');
 }
@@ -146,30 +154,33 @@ async function fetchTokenFloorStats() {
     includeLastSale: 'false',
     includeTopBid: 'false',
   });
-  const response = await fetch(`${RESERVOIR_API}/tokens/v7?${params.toString()}`, {
-    headers: reservoirHeaders(),
-  });
-  if (!response.ok) throw new Error(`reservoir_tokens_${response.status}`);
-  const data = await response.json();
-  const item = data?.tokens?.[0];
-  const floorAsk = item?.market?.floorAsk || item?.token?.market?.floorAsk || item?.token?.floorAsk;
-  const floorEth = numberFrom(
-    floorAsk?.price?.amount?.decimal,
-    floorAsk?.price?.amount?.native,
-    floorAsk?.price?.netAmount?.decimal
-  );
-  if (!Number.isFinite(floorEth)) throw new Error('reservoir_token_floor_empty');
-  const floorUsd = numberFrom(
-    floorAsk?.price?.amount?.usd,
-    floorAsk?.price?.netAmount?.usd
-  );
-  return {
-    ...FALLBACK,
-    floorEth,
-    floorUsd: floorUsd ?? FALLBACK.floorUsd,
-    updatedAt: new Date().toISOString(),
-    source: 'reservoir-token-floor',
-  };
+  for (const baseUrl of RESERVOIR_APIS) {
+    const response = await fetch(`${baseUrl}/tokens/v7?${params.toString()}`, {
+      headers: reservoirHeaders(),
+    });
+    if (!response.ok) continue;
+    const data = await response.json();
+    const item = data?.tokens?.[0];
+    const floorAsk = item?.market?.floorAsk || item?.token?.market?.floorAsk || item?.token?.floorAsk;
+    const floorEth = numberFrom(
+      floorAsk?.price?.amount?.decimal,
+      floorAsk?.price?.amount?.native,
+      floorAsk?.price?.netAmount?.decimal
+    );
+    if (!Number.isFinite(floorEth)) continue;
+    const floorUsd = numberFrom(
+      floorAsk?.price?.amount?.usd,
+      floorAsk?.price?.netAmount?.usd
+    );
+    return {
+      ...FALLBACK,
+      floorEth,
+      floorUsd: floorUsd ?? FALLBACK.floorUsd,
+      updatedAt: new Date().toISOString(),
+      source: baseUrl.includes('magiceden') ? 'magiceden-token-floor' : 'reservoir-token-floor',
+    };
+  }
+  throw new Error('reservoir_token_floor_empty');
 }
 
 async function fetchStats() {
