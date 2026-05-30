@@ -143,6 +143,7 @@ function SappyDynamicBridge() {
 
   useEffect(() => {
     const openWallet = () => {
+      delete window.__sappyPendingDynamicWallet;
       try {
         sessionStorage.setItem('sappy_dynamic_connecting', String(Date.now()));
         sessionStorage.setItem('sappy_dynamic_next', window.location.href);
@@ -215,6 +216,9 @@ function SappyDynamicBridge() {
     if (pendingSocial) {
       delete window.__sappyPendingDynamicSocial;
       window.setTimeout(() => openSocial(pendingSocial), 0);
+    }
+    if (window.__sappyPendingDynamicWallet) {
+      window.setTimeout(() => openWallet(), 0);
     }
     window.dispatchEvent(new CustomEvent('sappy-dynamic-ready'));
     return () => {

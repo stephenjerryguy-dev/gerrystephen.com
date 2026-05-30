@@ -283,6 +283,7 @@ window.Sappy = (function () {
     }
   }
   function openDynamicWallet() {
+    window.__sappyPendingDynamicWallet = true;
     if (window.sappyOpenDynamic) {
       window.sappyOpenDynamic();
       return true;
@@ -299,6 +300,7 @@ window.Sappy = (function () {
   }
 
   function openDynamicSocial(provider) {
+    window.__sappyPendingDynamicSocial = provider;
     if (window.sappyOpenDynamicSocial && !window.sappyOpenDynamicSocial.isFallback) {
       window.sappyOpenDynamicSocial(provider);
       return true;

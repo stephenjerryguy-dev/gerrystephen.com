@@ -346,6 +346,17 @@ body.no-photos .sealframe img.seal-photo{opacity:0 !important;}
 .team-avatar{width:96px;height:96px;border-radius:50%;margin:0 auto 14px;border:4px solid #fff;box-shadow:var(--shadow-lg);object-fit:cover;background:#dcebfb;}
 .team-card strong{display:block;font-family:var(--font-display);font-weight:800;font-size:17px;line-height:1.1;}
 .team-card span{display:block;color:var(--ink-soft);font-size:13px;margin-top:4px;}
+.team-card em{display:block;margin-top:10px;font-style:normal;font-family:var(--font-pixel);font-size:7px;line-height:1.45;color:var(--accent-deep);text-transform:uppercase;letter-spacing:.04em;}
+.team-copy{max-width:760px;margin:0 auto;text-align:center;}
+.team-relay{grid-template-columns:1.25fr repeat(4,1fr);align-items:stretch;margin-top:34px;}
+.team-relay .team-card{position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:center;min-height:220px;}
+.team-relay .team-card::before{content:"";position:absolute;inset:0;background:linear-gradient(145deg,rgba(30,147,214,.1),rgba(63,185,124,.06));opacity:0;transition:opacity .15s;pointer-events:none;}
+.team-relay .team-card:hover::before{opacity:1;}
+.team-card-featured{grid-row:span 2;min-height:456px;background:radial-gradient(120% 100% at 50% 0%,#ffffff 0%,#e8f7ff 58%,#d9f1ff 100%);}
+.team-card-featured .team-avatar{width:148px;height:148px;border-radius:34px;}
+.team-card-featured strong{font-size:34px;}
+.team-card-featured span{font-size:16px;}
+.team-card-featured em{font-size:8px;color:#0d6a9d;}
 .team-pic{width:96px;height:96px;border-radius:50%;margin:0 auto 14px;border:4px solid #fff;box-shadow:var(--shadow-lg);position:relative;overflow:hidden;background:#dcebfb;}
 .team-pic .seal-cv{width:100%;height:100%;display:block;image-rendering:pixelated;}
 .team-pic .seal-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .45s;}
@@ -791,15 +802,6 @@ body.eco-dark .chip.poly{background:rgba(150,90,255,.2);color:#cbb0ff;}
 .dyn-passkey-recovery-id > .dynamic-shadow-dom,
 .dynamic-send-balance > .dynamic-shadow-dom,
 .dynamic-edit-user-field > .dynamic-shadow-dom{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;pointer-events:auto;}
-body:not(.dynamic-no-scroll) .dynamic-modal > .dynamic-shadow-dom,
-body:not(.dynamic-no-scroll) .dynamic-send-transaction > .dynamic-shadow-dom,
-body:not(.dynamic-no-scroll) .dynamic-sign-message > .dynamic-shadow-dom,
-body:not(.dynamic-no-scroll) .dynamic-sync-wallet > .dynamic-shadow-dom,
-body:not(.dynamic-no-scroll) .dynamic-prompt-to-add-network > .dynamic-shadow-dom,
-body:not(.dynamic-no-scroll) .dynamic-zksync-approval > .dynamic-shadow-dom,
-body:not(.dynamic-no-scroll) .dyn-passkey-recovery-id > .dynamic-shadow-dom,
-body:not(.dynamic-no-scroll) .dynamic-send-balance > .dynamic-shadow-dom,
-body:not(.dynamic-no-scroll) .dynamic-edit-user-field > .dynamic-shadow-dom{pointer-events:none!important;}
 .sappy-dynamic-dock{position:fixed;right:18px;bottom:18px;z-index:99999;display:block;}
 .sappy-dynamic-dock,.sappy-dynamic-dock *{pointer-events:auto;}
 .sappy-dynamic-dock:empty{display:none;}
@@ -915,10 +917,16 @@ body:not(.dynamic-no-scroll) .dynamic-edit-user-field > .dynamic-shadow-dom{poin
     display:flex;gap:10px;overflow-x:auto;padding:4px 16px 8px;margin:20px -16px 0;
     scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;
   }
+  .team-relay{align-items:stretch;}
   .team-card{flex:0 0 142px;scroll-snap-align:start;padding:15px 10px;border-radius:16px;}
+  .team-card-featured{min-height:auto;flex-basis:190px;}
   .team-avatar{width:70px;height:70px;margin-bottom:10px;border-width:3px;}
+  .team-card-featured .team-avatar{width:86px;height:86px;border-radius:22px;}
+  .team-card-featured strong{font-size:20px;}
+  .team-card-featured span{font-size:12px;}
   .team-card strong{font-size:15px;}
   .team-card span{font-size:11.5px;line-height:1.25;}
+  .team-card em{font-size:6px;margin-top:8px;}
   footer{padding:40px 0 28px;}
   .foot-socials a{padding:8px 11px;font-size:12px;}
   .foot-bottom{font-size:12px;margin-top:28px;}
