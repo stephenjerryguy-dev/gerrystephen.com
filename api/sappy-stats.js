@@ -100,36 +100,80 @@ function parseStats(stats) {
 }
 
 async function fetchCollectionStats() {
-  const params = new URLSearchParams({
-    id: SAPPY_SEALS_CONTRACT,
-    includeTopBid: 'false',
-  });
-  const response = await fetch(`${RESERVOIR_API}/collections/v7?${params.toString()}`, {
-    headers: reservoirHeaders(),
-  });
-  if (!response.ok) throw new Error(`reservoir_${response.status}`);
-  const data = await response.json();
-  const collection = data?.collections?.[0];
-  if (!collection) throw new Error('reservoir_empty');
-  return parseCollection(collection);
+  const queries = [
+    new URLSearchParams({ id: SAPPY_SEALS_CONTRACT, includeTopBid: 'false' }),
+    new URLSearchParams({ id: `contract:${SAPPY_SEALS_CONTRACT}`, includeTopBid: 'false' }),
+    new URLSearchParams({ slug: 'sappy-seals', includeTopBid: 'false' }),
+  ];
+
+  for (const params of queries) {
+    const response = await fetch(`${RESERVOIR_API}/collections/v7?${params.toString()}`, {
+      headers: reservoirHeaders(),
+    });
+    if (!response.ok) continue;
+    const data = await response.json();
+    const collection = data?.collections?.[0];
+    if (collection) return parseCollection(collection);
+  }
+  throw new Error('reservoir_collection_empty');
 }
 
 async function fetchAggregateStats() {
+  const queries = [
+    new URLSearchParams({ collection: SAPPY_SEALS_CONTRACT }),
+    new URLSearchParams({ collection: `contract:${SAPPY_SEALS_CONTRACT}` }),
+    new URLSearchParams({ tokenSetId: `contract:${SAPPY_SEALS_CONTRACT}` }),
+  ];
+
+  for (const params of queries) {
+    const response = await fetch(`${RESERVOIR_API}/stats/v2?${params.toString()}`, {
+      headers: reservoirHeaders(),
+    });
+    if (!response.ok) continue;
+    const data = await response.json();
+    const stats = data?.stats || data;
+    if (stats && typeof stats === 'object') return parseStats(stats);
+  }
+  throw new Error('reservoir_stats_empty');
+}
+
+async function fetchTokenFloorStats() {
   const params = new URLSearchParams({
     collection: SAPPY_SEALS_CONTRACT,
+    sortBy: 'floorAskPrice',
+    limit: '1',
+    includeAttributes: 'false',
+    includeLastSale: 'false',
+    includeTopBid: 'false',
   });
-  const response = await fetch(`${RESERVOIR_API}/stats/v2?${params.toString()}`, {
+  const response = await fetch(`${RESERVOIR_API}/tokens/v7?${params.toString()}`, {
     headers: reservoirHeaders(),
   });
-  if (!response.ok) throw new Error(`reservoir_stats_${response.status}`);
+  if (!response.ok) throw new Error(`reservoir_tokens_${response.status}`);
   const data = await response.json();
-  const stats = data?.stats || data;
-  if (!stats || typeof stats !== 'object') throw new Error('reservoir_stats_empty');
-  return parseStats(stats);
+  const item = data?.tokens?.[0];
+  const floorAsk = item?.market?.floorAsk || item?.token?.market?.floorAsk || item?.token?.floorAsk;
+  const floorEth = numberFrom(
+    floorAsk?.price?.amount?.decimal,
+    floorAsk?.price?.amount?.native,
+    floorAsk?.price?.netAmount?.decimal
+  );
+  if (!Number.isFinite(floorEth)) throw new Error('reservoir_token_floor_empty');
+  const floorUsd = numberFrom(
+    floorAsk?.price?.amount?.usd,
+    floorAsk?.price?.netAmount?.usd
+  );
+  return {
+    ...FALLBACK,
+    floorEth,
+    floorUsd: floorUsd ?? FALLBACK.floorUsd,
+    updatedAt: new Date().toISOString(),
+    source: 'reservoir-token-floor',
+  };
 }
 
 async function fetchStats() {
-  const attempts = [fetchCollectionStats, fetchAggregateStats];
+  const attempts = [fetchCollectionStats, fetchAggregateStats, fetchTokenFloorStats];
   let lastError;
   for (const attempt of attempts) {
     try {
