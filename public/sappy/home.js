@@ -35,6 +35,8 @@
       const floorEth = Number(stats.floorEth);
       const floorUsd = Number(stats.floorUsd);
       const change24h = Number(stats.change24h);
+      const sales24h = Number(stats.sales24h);
+      const volume24h = Number(stats.volume24h);
       const holders = Number(stats.holders);
 
       if (Number.isFinite(floorEth)) {
@@ -45,10 +47,20 @@
       } else if (Number.isFinite(floorEth)) {
         setStat("[data-stat='floor-meta']", "live floor · Sappy Seals");
       }
-      if (Number.isFinite(change24h)) {
+      if (Number.isFinite(sales24h)) {
+        const volumeText = Number.isFinite(volume24h)
+          ? `${formatNumber(volume24h, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ETH volume`
+          : "OpenSea 24h activity";
+        setStat("[data-stat='change-label']", "▸ 24H SALES");
+        setStat("[data-stat='change']", formatNumber(Math.round(sales24h)), sales24h);
+        setStat("[data-stat='change-meta']", volumeText);
+        const changeEl = document.querySelector("[data-stat='change']");
+        if (changeEl) changeEl.classList.remove("down");
+      } else if (Number.isFinite(change24h)) {
         const sign = change24h >= 0 ? "+" : "";
         const changeEl = document.querySelector("[data-stat='change']");
         setStat("[data-stat='change']", `${sign}${formatNumber(change24h, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`, change24h);
+        setStat("[data-stat='change-meta']", "floor is moving");
         if (changeEl) changeEl.classList.toggle("down", change24h < 0);
       }
       if (Number.isFinite(holders)) {

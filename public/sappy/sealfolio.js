@@ -18,6 +18,35 @@
     seals: "0x364c828ee171616a39897688a831c2499ad972ec",
     staked: "0x1c70d0a86475cc707b48aa79f112857e7957274f",
   };
+  const BADGE_CATALOG = [
+    { n: "OG Seal", kind: "holding", test: (ctx) => ctx.hasSeal, sticker: 1227 },
+    { n: "Staker", kind: "holding", test: (ctx) => ctx.staked > 0, sticker: 7812 },
+    { n: "Omnia", kind: "holding", test: (ctx) => ctx.has("omnia"), sticker: 7262 },
+    { n: "Pixseal", kind: "holding", test: (ctx) => ctx.has("pixseal"), sticker: 525 },
+    { n: "Artifact", kind: "holding", test: (ctx) => ctx.has("artifact"), sticker: 93 },
+    { n: "Key Holder", kind: "holding", test: (ctx) => ctx.has("key") || ctx.has("faithful"), sticker: 404 },
+    { n: "Whale (15)", kind: "discord", sticker: 1515 },
+    { n: "Baby Whale (5)", kind: "discord", sticker: 505 },
+    { n: "Seal (1)", kind: "discord", sticker: 101 },
+    { n: "Omnia Pet Master (50)", kind: "discord", sticker: 5050 },
+    { n: "Omnia Pet (1)", kind: "discord", sticker: 7263 },
+    { n: "Founders Pass Holder", kind: "discord", sticker: 777 },
+    { n: "BTC Digital Artifact Holder", kind: "discord", sticker: 93 },
+    { n: "Member", kind: "discord", sticker: 2023 },
+    { n: "Shill Sergeant", kind: "discord", sticker: 444 },
+    { n: "Whitelist Opportunities", kind: "discord", sticker: 888 },
+    { n: "Airdrops", kind: "discord", sticker: 1234 },
+    { n: "Event Pings", kind: "discord", sticker: 999 },
+    { n: "The Triple Scoop", kind: "discord", sticker: 333 },
+    { n: "Daily Mints", kind: "discord", sticker: 1111 },
+    { n: "M Whale (15)", kind: "discord", sticker: 1516 },
+    { n: "M Baby Whale (5)", kind: "discord", sticker: 506 },
+    { n: "Omnia Pet Trainer (5)", kind: "discord", sticker: 5005 },
+    { n: "Omnia Pet Maxi (15)", kind: "discord", sticker: 1517 },
+    { n: "Omnia Pet Sensei (25)", kind: "discord", sticker: 2525 },
+    { n: "1M Pixl Holder", kind: "discord", sticker: 1000 },
+    { n: "Beater", kind: "discord", sticker: 808 },
+  ];
 
   const sampleOwned = [];
   const nOwned = 3 + pick(6);
@@ -55,17 +84,23 @@
   }
 
   function badgesFor(owned, staked) {
-    const has = (needle) => owned.some((nft) => `${nft.collection} ${nft.name || ""}`.toLowerCase().includes(needle));
     const discord = discordRoles();
-    return [
-      { logo: "/sappy/assets/sappy-app-icon-192.png", n: "OG Seal", have: owned.some((nft) => /sappy seal/i.test(`${nft.collection} ${nft.name || ""}`)) },
-      { logo: "/sappy/assets/sappy-app-icon-192.png", n: "Staker", have: staked > 0 },
-      { logo: "/sappy/assets/omnia-logo.png", n: "Omnia", have: has("omnia") },
-      { logo: "/sappy/assets/sappy-seal-emoji.webp", n: "Pixseal", have: has("pixseal") },
-      { logo: "/sappy/assets/digital-artifact-1.png", n: "Artifact", have: has("artifact") },
-      { logo: "/sappy/assets/sappy-seal-emoji.webp", n: "Key Holder", have: has("key") || has("faithful") },
-      ...discord.map((role) => ({ role, n: role.name, have: true, discord: true })),
-    ];
+    const roleNames = new Set(discord.map((role) => normalizeRole(role.name)));
+    const has = (needle) => owned.some((nft) => `${nft.collection} ${nft.name || ""}`.toLowerCase().includes(needle));
+    const ctx = {
+      staked,
+      has,
+      hasSeal: owned.some((nft) => /sappy seal/i.test(`${nft.collection} ${nft.name || ""}`)),
+    };
+    return BADGE_CATALOG.map((badge) => {
+      const role = discord.find((item) => normalizeRole(item.name) === normalizeRole(badge.n));
+      const have = badge.kind === "discord" ? roleNames.has(normalizeRole(badge.n)) : badge.test(ctx);
+      return { ...badge, have, role, discord: badge.kind === "discord" };
+    });
+  }
+
+  function normalizeRole(name) {
+    return String(name || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   }
 
   function discordRoles() {
@@ -174,10 +209,14 @@
 
       <div class="folio-sec">
         <h2>Badges & Discord Roles</h2>
+        <p class="badge-note">All Sappy badge slots are shown. Holding badges unlock from the connected wallet; Discord roles unlock after the matching Discord role comes through.</p>
         <div class="badge-grid">${badges.map((b) => `
           <div class="badge ${b.have ? "" : "locked"} ${b.discord ? "discord-role" : ""}">
-            <div class="bi">${b.role ? `<span class="role-dot" style="background:${b.role.color || "#5865F2"}"></span>` : `<img src="${b.logo}" alt="" loading="lazy">`}</div>
+            <div class="bi badge-sticker sealframe" data-pin="1" data-kind="seal" data-id="${b.sticker}" data-px="96">
+              ${b.role ? `<span class="role-dot" style="background:${b.role.color || "#5865F2"}"></span>` : ""}
+            </div>
             <div class="bn">${b.n}</div>
+            <div class="bt">${b.discord ? "Discord role" : "Holding badge"}</div>
           </div>`).join("")}</div>
       </div>
 

@@ -10,6 +10,8 @@ const FALLBACK = {
   floorEth: 0.122,
   floorUsd: 305,
   change24h: 0,
+  sales24h: null,
+  volume24h: null,
   holders: 3885,
   updatedAt: null,
   source: 'fallback',
@@ -19,6 +21,13 @@ function reservoirHeaders() {
   return {
     accept: 'application/json',
     ...(process.env.RESERVOIR_API_KEY ? { 'x-api-key': process.env.RESERVOIR_API_KEY } : {}),
+  };
+}
+
+function openseaHeaders() {
+  return {
+    accept: 'application/json',
+    ...(process.env.OPENSEA_API_KEY ? { 'x-api-key': process.env.OPENSEA_API_KEY } : {}),
   };
 }
 
@@ -63,6 +72,8 @@ function parseCollection(collection) {
     floorEth: floorEth ?? FALLBACK.floorEth,
     floorUsd: floorUsd ?? FALLBACK.floorUsd,
     change24h: change24h ?? FALLBACK.change24h,
+    sales24h: FALLBACK.sales24h,
+    volume24h: FALLBACK.volume24h,
     holders: holders ?? FALLBACK.holders,
     updatedAt: new Date().toISOString(),
     source: 'reservoir',
@@ -97,6 +108,8 @@ function parseStats(stats) {
     floorEth: floorEth ?? FALLBACK.floorEth,
     floorUsd: floorUsd ?? FALLBACK.floorUsd,
     change24h: change24h ?? FALLBACK.change24h,
+    sales24h: FALLBACK.sales24h,
+    volume24h: FALLBACK.volume24h,
     holders: holders ?? FALLBACK.holders,
     updatedAt: new Date().toISOString(),
     source: 'reservoir',
@@ -125,11 +138,25 @@ function parseOpenSeaStats(data) {
     oneDay?.floorPriceDiff,
     data?.floor_price_diff
   );
+  const sales24h = numberFrom(
+    oneDay?.sales,
+    oneDay?.sale_count,
+    oneDay?.sales_count,
+    data?.one_day_sales
+  );
+  const volume24h = numberFrom(
+    oneDay?.volume,
+    oneDay?.volume_eth,
+    oneDay?.volumeEth,
+    data?.one_day_volume
+  );
   if (!Number.isFinite(floorEth) && !Number.isFinite(holders)) throw new Error('opensea_empty');
   return {
     floorEth: floorEth ?? FALLBACK.floorEth,
     floorUsd: null,
     change24h: change24h ?? FALLBACK.change24h,
+    sales24h: sales24h ?? FALLBACK.sales24h,
+    volume24h: volume24h ?? FALLBACK.volume24h,
     holders: holders ?? FALLBACK.holders,
     updatedAt: new Date().toISOString(),
     source: 'opensea',
@@ -236,6 +263,8 @@ async function fetchTokenFloorStats() {
       ...FALLBACK,
       floorEth,
       floorUsd: floorUsd ?? FALLBACK.floorUsd,
+      sales24h: FALLBACK.sales24h,
+      volume24h: FALLBACK.volume24h,
       updatedAt: new Date().toISOString(),
       source: baseUrl.includes('magiceden') ? 'magiceden-token-floor' : 'reservoir-token-floor',
     };
@@ -245,7 +274,7 @@ async function fetchTokenFloorStats() {
 
 async function fetchOpenSeaStats() {
   const response = await fetch('https://api.opensea.io/api/v2/collections/sappy-seals/stats', {
-    headers: { accept: 'application/json' },
+    headers: openseaHeaders(),
   });
   if (!response.ok) throw new Error(`opensea_${response.status}`);
   const data = await response.json();
@@ -253,7 +282,7 @@ async function fetchOpenSeaStats() {
 }
 
 async function fetchStats() {
-  const attempts = [fetchCollectionStats, fetchAggregateStats, fetchTokenFloorStats, fetchOpenSeaStats];
+  const attempts = [fetchOpenSeaStats, fetchCollectionStats, fetchAggregateStats, fetchTokenFloorStats];
   let lastError;
   const errors = [];
   for (const attempt of attempts) {
