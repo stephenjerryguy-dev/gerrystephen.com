@@ -28,19 +28,41 @@ const wagmiConfig = createConfig({
   },
 });
 const queryClient = new QueryClient();
+const DYNAMIC_OVERLAY_SELECTORS = [
+  '.dynamic-modal',
+  '.dynamic-send-transaction',
+  '.dynamic-sign-message',
+  '.dynamic-sync-wallet',
+  '.dynamic-prompt-to-add-network',
+  '.dynamic-zksync-approval',
+  '.dyn-passkey-recovery-id',
+  '.dynamic-send-balance',
+  '.dynamic-edit-user-field',
+  '.dynamic-shadow-dom',
+];
+
+function syncDynamicOverlayPointers(active = document.body.classList.contains('sappy-dynamic-active')) {
+  DYNAMIC_OVERLAY_SELECTORS.forEach((selector) => {
+    document.querySelectorAll(selector).forEach((element) => {
+      if (element.closest?.('#sappy-dynamic-widget')) return;
+      element.style.setProperty('pointer-events', active ? 'auto' : 'none', 'important');
+    });
+  });
+}
+
 function setDynamicActive(active) {
   document.body.classList.toggle('sappy-dynamic-active', Boolean(active));
   document.body.classList.toggle('dynamic-no-scroll', Boolean(active));
+  syncDynamicOverlayPointers(Boolean(active));
 }
+setDynamicActive(false);
 
 function fallbackOpenDynamic() {
-  setDynamicActive(true);
   const widgetButton = document.querySelector('#sappy-dynamic-widget button, #sappy-dynamic-widget [role="button"]');
   if (widgetButton) {
     widgetButton.click();
     return;
   }
-  setDynamicActive(false);
   window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: 'Dynamic is still loading. Try again in a moment.' } }));
 }
 window.sappyOpenDynamic = fallbackOpenDynamic;
@@ -156,6 +178,17 @@ function SappyDynamicBridge() {
   });
   const wallets = useUserWallets();
 
+  useEffect(() => {
+    syncDynamicOverlayPointers(false);
+    const observer = new MutationObserver(() => syncDynamicOverlayPointers());
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
+    const interval = window.setInterval(() => syncDynamicOverlayPointers(), 650);
+    return () => {
+      observer.disconnect();
+      window.clearInterval(interval);
+    };
+  }, []);
+
   const clearLocalWallet = () => {
     try {
       localStorage.removeItem('sappy_wallet');
@@ -166,14 +199,15 @@ function SappyDynamicBridge() {
   useEffect(() => {
     const openWallet = () => {
       delete window.__sappyPendingDynamicWallet;
-      setDynamicActive(true);
       try {
         sessionStorage.setItem('sappy_dynamic_connecting', String(Date.now()));
         sessionStorage.setItem('sappy_dynamic_next', window.location.href);
       } catch (_) {}
       const authenticated = Boolean(user || primaryWallet?.address || wallets?.length);
       if (authenticated) {
+        setDynamicActive(true);
         setShowLinkNewWalletModal?.(true);
+        window.setTimeout(() => setDynamicActive(false), 15000);
         return;
       }
       setShowAuthFlow?.(true);
@@ -192,7 +226,6 @@ function SappyDynamicBridge() {
       const authenticated = Boolean(user || primaryWallet?.address || wallets?.length);
       if (!authenticated) {
         window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: 'Create your Sealfolio with your wallet first. Then link X or Discord for next-time login.' } }));
-        setDynamicActive(true);
         setShowAuthFlow?.(true);
         return;
       }
@@ -206,7 +239,6 @@ function SappyDynamicBridge() {
         window.dispatchEvent(new CustomEvent('sappy-social-connected', { detail: socialDetail(provider, existing) }));
         return;
       }
-      setDynamicActive(true);
       window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: `Opening Dynamic ${provider === ProviderEnum.Twitter ? 'X' : 'Discord'} connect...` } }));
       const options = {
         forcePopup: true,
@@ -214,6 +246,8 @@ function SappyDynamicBridge() {
         showWidgetAfterConnection: false,
       };
       await linkSocialAccount?.(provider, options);
+      setDynamicActive(true);
+      window.setTimeout(() => setDynamicActive(false), 15000);
       const label = provider === ProviderEnum.Twitter ? 'X' : 'Discord';
       let connected = false;
       for (let attempt = 0; attempt < 8; attempt += 1) {
