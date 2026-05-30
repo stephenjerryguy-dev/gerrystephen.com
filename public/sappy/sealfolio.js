@@ -130,6 +130,7 @@
     const first = owned[0] || null;
     const isReal = Array.isArray(state.nfts);
     const hasProfile = isReal && owned.length > 0;
+    const canLinkSocials = Boolean(state.address || hasProfile);
     const score = hasProfile ? scoreFor(owned) : 0;
     const rank = hasProfile ? RANKS[Math.min(RANKS.length - 1, Math.floor(score / 200))] : "Unclaimed";
     const statusCopy = state.loading
@@ -166,8 +167,13 @@
           <p>${statusCopy[1]}</p>
         </div>
         <div class="folio-connect-actions">
-          <button class="btn btn-x" data-x-login>𝕏&nbsp; Connect your X</button>
-          <button class="btn btn-ghost" data-discord-login><img class="btn-logo" src="https://cdn.simpleicons.org/discord/5865F2" alt="" aria-hidden="true"> Connect Discord</button>
+          ${canLinkSocials ? `
+            <button class="btn btn-x" data-x-login>𝕏&nbsp; Link X</button>
+            <button class="btn btn-ghost" data-discord-login><img class="btn-logo" src="https://cdn.simpleicons.org/discord/5865F2" alt="" aria-hidden="true"> Link Discord</button>
+          ` : `
+            <button class="btn btn-accent" data-connect>Create with Wallet →</button>
+            <span class="social-lock">X and Discord unlock after wallet creation.</span>
+          `}
         </div>
       </div>
 
@@ -215,15 +221,15 @@
 
       <div class="folio-sec">
         <h2>Badges & Discord Roles</h2>
-        <p class="badge-note">All Sappy badge slots are shown. Exclusive roles point to Sappy Originals; lighter roles point to Sappy Seals Emojis 2. Holding badges unlock from the connected wallet; Discord roles unlock after the matching Discord role comes through.</p>
+        <p class="badge-note">All Sappy badge slots are shown. Holding badges unlock from the connected wallet; Discord roles unlock after the matching Discord role comes through.</p>
         <div class="badge-grid">${badges.map((b) => `
           <div class="badge ${b.have ? "" : "locked"} ${b.discord ? "discord-role" : ""} ${b.tier === "exclusive" ? "exclusive-role" : "easy-role"} accent-${b.accent || "blue"}">
             <a class="bi badge-sticker emoji-badge" href="${EMOJI_PACKS[b.tier || "easy"]}" target="_blank" rel="noopener" aria-label="Open ${b.tier === "exclusive" ? "Sappy Originals" : "Sappy Seals Emojis 2"} emoji set">
-              <span class="emoji-face icon-${b.icon || "seal"}" aria-hidden="true"></span>
+              ${renderSticker(b)}
               ${b.role ? `<span class="role-dot" style="background:${b.role.color || "#5865F2"}"></span>` : ""}
             </a>
             <div class="bn">${b.n}</div>
-            <div class="bt">${b.discord ? "Discord role" : "Holding badge"} · ${b.tier === "exclusive" ? "Originals" : "Emoji 2"}</div>
+            <div class="bt">${b.discord ? "Discord role" : "Holding badge"}</div>
           </div>`).join("")}</div>
       </div>
 
@@ -232,6 +238,22 @@
       </div>`;
     wireFolioActions();
     if (window.__sappyHydrate) window.__sappyHydrate(document.getElementById("folio"));
+  }
+
+  function stickerVariant(badge) {
+    const key = hashStr(`${badge.n}:${badge.icon || ""}`) % 5;
+    if (badge.tier === "exclusive") return key % 2 === 0 ? "video" : "a";
+    return key % 2 === 0 ? "a" : "b";
+  }
+
+  function renderSticker(badge) {
+    const variant = stickerVariant(badge);
+    if (variant === "video") {
+      return `<video class="role-sticker-media role-sticker-video" autoplay muted loop playsinline poster="/sappy/assets/stickers/sappy-role-a.webp" aria-hidden="true">
+        <source src="/sappy/assets/stickers/sappy-role-animated.webm" type="video/webm">
+      </video><span class="emoji-face icon-${badge.icon || "seal"}" aria-hidden="true"></span>`;
+    }
+    return `<img class="role-sticker-media" src="/sappy/assets/stickers/sappy-role-${variant}.webp" alt="" aria-hidden="true" loading="lazy"><span class="emoji-face icon-${badge.icon || "seal"}" aria-hidden="true"></span>`;
   }
 
   function animateBits() {

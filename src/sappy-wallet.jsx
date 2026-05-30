@@ -165,6 +165,12 @@ function SappyDynamicBridge() {
         window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: 'That Dynamic social provider is not supported yet.' } }));
         return;
       }
+      const authenticated = Boolean(user || primaryWallet?.address || wallets?.length);
+      if (!authenticated) {
+        window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: 'Create your Sealfolio with your wallet first. Then link X or Discord for next-time login.' } }));
+        setShowAuthFlow?.(true);
+        return;
+      }
       try {
         sessionStorage.setItem(`sappy_dynamic_${provider}_connecting`, String(Date.now()));
         sessionStorage.setItem('sappy_dynamic_next', window.location.href);
@@ -180,11 +186,7 @@ function SappyDynamicBridge() {
         redirectUrl: window.location.href,
         showWidgetAfterConnection: false,
       };
-      if (user || primaryWallet?.address || wallets?.length) {
-        await linkSocialAccount?.(provider, options);
-      } else {
-        await signInWithSocialAccount?.(provider, options);
-      }
+      await linkSocialAccount?.(provider, options);
       const label = provider === ProviderEnum.Twitter ? 'X' : 'Discord';
       let connected = false;
       for (let attempt = 0; attempt < 8; attempt += 1) {
