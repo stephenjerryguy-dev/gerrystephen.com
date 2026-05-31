@@ -4,6 +4,7 @@
   const qs = new URLSearchParams(location.search);
   const handle = qs.get("u") || "sappyseal_holder";
   const urlWallet = qs.get("wallet") || "";
+  const urlPfp = qs.get("pfp") || "";
   const seedNum = parseInt(qs.get("seed") || "0", 10) || hashStr(handle);
 
   function hashStr(s) { let h = 2166136261 >>> 0; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
@@ -17,6 +18,11 @@
   const CONTRACTS = {
     seals: "0x364c828ee171616a39897688a831c2499ad972ec",
     staked: "0x1c70d0a86475cc707b48aa79f112857e7957274f",
+    pixseals: "0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b",
+    omniaPets: "0x4e76c23fe2a4e37b5e07b5625e17098baab86c18",
+    omniaItems: "0xf0ea56402b2e2b27556d7abf4236c7327722fe41",
+    key: "0x3d3ad7b00e885d3d969e03bfcbaed80fb3df6667",
+    artifacts: "0xb1cdf2bfab043ea1d81d0a73b3b849efaac1d31a",
   };
   const EMOJI_PACKS = {
     exclusive: "https://t.me/addemoji/SappySsemoji",
@@ -53,9 +59,87 @@
     { n: "Beater", kind: "discord", tier: "easy", icon: "bat", accent: "blue" },
   ];
 
-  const state = { address: "", nfts: null, delegatedWallets: [], loading: false, error: "" };
+  const state = {
+    address: "",
+    connectedAddress: "",
+    profileWallet: /^0x[a-fA-F0-9]{40}$/.test(urlWallet) ? urlWallet : "",
+    nfts: null,
+    delegatedWallets: [],
+    loading: false,
+    error: "",
+    profile: loadLocalProfile(),
+  };
   const vibe = VIBES[pick(VIBES.length)];
   let walletShort = "Connect wallet";
+
+  function esc(value) {
+    return String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function loadLocalProfile() {
+    try {
+      const profile = JSON.parse(localStorage.getItem("sappy_profile") || "{}");
+      return profile && typeof profile === "object" ? profile : {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function saveLocalProfile(next) {
+    state.profile = { ...state.profile, ...next, updatedAt: Date.now() };
+    try { localStorage.setItem("sappy_profile", JSON.stringify(state.profile)); } catch (_) {}
+  }
+
+  function contractType(contract) {
+    const c = String(contract || "").toLowerCase();
+    if (c === CONTRACTS.seals || c === CONTRACTS.staked) return "seal";
+    if (c === CONTRACTS.pixseals) return "pixseal";
+    if (c === CONTRACTS.omniaPets) return "omnia-pet";
+    if (c === CONTRACTS.omniaItems) return "omnia-item";
+    if (c === CONTRACTS.key) return "sappy-key";
+    if (c === CONTRACTS.artifacts) return "artifact";
+    return "asset";
+  }
+
+  function isSealAsset(o) {
+    return contractType(o.contract) === "seal" || /sappy seal/i.test(`${o.collection || ""} ${o.name || ""}`);
+  }
+
+  function normalizeImage(value) {
+    const raw = value || "";
+    if (Array.isArray(raw)) return normalizeImage(raw[0]);
+    if (typeof raw !== "string") return "";
+    const converted = S.ipfsToHttp ? S.ipfsToHttp(raw) : raw;
+    return Array.isArray(converted) ? converted[0] : converted;
+  }
+
+  function scoreBreakdown(owned, staked) {
+    const counts = {
+      seals: owned.filter((o) => isSealAsset(o)).length,
+      staked,
+      omnia: owned.filter((o) => contractType(o.contract).startsWith("omnia")).length,
+      pixseals: owned.filter((o) => contractType(o.contract) === "pixseal").length,
+      keys: owned.filter((o) => contractType(o.contract) === "sappy-key").length,
+      artifacts: owned.filter((o) => contractType(o.contract) === "artifact").length,
+      delegates: state.delegatedWallets.length,
+    };
+    return {
+      counts,
+      total: Math.min(999,
+        counts.seals * 40
+        + counts.staked * 85
+        + counts.keys * 70
+        + counts.artifacts * 65
+        + counts.omnia * 28
+        + counts.pixseals * 16
+        + counts.delegates * 30
+      ),
+    };
+  }
 
   function normalizeOwned() {
     if (!state.nfts) return [];
@@ -67,17 +151,19 @@
         name: nft.name || `${nft.collection || "NFT"} #${id}`,
         trait: nft.collection || "Sappy ecosystem",
         collection: nft.collection || "Sappy ecosystem",
-        image: nft.image,
+        image: normalizeImage(nft.image || nft.image_url || nft.display_image_url || nft.cached_image_url || nft.metadata?.image),
+        animation: normalizeImage(nft.animationUrl || nft.animation_url || nft.display_animation_url || nft.metadata?.animation_url),
         href: nft.href,
         chain: nft.chain || "ethereum",
         wallet: nft.wallet,
+        contract,
         staked: contract === CONTRACTS.staked || /staked/i.test(`${nft.collection || ""} ${nft.name || ""}`),
       };
     });
   }
 
   function scoreFor(owned) {
-    if (state.nfts) return Math.min(999, owned.length * 42 + owned.filter((o) => o.staked).length * 85 + state.delegatedWallets.length * 30);
+    if (state.nfts) return scoreBreakdown(owned, owned.filter((o) => o.staked).length).total;
     return 0;
   }
 
@@ -112,15 +198,19 @@
   }
 
   function renderTokenArt(o) {
-    if (o.image) {
+    const type = contractType(o.contract);
+    const id = String(o.id || "").replace(/\D/g, "") || o.id || "";
+    if (o.image || o.animation) {
       return `<a class="sealframe token-art" href="${o.href || "#"}" target="_blank" rel="noopener">
-        <img class="seal-photo show" src="${o.image}" alt="${o.name || `Sappy asset #${o.id}`}" loading="lazy" referrerpolicy="no-referrer">
+        <img class="seal-photo show" src="${o.image || o.animation}" alt="${esc(o.name || `Sappy asset #${o.id}`)}" loading="lazy" referrerpolicy="no-referrer">
       </a>`;
     }
+    if (isSealAsset(o) && id) return `<div class="sealframe" data-pin="1" data-kind="seal" data-id="${id}" data-px="320"></div>`;
+    if (o.contract && id) return `<div class="sealframe token-art token-art-fetch token-art-${type}" data-kind="${type}" data-contract="${esc(o.contract)}" data-chain="${o.chain === "matic" ? "polygon" : "eth"}" data-id="${esc(id)}" data-px="320"></div>`;
     if (Array.isArray(state.nfts)) {
-      return `<div class="sealframe token-art token-art-missing"><span>ART<br>PENDING</span></div>`;
+      return `<div class="sealframe token-art token-art-missing token-art-${type}"><span>${esc(type.replace(/-/g, " ").toUpperCase())}<br>ART PENDING</span></div>`;
     }
-    return `<div class="sealframe" data-pin="1" data-kind="seal" data-id="${o.id}" data-px="320"></div>`;
+    return `<div class="sealframe token-art token-art-missing token-art-${type}"><span>CONNECT<br>WALLET</span></div>`;
   }
 
   function render() {
@@ -128,30 +218,44 @@
     const staked = owned.filter((o) => o.staked).length;
     const badges = badgesFor(owned, staked);
     const first = owned[0] || null;
+    const profileImage = normalizeImage(state.profile.pfp || urlPfp || first?.image || "");
     const isReal = Array.isArray(state.nfts);
     const hasProfile = isReal && owned.length > 0;
-    const canLinkSocials = Boolean(state.address || hasProfile);
+    const targetWallet = state.profileWallet || state.connectedAddress || state.address;
+    const walletMatchesProfile = Boolean(state.connectedAddress && (!state.profileWallet || state.connectedAddress.toLowerCase() === state.profileWallet.toLowerCase()));
+    const canClaim = hasProfile && walletMatchesProfile;
+    const canLinkSocials = Boolean(canClaim);
     const score = hasProfile ? scoreFor(owned) : 0;
+    const breakdown = scoreBreakdown(owned, staked);
+    const displayName = state.profile.displayName || handle;
+    const bio = state.profile.bio || "";
     const rank = hasProfile ? RANKS[Math.min(RANKS.length - 1, Math.floor(score / 200))] : "Unclaimed";
     const statusCopy = state.loading
       ? ["Syncing your wallet.", "Pulling Sappy Seals, staked Seals, Pixseals, Omnia items, keys and artifacts from the covered contracts."]
       : isReal
-        ? [`${owned.length} ecosystem asset${owned.length === 1 ? "" : "s"} found.`, state.delegatedWallets.length ? `Includes ${state.delegatedWallets.length} Delegate.xyz vault${state.delegatedWallets.length === 1 ? "" : "s"}.` : "Direct wallet holdings shown."]
+        ? [
+          canClaim ? "Sealfolio ready to claim." : "Viewing a holder Sealfolio.",
+          canClaim
+            ? (state.delegatedWallets.length ? `Wallet verified. Includes ${state.delegatedWallets.length} Delegate.xyz vault${state.delegatedWallets.length === 1 ? "" : "s"}.` : "Wallet verified. You can edit this profile and link socials.")
+            : state.profileWallet ? "Connect and sign with the matching wallet to claim or edit this profile." : `${owned.length} ecosystem asset${owned.length === 1 ? "" : "s"} found.`
+        ]
         : ["Create your Sealfolio.", "Connect and sign with Dynamic to build your real Sappy identity from wallet holdings, Delegate.xyz vaults and linked socials."];
     document.getElementById("folio").innerHTML = `
       <a class="folio-back" href="community.html">← Back to the Pod</a>
       <div class="folio-hero">
-        <div class="folio-pfp sealframe ${first ? "" : "folio-pfp-empty"}" data-pin="${first && !first.image ? "1" : "0"}" data-kind="${first && !first.image ? "seal" : "none"}" data-id="${first ? first.id : ""}" data-px="300">
-          ${first?.image ? `<img class="seal-photo show" src="${first.image}" alt="${first.name || "Sealfolio profile asset"}" referrerpolicy="no-referrer">` : ""}
-          ${!first ? `<img class="seal-photo show" src="/sappy/assets/sappy-seal-emoji.webp" alt="Sappy Sealfolio">` : ""}
+        <div class="folio-pfp sealframe ${profileImage || first ? "" : "folio-pfp-empty"} ${urlPfp ? "verified-pfp" : ""}" data-pin="${!profileImage && first && !first.image ? "1" : "0"}" data-kind="${!profileImage && first && !first.image ? "seal" : "none"}" data-id="${first ? first.id : ""}" data-px="300">
+          ${profileImage ? `<img class="seal-photo show" src="${profileImage}" alt="${esc(displayName)} profile picture" referrerpolicy="no-referrer">` : ""}
+          ${!profileImage && !first ? `<img class="seal-photo show" src="/sappy/assets/sappy-seal-emoji.webp" alt="Sappy Sealfolio">` : ""}
         </div>
         <div class="folio-id">
-          <div class="name">${handle}</div>
-          <div class="wallet" id="folio-wallet">${walletShort}</div>
+          <div class="name">${esc(displayName)}</div>
+          <div class="wallet" id="folio-wallet">${targetWallet ? `${targetWallet.slice(0, 6)}...${targetWallet.slice(-4)}` : walletShort}</div>
+          ${bio ? `<p class="folio-bio">${esc(bio)}</p>` : ""}
           <div class="folio-chips">
             <span class="chip vibe">Vibe · ${vibe}</span>
             <span class="chip pixl">BITS pending</span>
             <a class="chip xh" href="https://x.com/${handle.replace(/^@/, "")}" target="_blank" rel="noopener">𝕏 @${handle.replace(/^@/, "")}</a>
+            ${canClaim ? `<span class="chip verified">Wallet verified</span>` : ""}
           </div>
         </div>
         <div class="score-card">
@@ -172,10 +276,18 @@
             <button class="btn btn-x" data-x-login>𝕏&nbsp; Link X</button>
             <button class="btn btn-ghost" data-discord-login><img class="btn-logo" src="https://cdn.simpleicons.org/discord/5865F2" alt="" aria-hidden="true"> Link Discord</button>
           ` : `
-            <button class="btn btn-accent" data-connect>Connect Wallet →</button>
+            <button class="btn btn-accent" data-connect>${state.profileWallet ? "Connect Matching Wallet" : "Connect Wallet"} →</button>
           `}
         </div>
       </div>
+
+      ${canClaim ? `<div class="folio-edit">
+        <div>
+          <label>Display name<input class="input" id="profile-name" value="${esc(displayName)}" maxlength="40"></label>
+          <label>Bio<textarea class="input" id="profile-bio" maxlength="180" placeholder="Add a short Sappy bio...">${esc(bio)}</textarea></label>
+        </div>
+        <button class="btn btn-ghost" data-save-profile>Save Profile</button>
+      </div>` : ""}
 
       <div class="folio-statrow">
         <div class="fstat"><div class="v">${owned.length}</div><div class="k">Assets found</div></div>
@@ -184,6 +296,7 @@
         <div class="fstat"><div class="v">${staked}</div><div class="k">Staked</div></div>
         <div class="fstat"><div class="v">${score}</div><div class="k">Score</div></div>
       </div>
+      ${hasProfile ? `<div class="score-explain">Score weights: ${breakdown.counts.seals} seals ×40, ${breakdown.counts.staked} staked ×85, ${breakdown.counts.keys} keys ×70, ${breakdown.counts.artifacts} artifacts ×65, ${breakdown.counts.omnia} Omnia assets ×28, ${breakdown.counts.pixseals} Pixseals ×16, ${breakdown.counts.delegates} delegated vaults ×30.</div>` : ""}
 
       <div class="folio-sec">
         <h2>${hasProfile ? "Claim your Sealfolio" : "Create your Sealfolio"}</h2>
@@ -276,16 +389,19 @@
     const label = detail.label || (detail.address.slice(0, 6) + "..." + detail.address.slice(-4));
     const el = document.getElementById("folio-wallet");
     if (el) el.textContent = label;
-    state.address = detail.address;
+    state.connectedAddress = detail.address;
+    state.address = state.profileWallet || detail.address;
     try {
       localStorage.setItem("sappy_wallet", JSON.stringify({ address: detail.address, label, connectedAt: Date.now() }));
       localStorage.setItem("sappy_wallet_label", label);
     } catch (_) {}
-    loadWalletCollection(detail.address);
+    const loadAddress = state.profileWallet || detail.address;
+    loadWalletCollection(loadAddress);
   }
 
   async function loadWalletCollection(address) {
-    if (!address || state.loading || state.address.toLowerCase() !== address.toLowerCase()) return;
+    if (!address || state.loading) return;
+    state.address = address;
     state.loading = true;
     state.error = "";
     render();
@@ -343,6 +459,25 @@
         S.walletModal();
       });
     });
+    document.querySelectorAll("[data-save-profile]").forEach((button) => {
+      if (button.dataset.wired) return;
+      button.dataset.wired = "1";
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        saveLocalProfile({
+          displayName: document.getElementById("profile-name")?.value?.trim() || handle,
+          bio: document.getElementById("profile-bio")?.value?.trim() || "",
+          pfp: firstProfileImage(),
+        });
+        S.toast("Sealfolio profile saved.");
+        render();
+      });
+    });
+  }
+
+  function firstProfileImage() {
+    const first = normalizeOwned()[0];
+    return first?.image || "/sappy/assets/sappy-seal-emoji.webp";
   }
 
   S.ready(function () {
@@ -351,6 +486,6 @@
     S.init();
     animateBits();
     window.addEventListener("sappy-wallet-connected", (event) => syncWalletLabel(event.detail));
-    if (!state.address && /^0x[a-fA-F0-9]{40}$/.test(urlWallet)) syncWalletLabel({ address: urlWallet, label: `${urlWallet.slice(0, 6)}...${urlWallet.slice(-4)}` });
+    if (state.profileWallet) loadWalletCollection(state.profileWallet);
   });
 })();

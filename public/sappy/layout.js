@@ -7,6 +7,13 @@
     const root = "/sappy/";
     const link = (href, label, id) =>
       `<a href="${root}${href}"${id === active ? ' class="active"' : ""}>${label}</a>`;
+    const links = `
+      ${link("index.html", "Home", "home")}
+      ${link("ecosystem.html", "Ecosystem", "eco")}
+      ${link("studio.html", "Studio", "studio")}
+      ${link("memes.html", "Memes", "memes")}
+      ${link("community.html", "Community", "community")}
+    `;
     return `
     <header>
       <div class="wrap nav">
@@ -15,13 +22,12 @@
           <span class="sub">ECOSYSTEM HUB</span>
         </a>
         <nav class="nav-links">
-          ${link("index.html", "Home", "home")}
-          ${link("ecosystem.html", "Ecosystem", "eco")}
-          ${link("studio.html", "Studio", "studio")}
-          ${link("memes.html", "Memes", "memes")}
-          ${link("community.html", "Community", "community")}
+          ${links}
         </nav>
         <div class="nav-right">
+          <button class="mobile-menu-btn" type="button" aria-expanded="false" aria-controls="sappy-mobile-menu" aria-label="Open menu">
+            <span></span><span></span><span></span>
+          </button>
           <a class="btn btn-ghost btn-sm hide-sm" href="${root}sealfolio.html">${sealEmoji}<span>Sealfolio</span></a>
           <button class="btn btn-dark btn-sm" data-connect>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:1px;"><path d="M3 8a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2"/><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M16 13.5h.01"/></svg>
@@ -29,6 +35,12 @@
           </button>
         </div>
       </div>
+      <nav class="mobile-menu" id="sappy-mobile-menu" hidden>
+        <div class="wrap mobile-menu-inner">
+          ${links}
+          <a href="${root}sealfolio.html">${sealEmoji}<span>Sealfolio</span></a>
+        </div>
+      </nav>
     </header>`;
   }
 
@@ -62,7 +74,25 @@
       const f = document.getElementById("site-footer");
       if (h) h.innerHTML = header(active);
       if (f) f.innerHTML = footer(active);
+      wireMobileMenu(h);
       window.Sappy.renderDir(document.getElementById("dir"));
     },
   };
+
+  function wireMobileMenu(headerRoot) {
+    const button = headerRoot?.querySelector?.(".mobile-menu-btn");
+    const menu = headerRoot?.querySelector?.("#sappy-mobile-menu");
+    if (!button || !menu) return;
+    button.addEventListener("click", () => {
+      const open = menu.hasAttribute("hidden");
+      menu.toggleAttribute("hidden", !open);
+      button.setAttribute("aria-expanded", String(open));
+      button.classList.toggle("open", open);
+    });
+    menu.querySelectorAll("a").forEach((link) => link.addEventListener("click", () => {
+      menu.setAttribute("hidden", "");
+      button.setAttribute("aria-expanded", "false");
+      button.classList.remove("open");
+    }));
+  }
 })();

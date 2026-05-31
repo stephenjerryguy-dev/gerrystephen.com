@@ -3,10 +3,10 @@ window.Sappy = (function () {
   "use strict";
 
   const GW = [
-    "https://ipfs.io/ipfs/",
     "https://dweb.link/ipfs/",
     "https://nftstorage.link/ipfs/",
     "https://gateway.pinata.cloud/ipfs/",
+    "https://ipfs.io/ipfs/",
     "https://flk-ipfs.xyz/ipfs/",
   ];
   const PROXY = (u) => "https://api.codetabs.com/v1/proxy/?quest=" + u;

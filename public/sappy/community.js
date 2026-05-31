@@ -61,6 +61,11 @@
   function mapHolder(holder, index, offset = 3200) {
     const seed = offset + index * 97;
     const label = holder.label || holder.xHandle || holder.openseaUsername || holder.address;
+    const params = new URLSearchParams({
+      u: label || holder.address || `holder-${index + 1}`,
+    });
+    if (holder.address) params.set("wallet", holder.address);
+    if (holder.profileImage) params.set("pfp", holder.profileImage);
     return {
       h: label,
       vibe: holder.source === "opensea-account" ? "OpenSea profile" : index < 3 ? "Top Holder" : VIBES[seed % VIBES.length],
@@ -72,7 +77,7 @@
       address: holder.address,
       xHandle: holder.xHandle,
       openseaUsername: holder.openseaUsername,
-      href: holder.profile || `sealfolio.html?wallet=${holder.address}&u=${encodeURIComponent(label || holder.address)}`,
+      href: `sealfolio.html?${params.toString()}`,
     };
   }
 
@@ -114,7 +119,7 @@
         ${searchingOpenSea ? '<div class="folio-loading">Checking OpenSea for that holder profile...</div>' : ""}
         ${!filtered.length && !searchingOpenSea ? `<div class="folio-loading">No holders matched “${esc(state.query)}”. Try a wallet, ENS, OpenSea username or X handle.</div>` : ""}
         <div class="pod-grid">${filtered.map((m) => `
-          <a class="pod-card" href="${m.href}">
+          <a class="pod-card ${m.claimable ? "verified-holder" : ""}" href="${m.href}">
             ${m.image ? `<img class="pod-pfp" src="${m.image}" alt="${m.h} profile picture" referrerpolicy="no-referrer" loading="lazy">` : `<div class="sealframe" data-pin="1" data-kind="seal" data-id="${m.id}" data-px="320"></div>`}
             <div class="info">
               <div class="n">${m.h}</div>

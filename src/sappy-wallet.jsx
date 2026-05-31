@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   DynamicContextProvider,
@@ -172,6 +172,7 @@ function SappyDynamicBridge() {
     },
   });
   const wallets = useUserWallets();
+  const allowThisPageAuthRef = useRef(false);
 
   useEffect(() => {
     const initTimer = window.setTimeout(() => {
@@ -192,6 +193,47 @@ function SappyDynamicBridge() {
       localStorage.removeItem('sappy_wallet_label');
     } catch (_) {}
   };
+
+  const hasRecentDynamicFlow = () => {
+    try {
+      const markers = [
+        'sappy_dynamic_connecting',
+        `sappy_dynamic_${ProviderEnum.Twitter}_connecting`,
+        `sappy_dynamic_${ProviderEnum.Discord}_connecting`,
+      ];
+      return markers.some((key) => {
+        const timestamp = Number(sessionStorage.getItem(key) || 0);
+        return timestamp && Date.now() - timestamp < 180000;
+      });
+    } catch (_) {
+      return false;
+    }
+  };
+
+  useEffect(() => {
+    const authenticated = Boolean(user || primaryWallet?.address || wallets?.length);
+    if (!authenticated) return;
+    if (hasRecentDynamicFlow()) {
+      allowThisPageAuthRef.current = true;
+      return;
+    }
+    if (!allowThisPageAuthRef.current) {
+      handleLogOut?.();
+      clearLocalWallet();
+      window.dispatchEvent(new CustomEvent('sappy-wallet-connected', { detail: { address: '' } }));
+      window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: 'Session reset. Connect and sign again to claim your Sealfolio.' } }));
+    }
+  }, [user, primaryWallet, wallets, handleLogOut]);
+
+  useEffect(() => {
+    const clearOnPageExit = () => {
+      if (hasRecentDynamicFlow()) return;
+      clearLocalWallet();
+      if (user || primaryWallet?.address || wallets?.length) handleLogOut?.();
+    };
+    window.addEventListener('pagehide', clearOnPageExit);
+    return () => window.removeEventListener('pagehide', clearOnPageExit);
+  }, [user, primaryWallet, wallets, handleLogOut]);
 
   useEffect(() => {
     const openWallet = () => {
