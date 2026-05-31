@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   DynamicContextProvider,
+  DynamicWidget,
   dynamicEvents,
   useDynamicContext,
   useDynamicModals,
@@ -3359,6 +3360,9 @@ createRoot(document.getElementById('root')).render(
         <QueryClientProvider client={queryClient}>
           <DynamicWagmiConnector>
             <span className="build-version" aria-hidden="true">{SITE_BUILD_VERSION}</span>
+            <div id="monerge-dynamic-widget" className="monerge-dynamic-dock">
+              <DynamicWidget />
+            </div>
             <MonergeDynamicBridge />
             <App />
           </DynamicWagmiConnector>
