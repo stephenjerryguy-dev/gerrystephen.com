@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ecosystem — sappy.</title>
+<meta name="description" content="The whole Sappy ecosystem, on-chain — Sappy Seals, $PIXL, Omnia and more across Ethereum, Polygon and Bitcoin.">
+<meta name="theme-color" content="#1E93D6">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/sappy-favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/sappy-apple-touch-icon.png">
+<link rel="manifest" href="sappy.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=DM+Mono:wght@400;500&family=Press+Start+2P&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="eco-dark">
+<div id="site-header"></div>
+
+<main>
+  <!-- cinematic hero -->
+  <section class="eco-hero">
+    <div class="eco-hero-glow"></div>
+    <div class="wrap">
+      <span class="eyebrow">▪ THE WHOLE POD · ON-CHAIN</span>
+      <h1>One pod.<br>Every chain.</h1>
+      <p>Eight live contracts power the Sappy ecosystem — the seals, the staking, $PIXL, Omnia and the 1/1 artifacts. Art is pulled straight from each contract. Tap any address to copy it.</p>
+      <div class="eco-chains">
+        <span class="chip eth">Ξ Ethereum</span>
+        <span class="chip poly">◆ Polygon</span>
+        <span class="chip nft">₿ Bitcoin Ordinals</span>
+      </div>
+    </div>
+  </section>
+
+  <section style="padding-top:0;">
+    <div class="wrap">
+      <div class="eco-grid" id="eco-grid"></div>
+    </div>
+  </section>
+</main>
+
+<div id="site-footer"></div>
+
+<script src="seal.js"></script>
+<script src="core.js"></script>
+<script src="layout.js"></script>
+<script src="ecosystem.js"></script>
+<script type="module" src="/src/sappy-wallet.jsx"></script>
+</body>
+</html>

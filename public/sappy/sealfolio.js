@@ -168,6 +168,7 @@
         </div>
         <div class="folio-connect-actions">
           ${canLinkSocials ? `
+            <button class="btn btn-accent" data-connect>Connect Wallet</button>
             <button class="btn btn-x" data-x-login>𝕏&nbsp; Link X</button>
             <button class="btn btn-ghost" data-discord-login><img class="btn-logo" src="https://cdn.simpleicons.org/discord/5865F2" alt="" aria-hidden="true"> Link Discord</button>
           ` : `
@@ -191,7 +192,7 @@
         ${!isReal && !state.loading ? `<div class="folio-empty-create">
           <h3>Your Sealfolio is waiting.</h3>
           <p>Connect your wallet to create it. Once your Sappy ecosystem holdings are found, this becomes a claimable profile.</p>
-          <button class="btn btn-accent" data-connect>Create your Sealfolio →</button>
+          <button class="btn btn-accent" data-connect>Connect Wallet →</button>
         </div>` : ""}
         ${owned.length ? `<div class="seal-grid">${owned.map((o) => `
           <div class="seal-card">

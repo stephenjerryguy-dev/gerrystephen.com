@@ -99,15 +99,23 @@
     }
   }
 
+  function ratioLabel() {
+    const match = AI_RATIOS.find(([value]) => value === state.aiRatio);
+    return match ? `${match[1]} · ${match[0]}` : state.aiRatio;
+  }
+
   function generatedCard(image, index) {
+    const prompt = image.revisedPrompt || image.prompt || "";
     return `
       <article class="ai-result-card">
         <div class="ai-result-media">
           ${image.url ? `<img src="${image.url}" alt="Generated Sappy meme ${index + 1}" loading="lazy">` : `<div class="ai-result-fallback">${image.svg || "AI preview"}</div>`}
         </div>
         ${image.referenceUrl ? `<div class="ai-result-brief"><img src="${esc(image.referenceUrl)}" alt="${esc(image.sealName || "Seal reference")}" loading="lazy"><p>${esc(image.caption || "Concept ready for image generation.")}</p></div>` : ""}
+        ${prompt ? `<div class="ai-prompt-output"><strong>Image brief</strong><p>${esc(prompt)}</p></div>` : ""}
         <div class="ai-result-actions">
-          <span>${image.model || "studio preview"}</span>
+          <span>${image.model || "studio preview"} · ${ratioLabel()}</span>
+          ${prompt ? `<button class="btn btn-ghost btn-sm" data-copy-prompt="${esc(prompt)}" type="button">Copy brief</button>` : ""}
           ${image.url ? `<a class="btn btn-ghost btn-sm" href="${image.url}" target="_blank" rel="noopener">Open</a>` : ""}
         </div>
       </article>`;
@@ -118,7 +126,23 @@
     if (!grid) return;
     grid.innerHTML = state.aiImages.length
       ? state.aiImages.map(generatedCard).join("")
-      : `<div class="ai-empty">Generated memes will appear here. Add a concept and let Gerry's AI Studio build campaign-ready options.</div>`;
+      : `<div class="ai-empty">
+          <div class="ai-empty-card">
+            <span>Ready when your seal is.</span>
+            <strong>Load a token, write the bit, ship a premium prompt pack.</strong>
+            <p>Outputs include caption direction, the exact Sappy Seal reference, and image briefs ready for a generation model or designer.</p>
+          </div>
+        </div>`;
+    grid.querySelectorAll("[data-copy-prompt]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(button.dataset.copyPrompt || "");
+          S.toast("Image brief copied.");
+        } catch (_) {
+          S.toast("Copy failed. Select the brief manually.");
+        }
+      });
+    });
   }
 
   function renderSealRef() {
@@ -126,6 +150,8 @@
     if (!box) return;
     if (!state.sealRef) {
       box.innerHTML = `<div class="seal-ref-empty">Enter a Sappy Seal number to pull the exact NFT art, name, and outfit traits.</div>`;
+      const stage = $("stageSeal");
+      if (stage) stage.innerHTML = `<img src="/sappy/assets/studio/seal-character-sheet.png" alt="Sappy character reference">`;
       return;
     }
     const traits = (state.sealRef.traits || []).slice(0, 8);
@@ -139,6 +165,10 @@
           <div class="seal-trait-row">${traits.map((trait) => `<em>${esc(trait.trait_type)}: ${esc(trait.value)}</em>`).join("")}</div>
         </div>
       </div>`;
+    const stage = $("stageSeal");
+    if (stage) {
+      stage.innerHTML = `<img src="${esc(state.sealRef.image)}" alt="${esc(state.sealRef.name)}" referrerpolicy="no-referrer">`;
+    }
   }
 
   async function loadSealRef(showToast = true) {
@@ -225,17 +255,30 @@
 
   function render() {
     $("studio").innerHTML = `
-      <div class="page-head">
-        <span class="eyebrow">▪ GERRY'S AI STUDIO</span>
-        <h1 class="section-title studio-title">Gerry's AI Studio.</h1>
-        <p class="section-sub">Turn a quick Sappy idea into polished meme drafts, banners, replies and campaign visuals built for X, powered by Claude.</p>
-      </div>
+      <section class="studio-hero">
+        <div>
+          <span class="eyebrow">▪ GERRY'S AI STUDIO</span>
+          <h1 class="section-title studio-title">Make your seal the main character.</h1>
+          <p class="section-sub">Load a real Sappy Seal, preserve its traits, then generate polished scene briefs, captions and meme-ready art direction powered by Claude.</p>
+          <div class="studio-hero-actions">
+            <a class="btn btn-accent" href="#studio-maker">Start creating →</a>
+            <a class="btn btn-ghost" href="/sappy/sealfolio.html">Use my Sealfolio</a>
+          </div>
+        </div>
+        <div class="studio-hero-preview">
+          <img src="/sappy/assets/studio/seal-chef-scene.png" alt="Generated Sappy Seal breakfast scene">
+          <div class="studio-preview-card">
+            <b>Scene system</b>
+            <span>Token traits → pose → caption → final prompt</span>
+          </div>
+        </div>
+      </section>
       <section class="ai-studio-shell">
-        <div class="ai-command">
+        <div class="ai-command" id="studio-maker">
           <div>
-            <span class="eyebrow">▪ AI MEME MAKER</span>
-            <h2>Start with a seal. Let Claude build the scene.</h2>
-            <p>Enter the seal number, pull the actual NFT, then generate scene-ready meme concepts that keep the seal's outfit and identity intact.</p>
+            <span class="eyebrow">▪ TOKEN-AWARE CREATOR</span>
+            <h2>Choose the seal. Direct the moment.</h2>
+            <p>The studio pulls OpenSea metadata first, so the prompt keeps the right outfit, headwear, expression and palette instead of inventing a random seal.</p>
           </div>
           <div class="seal-loader">
             <label>Seal number<input id="sealnumber" class="input" inputmode="numeric" placeholder="7262" value="${esc(state.sealNumber)}"></label>
@@ -254,6 +297,24 @@
           <button class="btn btn-accent full ai-generate" id="aigen">Create memes</button>
           <div class="ai-plan" id="aiplan">Describe the joke or moment. Claude will shape it into polished Sappy-ready options.</div>
         </div>
+        <div class="studio-stage-panel">
+          <div class="studio-stage">
+            <div class="stage-orbit"></div>
+            <div class="stage-seal" id="stageSeal"></div>
+            <div class="stage-chip top">Character locked</div>
+            <div class="stage-chip bottom">Scene ready</div>
+          </div>
+          <div class="studio-reference-strip">
+            ${REFERENCE_ASSETS.map(([url, label]) => `<figure><img src="${url}" alt="${label}" loading="lazy"><figcaption>${label}</figcaption></figure>`).join("")}
+          </div>
+        </div>
+      </section>
+      <section class="ai-output-section">
+        <div class="eco-head">
+          <span class="eyebrow">▪ OUTPUTS</span>
+          <h2 class="section-title">Prompt packs that can actually ship.</h2>
+          <p class="section-sub">Each run returns captions, a visual direction, the real seal reference and copyable image briefs.</p>
+        </div>
         <div class="ai-results" id="airesults"></div>
       </section>
       <section class="ai-note-strip">
@@ -267,13 +328,6 @@
     $("sealnumber").addEventListener("input", (e) => { state.sealNumber = e.target.value; });
     document.querySelectorAll("[data-ai-preset]").forEach((b) => b.addEventListener("click", () => applyAIPreset(b.dataset.aiPreset)));
     $("aiprompt").addEventListener("input", (e) => { state.aiPrompt = e.target.value; });
-    const results = $("airesults");
-    if (results) {
-      results.insertAdjacentHTML("afterbegin", `
-        <div class="studio-reference-strip">
-          ${REFERENCE_ASSETS.map(([url, label]) => `<figure><img src="${url}" alt="${label}" loading="lazy"><figcaption>${label}</figcaption></figure>`).join("")}
-        </div>`);
-    }
   }
 
   S.ready(function () { window.SappyLayout.mount("studio"); render(); S.init(); });

@@ -24,7 +24,11 @@ export default defineConfig({
         moncade: resolve(__dirname, 'moncade.html'),
         moncadeGame: resolve(__dirname, 'moncade-game.html'),
         sappy: resolve(__dirname, 'sappy.html'),
-        'sappy/sealfolio': resolve(__dirname, 'sappy/sealfolio.html')
+        'sappy/sealfolio': resolve(__dirname, 'sappy/sealfolio.html'),
+        'sappy/studio': resolve(__dirname, 'sappy/studio.html'),
+        'sappy/ecosystem': resolve(__dirname, 'sappy/ecosystem.html'),
+        'sappy/community': resolve(__dirname, 'sappy/community.html'),
+        'sappy/memes': resolve(__dirname, 'sappy/memes.html')
       }
     }
   }

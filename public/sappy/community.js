@@ -3,7 +3,7 @@
   const S = window.Sappy;
   const NAMES = ["wabdoteth", "diakou", "stormrdoteth", "DylanKentish", "lilstovetop", "pixlpilled", "arfarf", "sealmaxi", "coldwater", "blubber", "icefloe", "frostbite", "sappykorea", "norekme", "sealchemist", "podfather"];
   const VIBES = ["ARF ARF", "WAGBO", "Diamond Flipper", "Pod Leader", "New Collector", "Staker", "Whale", "Cold Water Club"];
-  const state = { holders: null, loading: false, totalHolders: null };
+  const state = { holders: null, loading: false, totalHolders: null, query: "" };
 
   const isLocal = /^(127\.0\.0\.1|localhost)$/.test(location.hostname);
   async function fetchJson(path) {
@@ -24,17 +24,43 @@
     return Number(n).toLocaleString("en-US");
   }
 
+  function esc(value) {
+    return String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function holderText(holder) {
+    return [
+      holder.h,
+      holder.vibe,
+      holder.address,
+      holder.xHandle,
+      holder.openseaUsername,
+      holder.n,
+    ].filter(Boolean).join(" ").toLowerCase();
+  }
+
+  function filteredMembers(members) {
+    const q = state.query.trim().toLowerCase();
+    if (!q) return members;
+    return members.filter((member) => holderText(member).includes(q.replace(/^@/, "")));
+  }
+
   function render() {
     const members = state.holders || NAMES.map((h, i) => {
       const seed = 1000 + i * 137;
       const n = 1 + ((seed * 7) % 40);
       return { h, vibe: VIBES[seed % VIBES.length], n, seed, id: (seed * 3) % 10000, href: `sealfolio.html?u=${h}&seed=${seed}` };
     });
+    const filtered = filteredMembers(members);
     document.getElementById("community").innerHTML = `
       <div class="page-head">
         <span class="eyebrow">▪ THE POD</span>
         <h1 class="section-title" style="font-size:clamp(34px,5vw,56px);">Meet your pod.</h1>
-        <p class="section-sub">Every seal has a Sealfolio. Browse the pod, peek a profile, find your people. Connect your X to claim yours.</p>
+        <p class="section-sub">Search live holders, open a Sealfolio, and let the real owner claim it by connecting wallet, X and Discord.</p>
       </div>
 
       <div class="quick-links">
@@ -45,14 +71,46 @@
       </div>
 
       <div class="folio-sec" style="margin-top:46px;">
-        <h2>${state.totalHolders ? `${fmt(state.totalHolders)} holders across the pod` : state.holders ? "Live holders from the contracts" : "Live holders and growing"}</h2>
+        <div class="holder-toolbar">
+          <div>
+            <h2>${state.totalHolders ? `${fmt(state.totalHolders)} holders across the pod` : state.holders ? "Live holders from the contracts" : "Live holders and growing"}</h2>
+            <p>${state.holders ? "Profiles are populated from holder data and enriched with OpenSea-linked socials where available." : "Loading the live pod, with local samples while the API wakes up."}</p>
+          </div>
+          <label class="holder-search">
+            <span>Search holders</span>
+            <input id="holdersearch" class="input" placeholder="wallet, ENS, X handle..." value="${esc(state.query)}">
+          </label>
+        </div>
         ${state.loading ? '<div class="folio-loading">Loading holder list from Sappy Seals and staked Sappy Seals...</div>' : ""}
-        <div class="pod-grid">${members.map((m) => `
+        ${!filtered.length ? `<div class="folio-loading">No holders matched “${esc(state.query)}”. Try a wallet, ENS, OpenSea username or X handle.</div>` : ""}
+        <div class="pod-grid">${filtered.map((m) => `
           <a class="pod-card" href="${m.href}">
             ${m.image ? `<img class="pod-pfp" src="${m.image}" alt="${m.h} profile picture" referrerpolicy="no-referrer" loading="lazy">` : `<div class="sealframe" data-pin="1" data-kind="seal" data-id="${m.id}" data-px="320"></div>`}
-            <div class="info"><div class="n">${m.h}</div><div class="t">${m.vibe}</div><div class="cnt">${m.n} ${m.n === 1 ? "SEAL" : "SEALS"}${m.claimable ? " · X-LINKED" : ""}</div></div>
+            <div class="info">
+              <div class="n">${m.h}</div>
+              <div class="t">${m.vibe}</div>
+              <div class="cnt">${m.n} ${m.n === 1 ? "SEAL" : "SEALS"}${m.claimable ? " · CLAIM READY" : ""}</div>
+              ${m.address ? `<div class="holder-wallet">${m.address.slice(0, 6)}...${m.address.slice(-4)}</div>` : ""}
+            </div>
           </a>`).join("")}</div>
       </div>`;
+    wireSearch();
+  }
+
+  function wireSearch() {
+    const input = document.getElementById("holdersearch");
+    if (!input || input.dataset.wired) return;
+    input.dataset.wired = "1";
+    input.addEventListener("input", (event) => {
+      state.query = event.target.value;
+      render();
+      S.init();
+      const next = document.getElementById("holdersearch");
+      if (next) {
+        next.focus();
+        next.setSelectionRange(state.query.length, state.query.length);
+      }
+    });
   }
 
   async function loadHolders() {
@@ -76,6 +134,9 @@
             id: (seed * 5) % 10000,
             image: holder.profileImage,
             claimable: Boolean(holder.claimable || holder.xHandle),
+            address: holder.address,
+            xHandle: holder.xHandle,
+            openseaUsername: holder.openseaUsername,
             href: holder.profile || `sealfolio.html?wallet=${holder.address}&u=${holder.label || holder.address}`,
           };
         });
