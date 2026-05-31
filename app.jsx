@@ -1621,36 +1621,14 @@ function playerName(entry = {}) {
   return entry.username || (entry.wallet ? shortWallet(entry.wallet) : 'Guest player');
 }
 
-function MonergeWalletButton({ account, label = 'Connect wallet', onClick, onSignOut, onSign }) {
-  const [open, setOpen] = useState(false);
-  if (account) {
-    return (
-      <div className={`monerge-wallet-menu ${open ? 'open' : ''}`}>
-        <button
-          type="button"
-          className="monerge-dynamic-btn"
-          onClick={() => {
-            unlockMonergeAudio();
-            setOpen((value) => !value);
-          }}
-          aria-expanded={open}
-        >
-          <span>{shortWallet(account)}</span>
-        </button>
-        {open && (
-          <div className="wallet-dropdown">
-            <span>{shortWallet(account)}</span>
-            <button type="button" onClick={() => { setOpen(false); onSign?.(); }}>Sign profile</button>
-            <button type="button" onClick={() => { setOpen(false); onSignOut?.(); }}>Sign out</button>
-          </div>
-        )}
-      </div>
-    );
-  }
+function MonergeWalletButton({ account, label = 'Connect wallet' }) {
   return (
-    <button type="button" className="monerge-dynamic-btn" onClick={() => { unlockMonergeAudio(); onClick?.(); }}>
-      <span>{label}</span>
-    </button>
+    <DynamicWidget
+      variant="modal"
+      buttonContainerClassName="monerge-dynamic-wrap"
+      buttonClassName="monerge-dynamic-btn"
+      innerButtonComponent={<span>{account ? shortWallet(account) : label}</span>}
+    />
   );
 }
 
@@ -3360,9 +3338,6 @@ createRoot(document.getElementById('root')).render(
         <QueryClientProvider client={queryClient}>
           <DynamicWagmiConnector>
             <span className="build-version" aria-hidden="true">{SITE_BUILD_VERSION}</span>
-            <div id="monerge-dynamic-widget" className="monerge-dynamic-dock">
-              <DynamicWidget />
-            </div>
             <MonergeDynamicBridge />
             <App />
           </DynamicWagmiConnector>
