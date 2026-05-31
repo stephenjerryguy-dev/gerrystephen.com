@@ -1291,6 +1291,7 @@ function monergeWalletsFilter(options = []) {
 const DYNAMIC_SETTINGS = {
   appName: 'Monerge',
   appLogoUrl: `${window.location.origin}/assets/monerge-icon-512.png`,
+  apiBaseUrl: `${window.location.origin}/dynamic-api`,
   environmentId: DYNAMIC_ENV_ID,
   initialAuthenticationMode: 'connect-only',
   enableVisitTrackingOnConnectOnly: true,

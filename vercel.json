@@ -6,6 +6,7 @@
   "rewrites": [
     { "source": "/fresh", "destination": "/" },
     { "source": "/reset-app", "destination": "/" },
+    { "source": "/dynamic-api/:path*", "destination": "https://app.dynamicauth.com/api/v0/:path*" },
     { "source": "/monerge", "destination": "/monerge.html" },
     { "source": "/monerge/:path*", "destination": "/monerge.html" },
     { "source": "/moncade", "destination": "/moncade.html" },
