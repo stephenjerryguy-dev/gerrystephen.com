@@ -290,11 +290,11 @@ window.Sappy = (function () {
     openModal(`
       <div class="sm-logo"><span class="word">sappy<b>.</b></span></div>
       <div class="sm-title">Dynamic ${label} connect needs setup</div>
-      <p class="sm-sub">The Dynamic SDK is on the page, but the hosted widget did not finish rendering. This usually means the current domain is not allowed in Dynamic or the provider is disabled in the live environment.</p>
+      <p class="sm-sub">The Dynamic SDK is on the page, but the hosted widget did not finish opening. This usually means a wallet or social provider is disabled in the Live environment, or the browser blocked the auth popup.</p>
       <div class="sm-fine">
         Environment ID: <code>7f5ed078-ee9f-49aa-b9d6-8a90434aaf40</code><br>
-        Add these domains in Dynamic: <code>http://127.0.0.1:5175</code>, <code>http://localhost:5175</code>, <code>http://127.0.0.1:5174</code>, <code>http://localhost:5174</code>, and <code>https://gerrystephen.com</code>.<br>
-        Wallets, X, and Discord should all be enabled for the Live environment.
+        Allowed domain should be <code>https://gerrystephen.com</code>. Paths such as <code>/sappy</code> do not need separate entries.<br>
+        Wallets, X, and Discord must be enabled for this Live environment.
       </div>
     `);
   }

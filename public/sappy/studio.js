@@ -26,9 +26,12 @@
     ["/sappy/assets/studio/seal-character-sheet.png", "Character base"],
     ["/sappy/assets/studio/seal-pose-grid.png", "Pose guide"],
   ];
+  const SAPPY_SEALS_CONTRACT = "0x364c828ee171616a39897688a831c2499ad972ec";
+  const TOKEN_URI_SELECTOR = "0xc87b56dd";
+  const ETH_RPC_URLS = ["https://ethereum-rpc.publicnode.com", "https://eth.llamarpc.com"];
 
   const state = {
-    sealNumber: "",
+    sealNumber: "7262",
     sealRef: null,
     aiPrompt: AI_PRESETS[0][1],
     aiStyle: "viral",
@@ -38,6 +41,93 @@
     aiStatus: "idle",
     aiPlan: "",
   };
+  const isLocal = /^(127\.0\.0\.1|localhost)$/.test(location.hostname);
+
+  async function fetchJson(path) {
+    const urls = [path];
+    if (isLocal) urls.push(`https://www.gerrystephen.com${path}`, `https://gerrystephen.com${path}`);
+    for (const url of urls) {
+      try {
+        const response = await fetch(url, { headers: { accept: "application/json" } });
+        const type = response.headers.get("content-type") || "";
+        if (!response.ok || !type.includes("application/json")) continue;
+        return await response.json();
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  function ipfsToHttps(uri) {
+    if (!uri || typeof uri !== "string") return "";
+    if (uri.startsWith("ipfs://ipfs/")) return `https://ipfs.io/ipfs/${uri.slice(12)}`;
+    if (uri.startsWith("ipfs://")) return `https://ipfs.io/ipfs/${uri.slice(7)}`;
+    if (uri.startsWith("ar://")) return `https://arweave.net/${uri.slice(5)}`;
+    return uri;
+  }
+
+  function tokenCallData(tokenId) {
+    return `${TOKEN_URI_SELECTOR}${BigInt(tokenId).toString(16).padStart(64, "0")}`;
+  }
+
+  function decodeAbiString(hex) {
+    if (!hex || hex === "0x") return "";
+    const clean = hex.slice(2);
+    const offset = Number.parseInt(clean.slice(0, 64), 16) * 2;
+    const length = Number.parseInt(clean.slice(offset, offset + 64), 16) * 2;
+    const data = clean.slice(offset + 64, offset + 64 + length);
+    const bytes = new Uint8Array((data.match(/.{1,2}/g) || []).map((byte) => Number.parseInt(byte, 16)));
+    return new TextDecoder().decode(bytes).replace(/\0+$/, "");
+  }
+
+  function normalizeTraits(rawTraits) {
+    return (Array.isArray(rawTraits) ? rawTraits : [])
+      .map((trait) => ({
+        trait_type: trait.trait_type || trait.traitType || trait.type || trait.key || "",
+        value: trait.value || trait.trait_value || trait.traitValue || trait.name || "",
+      }))
+      .filter((trait) => trait.trait_type || trait.value);
+  }
+
+  function outfitSummary(traits) {
+    const wanted = /background|body|skin|fur|clothes|clothing|outfit|shirt|head|hat|eyes|mouth|accessory|accessories|face/i;
+    const picked = traits.filter((trait) => wanted.test(`${trait.trait_type} ${trait.value}`));
+    return (picked.length ? picked : traits).slice(0, 10).map((trait) => `${trait.trait_type || "Trait"}: ${trait.value}`).join("; ");
+  }
+
+  async function fetchSealMetadataFromChain(tokenId) {
+    for (const rpc of ETH_RPC_URLS) {
+      try {
+        const response = await fetch(rpc, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "eth_call",
+            params: [{ to: SAPPY_SEALS_CONTRACT, data: tokenCallData(tokenId) }, "latest"],
+          }),
+        });
+        if (!response.ok) continue;
+        const rpcJson = await response.json();
+        const tokenUri = ipfsToHttps(decodeAbiString(rpcJson.result));
+        if (!tokenUri) continue;
+        const metadata = await fetch(tokenUri, { headers: { accept: "application/json" } }).then((res) => (res.ok ? res.json() : null)).catch(() => null);
+        if (!metadata) continue;
+        const traits = normalizeTraits(metadata.attributes || metadata.traits);
+        return {
+          id: String(tokenId),
+          name: metadata.name || `Sappy Seal #${tokenId}`,
+          collection: "Sappy Seals",
+          image: ipfsToHttps(metadata.image || metadata.image_url || metadata.animation_url),
+          openseaUrl: `https://opensea.io/item/ethereum/${SAPPY_SEALS_CONTRACT}/${tokenId}`,
+          traits,
+          outfitSummary: outfitSummary(traits),
+          source: "tokenURI",
+        };
+      } catch (_) {}
+    }
+    return null;
+  }
 
   function esc(value) {
     return String(value || "")
@@ -89,7 +179,7 @@
     if (plan !== undefined) state.aiPlan = plan;
     const btn = $("aigen");
     if (btn) {
-      btn.textContent = status === "loading" ? "Generating..." : "Create memes";
+      btn.textContent = status === "loading" ? "Generating..." : "Generate studio briefs";
       btn.disabled = status === "loading";
     }
     const planEl = $("aiplan");
@@ -185,9 +275,10 @@
       btn.textContent = "Loading seal...";
     }
     try {
-      const r = await fetch(`/api/sappy-seal?id=${encodeURIComponent(id)}`);
-      if (!r.ok) throw new Error("seal_load_failed");
-      state.sealRef = await r.json();
+      const json = await fetchJson(`/api/sappy-seal?id=${encodeURIComponent(id)}`)
+        || await fetchSealMetadataFromChain(id);
+      if (!json?.image) throw new Error("seal_load_failed");
+      state.sealRef = json;
       renderSealRef();
       if (showToast) S.toast(`${state.sealRef.name || `Sappy Seal #${id}`} loaded.`);
       return state.sealRef;
@@ -258,8 +349,13 @@
       <section class="studio-hero">
         <div>
           <span class="eyebrow">▪ GERRY'S AI STUDIO</span>
-          <h1 class="section-title studio-title">Make your seal the main character.</h1>
-          <p class="section-sub">Load a real Sappy Seal, preserve its traits, then generate polished scene briefs, captions and meme-ready art direction powered by Claude.</p>
+          <h1 class="section-title studio-title">Turn a real seal into a finished meme concept.</h1>
+          <p class="section-sub">Enter the token number, lock the actual NFT traits, then let Claude build scene direction, captions and image prompts that keep your seal recognizable.</p>
+          <div class="studio-steps" aria-label="Studio workflow">
+            <span>1. Load seal</span>
+            <span>2. Pick the bit</span>
+            <span>3. Generate briefs</span>
+          </div>
           <div class="studio-hero-actions">
             <a class="btn btn-accent" href="#studio-maker">Start creating →</a>
             <a class="btn btn-ghost" href="/sappy/sealfolio.html">Use my Sealfolio</a>
@@ -277,10 +373,10 @@
         <div class="ai-command" id="studio-maker">
           <div>
             <span class="eyebrow">▪ TOKEN-AWARE CREATOR</span>
-            <h2>Choose the seal. Direct the moment.</h2>
-            <p>The studio pulls OpenSea metadata first, so the prompt keeps the right outfit, headwear, expression and palette instead of inventing a random seal.</p>
+            <h2>Choose the seal. Direct the scene.</h2>
+            <p>OpenSea metadata powers the character lock, so outfits, headwear, expressions and palettes stay tied to the token instead of drifting into a random seal.</p>
           </div>
-          <div class="seal-loader">
+          <div class="studio-seal-loader">
             <label>Seal number<input id="sealnumber" class="input" inputmode="numeric" placeholder="7262" value="${esc(state.sealNumber)}"></label>
             <button class="btn btn-ghost" id="loadseal" type="button">Load seal</button>
           </div>
@@ -294,7 +390,7 @@
             <label>Format<select id="airatio" class="input">${AI_RATIOS.map(([v, n]) => `<option value="${v}" ${state.aiRatio === v ? "selected" : ""}>${n} · ${v}</option>`).join("")}</select></label>
             <label>Outputs<select id="aicount" class="input">${[1, 2, 3, 4].map((n) => `<option value="${n}" ${state.aiCount === n ? "selected" : ""}>${n}</option>`).join("")}</select></label>
           </div>
-          <button class="btn btn-accent full ai-generate" id="aigen">Create memes</button>
+          <button class="btn btn-accent full ai-generate" id="aigen">Generate studio briefs</button>
           <div class="ai-plan" id="aiplan">Describe the joke or moment. Claude will shape it into polished Sappy-ready options.</div>
         </div>
         <div class="studio-stage-panel">

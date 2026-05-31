@@ -3,7 +3,16 @@
   const S = window.Sappy;
   const NAMES = ["wabdoteth", "diakou", "stormrdoteth", "DylanKentish", "lilstovetop", "pixlpilled", "arfarf", "sealmaxi", "coldwater", "blubber", "icefloe", "frostbite", "sappykorea", "norekme", "sealchemist", "podfather"];
   const VIBES = ["ARF ARF", "WAGBO", "Diamond Flipper", "Pod Leader", "New Collector", "Staker", "Whale", "Cold Water Club"];
-  const state = { holders: null, loading: false, totalHolders: null, query: "" };
+  const state = {
+    holders: null,
+    loading: false,
+    totalHolders: null,
+    query: "",
+    queryLoading: false,
+    queryResults: null,
+    queryTimer: null,
+    queryRun: 0,
+  };
 
   const isLocal = /^(127\.0\.0\.1|localhost)$/.test(location.hostname);
   async function fetchJson(path) {
@@ -49,13 +58,33 @@
     return members.filter((member) => holderText(member).includes(q.replace(/^@/, "")));
   }
 
+  function mapHolder(holder, index, offset = 3200) {
+    const seed = offset + index * 97;
+    const label = holder.label || holder.xHandle || holder.openseaUsername || holder.address;
+    return {
+      h: label,
+      vibe: holder.source === "opensea-account" ? "OpenSea profile" : index < 3 ? "Top Holder" : VIBES[seed % VIBES.length],
+      n: holder.count || 1,
+      seed,
+      id: (seed * 5) % 10000,
+      image: holder.profileImage,
+      claimable: Boolean(holder.claimable || holder.xHandle || holder.openseaUsername),
+      address: holder.address,
+      xHandle: holder.xHandle,
+      openseaUsername: holder.openseaUsername,
+      href: holder.profile || `sealfolio.html?wallet=${holder.address}&u=${encodeURIComponent(label || holder.address)}`,
+    };
+  }
+
   function render() {
     const members = state.holders || NAMES.map((h, i) => {
       const seed = 1000 + i * 137;
       const n = 1 + ((seed * 7) % 40);
       return { h, vibe: VIBES[seed % VIBES.length], n, seed, id: (seed * 3) % 10000, href: `sealfolio.html?u=${h}&seed=${seed}` };
     });
-    const filtered = filteredMembers(members);
+    const localFiltered = filteredMembers(members);
+    const filtered = state.queryResults || localFiltered;
+    const searchingOpenSea = state.queryLoading && state.query.trim().length >= 2;
     document.getElementById("community").innerHTML = `
       <div class="page-head">
         <span class="eyebrow">▪ THE POD</span>
@@ -74,15 +103,16 @@
         <div class="holder-toolbar">
           <div>
             <h2>${state.totalHolders ? `${fmt(state.totalHolders)} holders across the pod` : state.holders ? "Live holders from the contracts" : "Live holders and growing"}</h2>
-            <p>${state.holders ? "Profiles are populated from holder data and enriched with OpenSea-linked socials where available." : "Loading the live pod, with local samples while the API wakes up."}</p>
+            <p>${searchingOpenSea ? "Searching OpenSea accounts and holder profiles..." : state.holders ? "Profiles are populated from holder data and enriched with OpenSea-linked socials where available." : "Loading the live pod, with local samples while the API wakes up."}</p>
           </div>
           <label class="holder-search">
             <span>Search holders</span>
-            <input id="holdersearch" class="input" placeholder="wallet, ENS, X handle..." value="${esc(state.query)}">
+            <input id="holdersearch" class="input" placeholder="wallet, ENS, OpenSea name, X handle..." value="${esc(state.query)}">
           </label>
         </div>
         ${state.loading ? '<div class="folio-loading">Loading holder list from Sappy Seals and staked Sappy Seals...</div>' : ""}
-        ${!filtered.length ? `<div class="folio-loading">No holders matched “${esc(state.query)}”. Try a wallet, ENS, OpenSea username or X handle.</div>` : ""}
+        ${searchingOpenSea ? '<div class="folio-loading">Checking OpenSea for that holder profile...</div>' : ""}
+        ${!filtered.length && !searchingOpenSea ? `<div class="folio-loading">No holders matched “${esc(state.query)}”. Try a wallet, ENS, OpenSea username or X handle.</div>` : ""}
         <div class="pod-grid">${filtered.map((m) => `
           <a class="pod-card" href="${m.href}">
             ${m.image ? `<img class="pod-pfp" src="${m.image}" alt="${m.h} profile picture" referrerpolicy="no-referrer" loading="lazy">` : `<div class="sealframe" data-pin="1" data-kind="seal" data-id="${m.id}" data-px="320"></div>`}
@@ -103,6 +133,16 @@
     input.dataset.wired = "1";
     input.addEventListener("input", (event) => {
       state.query = event.target.value;
+      state.queryResults = null;
+      window.clearTimeout(state.queryTimer);
+      const q = state.query.trim().replace(/^@/, "");
+      if (q.length >= 2) {
+        const run = ++state.queryRun;
+        state.queryLoading = true;
+        state.queryTimer = window.setTimeout(() => searchOpenSeaQuery(q, run), 350);
+      } else {
+        state.queryLoading = false;
+      }
       render();
       S.init();
       const next = document.getElementById("holdersearch");
@@ -111,6 +151,28 @@
         next.setSelectionRange(state.query.length, state.query.length);
       }
     });
+  }
+
+  async function searchOpenSeaQuery(q, run) {
+    try {
+      const data = await fetchJson(`/api/sappy-holders?q=${encodeURIComponent(q)}`);
+      if (run !== state.queryRun) return;
+      const holders = Array.isArray(data?.holders) ? data.holders : [];
+      state.queryResults = holders.map((holder, index) => mapHolder(holder, index, 7200));
+    } catch (_) {
+      if (run === state.queryRun) state.queryResults = [];
+    } finally {
+      if (run === state.queryRun) {
+        state.queryLoading = false;
+        render();
+        S.init();
+        const next = document.getElementById("holdersearch");
+        if (next) {
+          next.focus();
+          next.setSelectionRange(state.query.length, state.query.length);
+        }
+      }
+    }
   }
 
   async function loadHolders() {
@@ -124,22 +186,7 @@
       if (Number.isFinite(Number(stats?.holders))) state.totalHolders = Number(stats.holders);
       const holders = Array.isArray(data?.holders) ? data.holders : [];
       if (holders.length) {
-        state.holders = holders.map((holder, index) => {
-          const seed = 3200 + index * 97;
-          return {
-            h: holder.label || holder.address,
-            vibe: index < 3 ? "Top Holder" : VIBES[seed % VIBES.length],
-            n: holder.count || 1,
-            seed,
-            id: (seed * 5) % 10000,
-            image: holder.profileImage,
-            claimable: Boolean(holder.claimable || holder.xHandle),
-            address: holder.address,
-            xHandle: holder.xHandle,
-            openseaUsername: holder.openseaUsername,
-            href: holder.profile || `sealfolio.html?wallet=${holder.address}&u=${holder.label || holder.address}`,
-          };
-        });
+        state.holders = holders.map((holder, index) => mapHolder(holder, index));
       }
     } catch (_) {
       state.holders = null;

@@ -28,34 +28,6 @@ const wagmiConfig = createConfig({
   },
 });
 const queryClient = new QueryClient();
-const DYNAMIC_OVERLAY_SELECTORS = [
-  '.dynamic-modal',
-  '.dynamic-send-transaction',
-  '.dynamic-sign-message',
-  '.dynamic-sync-wallet',
-  '.dynamic-prompt-to-add-network',
-  '.dynamic-zksync-approval',
-  '.dyn-passkey-recovery-id',
-  '.dynamic-send-balance',
-  '.dynamic-edit-user-field',
-  '.dynamic-shadow-dom',
-];
-
-function syncDynamicOverlayPointers(active = document.body.classList.contains('sappy-dynamic-active')) {
-  DYNAMIC_OVERLAY_SELECTORS.forEach((selector) => {
-    document.querySelectorAll(selector).forEach((element) => {
-      if (element.closest?.('#sappy-dynamic-widget')) return;
-      element.style.setProperty('pointer-events', active ? 'auto' : 'none', 'important');
-    });
-  });
-}
-
-function setDynamicActive(active) {
-  document.body.classList.toggle('sappy-dynamic-active', Boolean(active));
-  document.body.classList.toggle('dynamic-no-scroll', Boolean(active));
-  syncDynamicOverlayPointers(Boolean(active));
-}
-setDynamicActive(false);
 
 function fallbackOpenDynamic() {
   const widgetButton = document.querySelector('#sappy-dynamic-widget button, #sappy-dynamic-widget [role="button"], #dynamic-widget button, #dynamic-widget [role="button"]');
@@ -65,9 +37,7 @@ function fallbackOpenDynamic() {
   }
   const widgetHost = document.querySelector('#dynamic-widget, #sappy-dynamic-widget .dynamic-shadow-dom');
   if (widgetHost) {
-    setDynamicActive(true);
     widgetHost.click();
-    window.setTimeout(() => setDynamicActive(false), 15000);
     return;
   }
   window.dispatchEvent(new CustomEvent('sappy-dynamic-init-failed', {
@@ -115,24 +85,19 @@ const settings = {
   defaultNumberOfWalletsToShow: 8,
   events: {
     onAuthFlowOpen: () => {
-      setDynamicActive(true);
       window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: 'Dynamic wallet modal open' } }));
     },
     onAuthInit: () => window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: 'Connecting with Dynamic' } })),
     onAuthSuccess: () => {
-      setDynamicActive(false);
       window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: 'Dynamic wallet connected' } }));
     },
     onAuthFailure: () => {
-      setDynamicActive(false);
       window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: 'Dynamic connect needs another try' } }));
     },
     onAuthCancel: () => {
-      setDynamicActive(false);
       window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: 'Wallet connect cancelled' } }));
     },
     onLogout: () => {
-      setDynamicActive(false);
       window.dispatchEvent(new CustomEvent('sappy-wallet-connected', { detail: { address: '' } }));
     },
   },
@@ -208,10 +173,6 @@ function SappyDynamicBridge() {
   const wallets = useUserWallets();
 
   useEffect(() => {
-    syncDynamicOverlayPointers(false);
-    const observer = new MutationObserver(() => syncDynamicOverlayPointers());
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
-    const interval = window.setInterval(() => syncDynamicOverlayPointers(), 650);
     const initTimer = window.setTimeout(() => {
       const widgetHost = document.querySelector('#dynamic-widget, #sappy-dynamic-widget .dynamic-shadow-dom');
       const visibleHost = widgetHost && widgetHost.getBoundingClientRect?.().width > 20 && widgetHost.getBoundingClientRect?.().height > 20;
@@ -220,8 +181,6 @@ function SappyDynamicBridge() {
       }
     }, 4000);
     return () => {
-      observer.disconnect();
-      window.clearInterval(interval);
       window.clearTimeout(initTimer);
     };
   }, []);
@@ -242,9 +201,7 @@ function SappyDynamicBridge() {
       } catch (_) {}
       const authenticated = Boolean(user || primaryWallet?.address || wallets?.length);
       if (authenticated) {
-        setDynamicActive(true);
         setShowLinkNewWalletModal?.(true);
-        window.setTimeout(() => setDynamicActive(false), 15000);
         return;
       }
       setShowAuthFlow?.(true);
@@ -272,7 +229,6 @@ function SappyDynamicBridge() {
       } catch (_) {}
       const existing = getLinkedAccountInformation?.(provider) || getLinkedAccounts?.(provider)?.[0];
       if (existing) {
-        setDynamicActive(false);
         window.dispatchEvent(new CustomEvent('sappy-social-connected', { detail: socialDetail(provider, existing) }));
         return;
       }
@@ -283,8 +239,6 @@ function SappyDynamicBridge() {
         showWidgetAfterConnection: false,
       };
       await linkSocialAccount?.(provider, options);
-      setDynamicActive(true);
-      window.setTimeout(() => setDynamicActive(false), 15000);
       const label = provider === ProviderEnum.Twitter ? 'X' : 'Discord';
       let connected = false;
       for (let attempt = 0; attempt < 8; attempt += 1) {
@@ -294,7 +248,6 @@ function SappyDynamicBridge() {
         const detail = refreshed || socialDetail(provider, account);
         if (detail.connected) {
           connected = true;
-          setDynamicActive(false);
           window.dispatchEvent(new CustomEvent('sappy-social-connected', { detail }));
           break;
         }

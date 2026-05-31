@@ -9,7 +9,22 @@ const ETH_RPCS = [
 const OWNER_OF_SELECTOR = '0x6352211e';
 const SAPPY_SEALS_CONTRACT = '0x364c828ee171616a39897688a831c2499ad972ec';
 const STAKED_SEALS_CONTRACT = '0x1c70d0a86475cc707b48aa79f112857e7957274f';
+const OMNIA_PETS_CONTRACT = '0x4e76c23fe2a4e37b5e07b5625e17098baab86c18';
+const OMNIA_ITEMS_CONTRACT = '0xf0ea56402b2e2b27556d7abf4236c7327722fe41';
+const SAPPY_KEY_CONTRACT = '0x3d3ad7b00e885d3d969e03bfcbaed80fb3df6667';
+const PIXSEALS_CONTRACT = '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b';
+const DIGITAL_ARTIFACT_CONTRACT = '0xb1cdf2bfab043ea1d81d0a73b3b849efaac1d31a';
 const OPENSEA_API = 'https://api.opensea.io/api/v2';
+const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
+const ECOSYSTEM_CONTRACTS = new Set([
+  SAPPY_SEALS_CONTRACT,
+  STAKED_SEALS_CONTRACT,
+  OMNIA_PETS_CONTRACT,
+  OMNIA_ITEMS_CONTRACT,
+  SAPPY_KEY_CONTRACT,
+  PIXSEALS_CONTRACT,
+  DIGITAL_ARTIFACT_CONTRACT,
+].map((contract) => contract.toLowerCase()));
 const BLOCKED_HOLDER_ADDRESSES = new Set([
   SAPPY_SEALS_CONTRACT,
   STAKED_SEALS_CONTRACT,
@@ -60,6 +75,72 @@ async function fetchOpenSeaProfile(address) {
     openseaUsername: account.username,
     profileImage: account.profile_image_url || account.profileImageUrl,
     profileUrl: account.address ? `https://opensea.io/${account.address}` : undefined,
+  };
+}
+
+async function fetchOpenSeaAccount(addressOrUsername) {
+  if (!process.env.OPENSEA_API_KEY || !addressOrUsername) return null;
+  const response = await fetch(`${OPENSEA_API}/accounts/${encodeURIComponent(addressOrUsername)}`, {
+    headers: openseaHeaders(),
+  }).catch(() => undefined);
+  if (!response?.ok) return null;
+  return response.json().catch(() => null);
+}
+
+function nftContract(item) {
+  return String(
+    item?.contract
+    || item?.contract_address
+    || item?.asset_contract?.address
+    || item?.collection?.primary_asset_contracts?.[0]?.address
+    || ''
+  ).toLowerCase();
+}
+
+async function countOpenSeaEcosystemNfts(address, chain) {
+  if (!process.env.OPENSEA_API_KEY || !ADDRESS_RE.test(address)) return 0;
+  let count = 0;
+  let next = undefined;
+  for (let page = 0; page < 4; page += 1) {
+    const params = new URLSearchParams({ limit: '200' });
+    if (next) params.set('next', next);
+    const response = await fetch(`${OPENSEA_API}/chain/${chain}/account/${address}/nfts?${params.toString()}`, {
+      headers: openseaHeaders(),
+    }).catch(() => undefined);
+    if (!response?.ok) break;
+    const data = await response.json().catch(() => ({}));
+    count += (data.nfts || []).filter((nft) => ECOSYSTEM_CONTRACTS.has(nftContract(nft))).length;
+    next = data.next;
+    if (!next) break;
+  }
+  return count;
+}
+
+async function holderFromOpenSeaQuery(query) {
+  const account = await fetchOpenSeaAccount(query);
+  const address = account?.address;
+  if (!ADDRESS_RE.test(address || '')) return null;
+  const [profile, ethCount, polygonCount] = await Promise.all([
+    fetchOpenSeaProfile(address),
+    countOpenSeaEcosystemNfts(address, 'ethereum'),
+    countOpenSeaEcosystemNfts(address, 'matic'),
+  ]);
+  const count = ethCount + polygonCount;
+  const xHandle = profile?.xHandle || pickTwitter(account);
+  const label = xHandle ? `@${xHandle}` : (account.username || account.name || profile?.label || shortAddress(address));
+  const cleanUser = String(xHandle || account.username || label || shortAddress(address)).replace(/^@/, '');
+  return {
+    address,
+    label,
+    count,
+    rank: null,
+    source: 'opensea-account',
+    xHandle,
+    openseaUsername: account.username || profile?.openseaUsername,
+    profileImage: account.profile_image_url || account.profileImageUrl || profile?.profileImage,
+    profileUrl: `https://opensea.io/${account.username || address}`,
+    claimable: Boolean(xHandle || account.username),
+    profile: `/sappy/sealfolio.html?wallet=${address}&u=${encodeURIComponent(cleanUser)}`,
   };
 }
 
@@ -219,6 +300,7 @@ export default async function handler(req, res) {
   if (rateLimit(req, res, { name: 'sappy-holders', limit: 36, windowMs: 60_000 })) return;
 
   try {
+    const query = String(req.query?.q || req.query?.query || '').trim().replace(/^@/, '');
     const aggregate = new Map();
     let owners = await fetchOpenSeaTopHolders();
     if (!owners.length) owners = await fetchTopOwners();
@@ -255,7 +337,21 @@ export default async function handler(req, res) {
         profile: `/sappy/sealfolio.html?wallet=${holder.address}&u=${shortAddress(holder.address)}`,
       })));
     const xLinked = enriched.filter((holder) => holder.xHandle);
-    const holders = (xLinked.length ? [...xLinked, ...enriched.filter((holder) => !holder.xHandle)] : enriched).slice(0, 32);
+    let holders = (xLinked.length ? [...xLinked, ...enriched.filter((holder) => !holder.xHandle)] : enriched).slice(0, 32);
+    if (query) {
+      const q = query.toLowerCase();
+      const matches = holders.filter((holder) => [
+        holder.address,
+        holder.label,
+        holder.xHandle,
+        holder.openseaUsername,
+      ].filter(Boolean).some((value) => String(value).toLowerCase().includes(q)));
+      const direct = await holderFromOpenSeaQuery(query).catch(() => null);
+      holders = [
+        ...(direct ? [direct] : []),
+        ...matches.filter((holder) => !direct || holder.address.toLowerCase() !== direct.address.toLowerCase()),
+      ].slice(0, 32);
+    }
 
     res.setHeader('Cache-Control', 's-maxage=900, stale-while-revalidate=3600');
     res.status(200).json({ holders: holders.length ? holders : SAMPLE.map((holder, index) => ({
