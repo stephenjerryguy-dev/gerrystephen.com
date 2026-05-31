@@ -193,6 +193,8 @@ window.Sappy = (function () {
     { h: "stormrdoteth", name: "stormr", role: "Product", seed: "stormr" },
     { h: "DylanKentish", name: "Dylan “Kent”", role: "Software Engineer", seed: "dylan" },
     { h: "lilstovetop", name: "lilstovetop", role: "Collector · affiliate", seed: "lils" },
+    { h: "llmprot", name: "llmprot", role: "Dev", seed: "llmprot" },
+    { h: "mooneyy", name: "mooney", role: "Collab team", seed: "mooney" },
   ];
   const pfp = (h) => "https://unavatar.io/twitter/" + h + "?fallback=https://unavatar.io/" + h;
   function renderTeam(el) {
@@ -301,7 +303,7 @@ window.Sappy = (function () {
       <div class="sm-title">Dynamic ${label} connect needs setup</div>
       <p class="sm-sub">The Dynamic SDK is on the page, but the hosted widget did not finish opening. This usually means a wallet or social provider is disabled in the Live environment, or the browser blocked the auth popup.</p>
       <div class="sm-fine">
-        Environment ID: <code>7f5ed078-ee9f-49aa-b9d6-8a90434aaf40</code><br>
+        Environment ID: <code>b62527ee-ec89-4502-86b3-37987b5720d4</code><br>
         Allowed domain should be <code>https://gerrystephen.com</code>. Paths such as <code>/sappy</code> do not need separate entries.<br>
         Wallets, X, and Discord must be enabled for this Live environment.
       </div>

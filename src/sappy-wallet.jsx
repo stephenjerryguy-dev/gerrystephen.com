@@ -18,7 +18,7 @@ import { http } from 'viem';
 import { mainnet, polygon } from 'viem/chains';
 import { createConfig, WagmiProvider } from 'wagmi';
 
-const SAPPY_DYNAMIC_ENV_ID = window.SAPPY_DYNAMIC_ENV_ID || import.meta.env.VITE_SAPPY_DYNAMIC_ENV_ID || '7f5ed078-ee9f-49aa-b9d6-8a90434aaf40';
+const SAPPY_DYNAMIC_ENV_ID = window.SAPPY_DYNAMIC_ENV_ID || import.meta.env.VITE_SAPPY_DYNAMIC_ENV_ID || 'b62527ee-ec89-4502-86b3-37987b5720d4';
 const wagmiConfig = createConfig({
   chains: [mainnet, polygon],
   multiInjectedProviderDiscovery: false,
