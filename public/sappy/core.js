@@ -285,6 +285,15 @@ window.Sappy = (function () {
   function dynamicHost() {
     return document.querySelector("#dynamic-widget, #sappy-dynamic-widget .dynamic-shadow-dom, #sappy-dynamic-widget button, #sappy-dynamic-widget [role='button']");
   }
+  function dynamicAuthOpen() {
+    const htmlLocked = document.documentElement.classList.contains("dynamic-no-scroll");
+    const bodyLocked = document.body.classList.contains("dynamic-no-scroll");
+    const shadowHost = document.querySelector(".dynamic-shadow-dom");
+    const shadow = shadowHost && shadowHost.shadowRoot;
+    const shadowDialog = shadow?.querySelector?.("[role='dialog'], [data-testid*='modal'], [data-testid*='auth'], [class*='modal'], [class*='Modal'], [class*='auth'], [class*='Auth']");
+    const pageDialog = document.querySelector("[data-testid*='dynamic'], [class*='dynamic-modal'], [class*='DynamicModal']");
+    return Boolean(htmlLocked || bodyLocked || shadowDialog || pageDialog);
+  }
   function dynamicSetupModal(kind) {
     const label = kind === "discord" ? "Discord" : kind === "twitter" || kind === "x" ? "X" : "wallet";
     openModal(`
@@ -303,8 +312,7 @@ window.Sappy = (function () {
     if (window.sappyOpenDynamic) {
       window.sappyOpenDynamic();
       window.setTimeout(() => {
-        const modalOpen = document.body.classList.contains("sappy-dynamic-active") || document.querySelector("#dynamic-modal")?.style.pointerEvents === "auto";
-        if (!modalOpen) dynamicSetupModal("wallet");
+        if (!dynamicAuthOpen()) dynamicSetupModal("wallet");
       }, 1600);
       return true;
     }
@@ -312,8 +320,7 @@ window.Sappy = (function () {
     if (host) {
       host.click();
       window.setTimeout(() => {
-        const modalOpen = document.body.classList.contains("sappy-dynamic-active") || document.querySelector("#dynamic-modal")?.style.pointerEvents === "auto";
-        if (!modalOpen) dynamicSetupModal("wallet");
+        if (!dynamicAuthOpen()) dynamicSetupModal("wallet");
       }, 1200);
       return true;
     }
@@ -405,7 +412,7 @@ window.Sappy = (function () {
     });
     window.addEventListener("sappy-dynamic-init-failed", (event) => {
       if (event.detail && event.detail.status) toast(event.detail.status);
-      if (window.__sappyPendingDynamicWallet || window.__sappyPendingDynamicSocial) {
+      if (!dynamicAuthOpen() && (window.__sappyPendingDynamicWallet || window.__sappyPendingDynamicSocial)) {
         dynamicSetupModal(window.__sappyPendingDynamicSocial || "wallet");
       }
     });
