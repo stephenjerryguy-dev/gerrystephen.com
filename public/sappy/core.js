@@ -282,13 +282,43 @@ window.Sappy = (function () {
       toast("Wallet connected. Delegate.xyz will be checked again in production.");
     }
   }
+  function dynamicHost() {
+    return document.querySelector("#dynamic-widget, #sappy-dynamic-widget .dynamic-shadow-dom, #sappy-dynamic-widget button, #sappy-dynamic-widget [role='button']");
+  }
+  function dynamicSetupModal(kind) {
+    const label = kind === "discord" ? "Discord" : kind === "twitter" || kind === "x" ? "X" : "wallet";
+    openModal(`
+      <div class="sm-logo"><span class="word">sappy<b>.</b></span></div>
+      <div class="sm-title">Dynamic ${label} connect needs setup</div>
+      <p class="sm-sub">The Dynamic SDK is on the page, but the hosted widget did not finish rendering. This usually means the current domain is not allowed in Dynamic or the provider is disabled in the live environment.</p>
+      <div class="sm-fine">
+        Environment ID: <code>7f5ed078-ee9f-49aa-b9d6-8a90434aaf40</code><br>
+        Add these domains in Dynamic: <code>http://127.0.0.1:5175</code>, <code>http://localhost:5175</code>, <code>http://127.0.0.1:5174</code>, <code>http://localhost:5174</code>, and <code>https://gerrystephen.com</code>.<br>
+        Wallets, X, and Discord should all be enabled for the Live environment.
+      </div>
+    `);
+  }
   function openDynamicWallet() {
     window.__sappyPendingDynamicWallet = true;
     if (window.sappyOpenDynamic) {
       window.sappyOpenDynamic();
+      window.setTimeout(() => {
+        const modalOpen = document.body.classList.contains("sappy-dynamic-active") || document.querySelector("#dynamic-modal")?.style.pointerEvents === "auto";
+        if (!modalOpen) dynamicSetupModal("wallet");
+      }, 1600);
+      return true;
+    }
+    const host = dynamicHost();
+    if (host) {
+      host.click();
+      window.setTimeout(() => {
+        const modalOpen = document.body.classList.contains("sappy-dynamic-active") || document.querySelector("#dynamic-modal")?.style.pointerEvents === "auto";
+        if (!modalOpen) dynamicSetupModal("wallet");
+      }, 1200);
       return true;
     }
     window.dispatchEvent(new CustomEvent("sappy-dynamic-wallet-request"));
+    window.setTimeout(() => { if (!window.sappyOpenDynamic) dynamicSetupModal("wallet"); }, 1600);
     return true;
   }
   function walletModal() {
@@ -304,6 +334,9 @@ window.Sappy = (function () {
     if (window.sappyOpenDynamicSocial && !window.sappyOpenDynamicSocial.isFallback) {
       window.sappyOpenDynamicSocial(provider);
       return true;
+    }
+    if (!window.sappyOpenDynamicSocial || window.sappyOpenDynamicSocial.isFallback) {
+      window.setTimeout(() => dynamicSetupModal(provider), 1600);
     }
     window.dispatchEvent(new CustomEvent("sappy-dynamic-social-request", { detail: { provider } }));
     return true;
@@ -329,6 +362,28 @@ window.Sappy = (function () {
   }
 
   function wireLogin() {
+    if (!window.__sappyDelegatedConnects) {
+      window.__sappyDelegatedConnects = true;
+      document.addEventListener("click", (event) => {
+        const connectButton = event.target.closest?.("[data-connect]");
+        if (connectButton) {
+          event.preventDefault();
+          walletModal();
+          return;
+        }
+        const xButton = event.target.closest?.("[data-x-login]");
+        if (xButton) {
+          event.preventDefault();
+          xModal();
+          return;
+        }
+        const discordButton = event.target.closest?.("[data-discord-login]");
+        if (discordButton) {
+          event.preventDefault();
+          startDiscordLogin();
+        }
+      }, true);
+    }
     document.querySelectorAll("[data-x-login]").forEach((b) => b.addEventListener("click", (e) => { e.preventDefault(); xModal(); }));
     document.querySelectorAll("[data-connect]").forEach((b) => b.addEventListener("click", (e) => { e.preventDefault(); walletModal(); }));
     window.addEventListener("sappy-wallet-connected", (event) => {
@@ -347,6 +402,12 @@ window.Sappy = (function () {
     });
     window.addEventListener("sappy-wallet-status", (event) => {
       if (event.detail && event.detail.status) toast(event.detail.status);
+    });
+    window.addEventListener("sappy-dynamic-init-failed", (event) => {
+      if (event.detail && event.detail.status) toast(event.detail.status);
+      if (window.__sappyPendingDynamicWallet || window.__sappyPendingDynamicSocial) {
+        dynamicSetupModal(window.__sappyPendingDynamicSocial || "wallet");
+      }
     });
     window.addEventListener("sappy-social-connected", (event) => {
       const detail = event.detail || {};

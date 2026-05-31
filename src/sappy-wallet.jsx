@@ -58,12 +58,21 @@ function setDynamicActive(active) {
 setDynamicActive(false);
 
 function fallbackOpenDynamic() {
-  const widgetButton = document.querySelector('#sappy-dynamic-widget button, #sappy-dynamic-widget [role="button"]');
+  const widgetButton = document.querySelector('#sappy-dynamic-widget button, #sappy-dynamic-widget [role="button"], #dynamic-widget button, #dynamic-widget [role="button"]');
   if (widgetButton) {
     widgetButton.click();
     return;
   }
-  window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: 'Dynamic is still loading. Try again in a moment.' } }));
+  const widgetHost = document.querySelector('#dynamic-widget, #sappy-dynamic-widget .dynamic-shadow-dom');
+  if (widgetHost) {
+    setDynamicActive(true);
+    widgetHost.click();
+    window.setTimeout(() => setDynamicActive(false), 15000);
+    return;
+  }
+  window.dispatchEvent(new CustomEvent('sappy-dynamic-init-failed', {
+    detail: { status: 'Dynamic did not render yet. Check the Dynamic environment domain settings and reload.' },
+  }));
 }
 window.sappyOpenDynamic = fallbackOpenDynamic;
 
@@ -75,6 +84,26 @@ function fallbackOpenDynamicSocial(provider) {
 }
 fallbackOpenDynamicSocial.isFallback = true;
 window.sappyOpenDynamicSocial = fallbackOpenDynamicSocial;
+
+function reportDynamicInitIssue(status) {
+  window.dispatchEvent(new CustomEvent('sappy-dynamic-init-failed', {
+    detail: { status: status || 'Dynamic could not initialize for this page.' },
+  }));
+}
+
+window.addEventListener('unhandledrejection', (event) => {
+  const message = String(event?.reason?.message || event?.reason || '');
+  if (/DynamicSDK|sdkSettings|prefetch nonces|getEnvironmentSettings|dynamicauth|Failed to fetch/i.test(message)) {
+    reportDynamicInitIssue('Dynamic API failed before the widget rendered. Make sure this exact domain is allowed in Dynamic.');
+  }
+});
+
+window.addEventListener('error', (event) => {
+  const message = String(event?.message || '');
+  if (/DynamicSDK|sdkSettings|prefetch nonces|getEnvironmentSettings|dynamicauth|Failed to fetch/i.test(message)) {
+    reportDynamicInitIssue('Dynamic API failed before the widget rendered. Make sure this exact domain is allowed in Dynamic.');
+  }
+});
 
 const settings = {
   appName: 'Sappy Sealfolio',
@@ -183,9 +212,17 @@ function SappyDynamicBridge() {
     const observer = new MutationObserver(() => syncDynamicOverlayPointers());
     observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
     const interval = window.setInterval(() => syncDynamicOverlayPointers(), 650);
+    const initTimer = window.setTimeout(() => {
+      const widgetHost = document.querySelector('#dynamic-widget, #sappy-dynamic-widget .dynamic-shadow-dom');
+      const visibleHost = widgetHost && widgetHost.getBoundingClientRect?.().width > 20 && widgetHost.getBoundingClientRect?.().height > 20;
+      if (!visibleHost) {
+        reportDynamicInitIssue('Dynamic widget did not render. Check Dynamic allowed domains and enabled wallet providers.');
+      }
+    }, 4000);
     return () => {
       observer.disconnect();
       window.clearInterval(interval);
+      window.clearTimeout(initTimer);
     };
   }, []);
 

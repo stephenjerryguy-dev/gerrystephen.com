@@ -40,8 +40,21 @@ function fallbackSvg({ concept, style, aspectRatio }, index) {
       </g>
       <text x="${w * .06}" y="${h * .11}" font-family="Arial, sans-serif" font-size="${Math.max(22, w * .028)}" font-weight="900" fill="#15689b" letter-spacing="2">${label} PREVIEW</text>
       <text x="${w * .06}" y="${h * .9}" font-family="Arial, sans-serif" font-size="${Math.max(42, w * .062)}" font-weight="900" fill="#15202a">${title}</text>
-      <text x="${w * .06}" y="${h * .95}" font-family="Arial, sans-serif" font-size="${Math.max(18, w * .018)}" font-weight="700" fill="#446274">Claude concept preview · premium Sappy direction</text>
+      <text x="${w * .06}" y="${h * .95}" font-family="Arial, sans-serif" font-size="${Math.max(18, w * .018)}" font-weight="700" fill="#446274">Claude concept preview · seal-aware prompt direction</text>
     </svg>`;
+}
+
+function sealBrief(seal) {
+  if (!seal) return '';
+  const traits = Array.isArray(seal.traits)
+    ? seal.traits.slice(0, 12).map((trait) => `${trait.trait_type || 'Trait'}: ${trait.value}`).join('; ')
+    : '';
+  return [
+    `Seal reference: ${seal.name || `Sappy Seal #${seal.id || ''}`}.`,
+    seal.id ? `Token ID: ${seal.id}.` : '',
+    seal.image ? `Reference image URL: ${seal.image}.` : '',
+    seal.outfitSummary ? `Visible outfit/trait summary: ${seal.outfitSummary}.` : traits ? `Traits: ${traits}.` : '',
+  ].filter(Boolean).join(' ');
 }
 
 function fallbackResponse(body, claudePlan) {
@@ -55,6 +68,8 @@ function fallbackResponse(body, claudePlan) {
       model: claudePlan ? `Claude concept ${i + 1}` : `prompt preview ${i + 1}`,
       revisedPrompt: concepts[i]?.prompt || body.prompt,
       caption: concepts[i]?.caption,
+      referenceUrl: body.seal?.image,
+      sealName: body.seal?.name,
       svg: fallbackSvg({ ...body, concept: concepts[i]?.caption || body.concept || body.prompt }, i),
     })),
   };
@@ -82,10 +97,10 @@ async function buildClaudePlan(body, prompt) {
       model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5",
       max_tokens: 1200,
       temperature: 0.8,
-      system: "You are Gerry's AI Studio for the Sappy Seals ecosystem. Create polished, consumer-ready meme concepts for X. Keep it Sappy-native, never mention Okay Bears, and avoid generic AI slop.",
+      system: "You are Gerry's AI Studio for the Sappy Seals ecosystem. Create polished, consumer-ready image-generation briefs for X memes. Preserve the provided Sappy Seal's exact outfit, visible traits, and identity. Keep it Sappy-native, never mention Okay Bears, and avoid generic AI slop.",
       messages: [{
         role: "user",
-        content: `Return only valid JSON with keys plan, captions, concepts. concepts must have ${count} items. Each item needs caption and prompt. User request: ${prompt}`,
+        content: `Return only valid JSON with keys plan, captions, concepts. concepts must have ${count} items. Each item needs caption and prompt. The prompt must explicitly preserve the seal traits and describe a finished illustrated scene, not a collage. ${sealBrief(body.seal)} User request: ${prompt}`,
       }],
     }),
   });
