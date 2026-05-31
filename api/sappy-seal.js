@@ -10,6 +10,12 @@ const ETH_RPCS = [
 const SAPPY_SEALS_CONTRACT = '0x364c828ee171616a39897688a831c2499ad972ec';
 const TOKEN_URI_SELECTOR = '0xc87b56dd';
 
+function setCors(res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept');
+}
+
 function ipfsToHttps(uri) {
   if (!uri || typeof uri !== 'string') return undefined;
   if (uri.startsWith('ipfs://ipfs/')) return `https://ipfs.io/ipfs/${uri.slice(12)}`;
@@ -124,6 +130,8 @@ async function fetchMetadataSeal(tokenId) {
 }
 
 export default async function handler(req, res) {
+  setCors(res);
+  if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'GET') {
     res.setHeader('allow', 'GET');
     return res.status(405).json({ error: 'method_not_allowed' });

@@ -31,6 +31,12 @@ const BLOCKED_HOLDER_ADDRESSES = new Set([
   '0x0000000000000000000000000000000000000000',
 ]);
 
+function setCors(res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept');
+}
+
 const SAMPLE = [
   { address: '0xCf3b8981AbAa56a8E41117b0c721C05F608400A7', count: 47 },
   { address: '0x382556a543aad855c07678e7f8e820d0d90429bb', count: 12 },
@@ -297,6 +303,8 @@ async function fetchOwnersFromTokens(contract) {
 }
 
 export default async function handler(req, res) {
+  setCors(res);
+  if (req.method === 'OPTIONS') return res.status(204).end();
   if (rateLimit(req, res, { name: 'sappy-holders', limit: 36, windowMs: 60_000 })) return;
 
   try {
