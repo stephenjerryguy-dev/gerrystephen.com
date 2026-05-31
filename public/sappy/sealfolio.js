@@ -126,18 +126,20 @@
       keys: owned.filter((o) => contractType(o.contract) === "sappy-key").length,
       artifacts: owned.filter((o) => contractType(o.contract) === "artifact").length,
       delegates: state.delegatedWallets.length,
+      collections: new Set(owned.map((o) => o.collection).filter(Boolean)).size,
     };
+    const sealScore = Math.min(420, counts.seals ? 120 + Math.max(0, Math.min(counts.seals, 5) - 1) * 30 + Math.max(0, counts.seals - 5) * 12 : 0);
+    const stakedScore = Math.min(160, counts.staked * 35);
+    const keyScore = Math.min(80, counts.keys * 35);
+    const artifactScore = Math.min(80, counts.artifacts * 35);
+    const omniaScore = Math.min(180, Math.round(Math.sqrt(counts.omnia) * 22));
+    const pixsealScore = Math.min(90, Math.round(Math.sqrt(counts.pixseals) * 13));
+    const delegateScore = Math.min(50, counts.delegates * 25);
+    const varietyScore = Math.min(90, counts.collections * 15);
     return {
       counts,
-      total: Math.min(999,
-        counts.seals * 40
-        + counts.staked * 85
-        + counts.keys * 70
-        + counts.artifacts * 65
-        + counts.omnia * 28
-        + counts.pixseals * 16
-        + counts.delegates * 30
-      ),
+      parts: { sealScore, stakedScore, keyScore, artifactScore, omniaScore, pixsealScore, delegateScore, varietyScore },
+      total: Math.min(999, sealScore + stakedScore + keyScore + artifactScore + omniaScore + pixsealScore + delegateScore + varietyScore),
     };
   }
 
@@ -165,6 +167,14 @@
   function scoreFor(owned) {
     if (state.nfts) return scoreBreakdown(owned, owned.filter((o) => o.staked).length).total;
     return 0;
+  }
+
+  function rankFor(score) {
+    if (score >= 850) return "Seal Whale";
+    if (score >= 650) return "Legendary Collector";
+    if (score >= 420) return "Pod Member";
+    if (score >= 180) return "Seal Enjoyer";
+    return "New Collector";
   }
 
   function badgesFor(owned, staked) {
@@ -217,8 +227,8 @@
     const owned = normalizeOwned();
     const staked = owned.filter((o) => o.staked).length;
     const badges = badgesFor(owned, staked);
-    const first = owned[0] || null;
-    const profileImage = normalizeImage(state.profile.pfp || urlPfp || first?.image || "");
+    const profileAsset = firstProfileAsset(owned);
+    const profileImage = normalizeImage(state.profile.pfp || urlPfp || profileAsset?.image || "");
     const isReal = Array.isArray(state.nfts);
     const hasProfile = isReal && owned.length > 0;
     const targetWallet = state.profileWallet || state.connectedAddress || state.address;
@@ -229,7 +239,7 @@
     const breakdown = scoreBreakdown(owned, staked);
     const displayName = state.profile.displayName || handle;
     const bio = state.profile.bio || "";
-    const rank = hasProfile ? RANKS[Math.min(RANKS.length - 1, Math.floor(score / 200))] : "Unclaimed";
+    const rank = hasProfile ? rankFor(score) : "Unclaimed";
     const statusCopy = state.loading
       ? ["Syncing your wallet.", "Pulling Sappy Seals, staked Seals, Pixseals, Omnia items, keys and artifacts from the covered contracts."]
       : isReal
@@ -243,9 +253,9 @@
     document.getElementById("folio").innerHTML = `
       <a class="folio-back" href="community.html">← Back to the Pod</a>
       <div class="folio-hero">
-        <div class="folio-pfp sealframe ${profileImage || first ? "" : "folio-pfp-empty"} ${urlPfp ? "verified-pfp" : ""}" data-pin="${!profileImage && first && !first.image ? "1" : "0"}" data-kind="${!profileImage && first && !first.image ? "seal" : "none"}" data-id="${first ? first.id : ""}" data-px="300">
+        <div class="folio-pfp sealframe ${profileImage || profileAsset ? "" : "folio-pfp-empty"} ${urlPfp ? "verified-pfp" : ""}" data-pin="${!profileImage && profileAsset ? "1" : "0"}" data-kind="${!profileImage && profileAsset ? "seal" : "none"}" data-id="${profileAsset ? profileAsset.id : ""}" data-px="300">
           ${profileImage ? `<img class="seal-photo show" src="${profileImage}" alt="${esc(displayName)} profile picture" referrerpolicy="no-referrer">` : ""}
-          ${!profileImage && !first ? `<img class="seal-photo show" src="/sappy/assets/sappy-seal-emoji.webp" alt="Sappy Sealfolio">` : ""}
+          ${!profileImage && !profileAsset ? `<img class="seal-photo show" src="/sappy/assets/sappy-seal-emoji.webp" alt="Sappy Sealfolio">` : ""}
         </div>
         <div class="folio-id">
           <div class="name">${esc(displayName)}</div>
@@ -296,7 +306,7 @@
         <div class="fstat"><div class="v">${staked}</div><div class="k">Staked</div></div>
         <div class="fstat"><div class="v">${score}</div><div class="k">Score</div></div>
       </div>
-      ${hasProfile ? `<div class="score-explain">Score weights: ${breakdown.counts.seals} seals ×40, ${breakdown.counts.staked} staked ×85, ${breakdown.counts.keys} keys ×70, ${breakdown.counts.artifacts} artifacts ×65, ${breakdown.counts.omnia} Omnia assets ×28, ${breakdown.counts.pixseals} Pixseals ×16, ${breakdown.counts.delegates} delegated vaults ×30.</div>` : ""}
+      ${hasProfile ? `<div class="score-explain">Score curve: seals ${breakdown.parts.sealScore}, staked ${breakdown.parts.stakedScore}, keys ${breakdown.parts.keyScore}, artifacts ${breakdown.parts.artifactScore}, Omnia ${breakdown.parts.omniaScore}, Pixseals ${breakdown.parts.pixsealScore}, Delegate.xyz ${breakdown.parts.delegateScore}, collection variety ${breakdown.parts.varietyScore}. Whale scores now require real depth, not just a long mixed asset list.</div>` : ""}
 
       <div class="folio-sec">
         <h2>${hasProfile ? "Claim your Sealfolio" : "Create your Sealfolio"}</h2>
@@ -476,8 +486,14 @@
   }
 
   function firstProfileImage() {
-    const first = normalizeOwned()[0];
-    return first?.image || "/sappy/assets/sappy-seal-emoji.webp";
+    const asset = firstProfileAsset(normalizeOwned());
+    return asset?.image || "/sappy/assets/sappy-seal-emoji.webp";
+  }
+
+  function firstProfileAsset(owned = normalizeOwned()) {
+    return owned.find((o) => isSealAsset(o) && o.image)
+      || owned.find((o) => isSealAsset(o) && o.id)
+      || null;
   }
 
   S.ready(function () {
