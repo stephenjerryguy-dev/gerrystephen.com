@@ -616,7 +616,11 @@ body.no-photos .sealframe img.seal-photo{opacity:0 !important;}
 .pod-card.verified-holder{border-color:rgba(30,147,214,.5);}
 .pod-card .sealframe{width:100%;aspect-ratio:1/1;}
 .pod-pfp{width:100%;aspect-ratio:1/1;display:block;object-fit:cover;background:var(--ocean-mist);}
-.pod-card.verified-holder .pod-pfp{clip-path:polygon(25% 4%,75% 4%,100% 50%,75% 96%,25% 96%,0 50%);margin:10px auto 0;width:calc(100% - 20px);}
+.pod-card.verified-holder .pod-pfp{
+  clip-path:polygon(25% 4%,75% 4%,100% 50%,75% 96%,25% 96%,0 50%);
+  margin:10px auto 0;width:calc(100% - 20px);box-sizing:border-box;padding:4px;
+  background:linear-gradient(145deg,#fff8d6 0%,#d9a935 42%,#8c6113 70%,#fff1a8 100%);
+}
 .pod-card .info{padding:13px 15px;}
 .pod-card .info .n{font-weight:800;font-size:15px;}
 .pod-card .info .t{color:var(--ink-soft);font-size:12.5px;margin-top:2px;}
@@ -687,7 +691,15 @@ body.no-photos .sealframe img.seal-photo{opacity:0 !important;}
 .folio-pfp .seal-photo.show{opacity:1;}
 .folio-pfp-empty{background:linear-gradient(145deg,#e8f7ff,#fff6de);padding:14px;}
 .folio-pfp-empty .seal-photo{object-fit:contain;filter:drop-shadow(0 10px 14px rgba(12,35,50,.18));}
-.folio-pfp.verified-pfp{clip-path:polygon(25% 4%,75% 4%,100% 50%,75% 96%,25% 96%,0 50%);border-radius:0;}
+.folio-pfp.verified-pfp{
+  clip-path:polygon(25% 4%,75% 4%,100% 50%,75% 96%,25% 96%,0 50%);
+  border:0;border-radius:0;overflow:hidden;padding:5px;
+  background:linear-gradient(145deg,#fff9dc 0%,#e4b941 38%,#9f731b 68%,#fff0a4 100%);
+}
+.folio-pfp.verified-pfp .seal-photo{
+  inset:5px;width:calc(100% - 10px);height:calc(100% - 10px);
+  clip-path:polygon(25% 4%,75% 4%,100% 50%,75% 96%,25% 96%,0 50%);
+}
 .folio-id .name{font-family:var(--font-display);font-weight:900;font-size:clamp(32px,4vw,46px);letter-spacing:-.02em;line-height:1;}
 .folio-id .wallet{font-family:"DM Mono",monospace;color:var(--ink-soft);font-size:14px;margin-top:8px;}
 .folio-bio{max-width:58ch;margin:10px 0 0;color:var(--ink-soft);font-size:15px;line-height:1.45;}

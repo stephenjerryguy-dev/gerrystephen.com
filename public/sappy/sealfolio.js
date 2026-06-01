@@ -5,6 +5,7 @@
   const handle = qs.get("u") || "sappyseal_holder";
   const urlWallet = qs.get("wallet") || "";
   const urlPfp = qs.get("pfp") || "";
+  const urlXHandle = cleanXHandle(qs.get("x") || (/^@/.test(handle) ? handle : ""));
   const seedNum = parseInt(qs.get("seed") || "0", 10) || hashStr(handle);
 
   function hashStr(s) { let h = 2166136261 >>> 0; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
@@ -13,7 +14,7 @@
   const pick = (n) => Math.floor(rnd() * n);
 
   const TRAITS = ["Orange BG", "Cloudy", "Poorple", "Black Tee", "Yellow Bomber", "Green Scarf", "Beanie", "Shades", "Durag", "Mushroom", "Pumpkin Head", "Halo", "Party Hat", "Skeleton"];
-  const VIBES = ["ARF ARF", "WAGBO", "Diamond Flippers", "Pod Leader", "Cold Water Club", "Sealmaxi"];
+  const VIBES = ["ARF ARF", "Sappy on X", "Diamond Flippers", "Pod Leader", "Cold Water Club", "Sealmaxi"];
   const RANKS = ["New Collector", "Seal Enjoyer", "Pod Member", "Legendary Collector", "Seal Whale"];
   const CONTRACTS = {
     seals: "0x364c828ee171616a39897688a831c2499ad972ec",
@@ -86,6 +87,11 @@
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
+  }
+
+  function cleanXHandle(value) {
+    const cleaned = String(value || "").trim().replace(/^@/, "");
+    return /^[A-Za-z0-9_]{1,15}$/.test(cleaned) ? cleaned : "";
   }
 
   function loadLocalProfile() {
@@ -267,6 +273,7 @@
     const score = hasProfile ? scoreFor(owned) : 0;
     const breakdown = scoreBreakdown(owned, staked);
     const displayName = state.profile.displayName || handle;
+    const xHandle = cleanXHandle(state.profile.xHandle || urlXHandle);
     const bio = state.profile.bio || "";
     const rank = hasProfile ? rankFor(score) : "Unclaimed";
     const statusCopy = state.loading
@@ -293,7 +300,7 @@
           <div class="folio-chips">
             <span class="chip vibe">Vibe · ${vibe}</span>
             <span class="chip pixl">BITS pending</span>
-            <a class="chip xh" href="https://x.com/${handle.replace(/^@/, "")}" target="_blank" rel="noopener">𝕏 @${handle.replace(/^@/, "")}</a>
+            ${xHandle ? `<a class="chip xh" href="https://x.com/${xHandle}" target="_blank" rel="noopener">𝕏 @${xHandle}</a>` : ""}
             ${canClaim ? `<span class="chip verified">Wallet verified</span>` : ""}
           </div>
         </div>

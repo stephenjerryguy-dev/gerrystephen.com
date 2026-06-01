@@ -2,7 +2,7 @@
 (function () {
   const S = window.Sappy;
   const NAMES = ["wabdoteth", "diakou", "stormrdoteth", "DylanKentish", "lilstovetop", "pixlpilled", "arfarf", "sealmaxi", "coldwater", "blubber", "icefloe", "frostbite", "sappykorea", "norekme", "sealchemist", "podfather"];
-  const VIBES = ["ARF ARF", "WAGBO", "Diamond Flipper", "Pod Leader", "New Collector", "Staker", "Whale", "Cold Water Club"];
+  const VIBES = ["ARF ARF", "Sappy on X", "Diamond Flipper", "Pod Leader", "New Collector", "Staker", "Whale", "Cold Water Club"];
   const state = {
     holders: null,
     loading: false,
@@ -66,6 +66,7 @@
     });
     if (holder.address) params.set("wallet", holder.address);
     if (holder.profileImage) params.set("pfp", holder.profileImage);
+    if (holder.xHandle) params.set("x", holder.xHandle.replace(/^@/, ""));
     return {
       h: label,
       vibe: holder.source === "opensea-account" ? "OpenSea profile" : index < 3 ? "Top Holder" : VIBES[seed % VIBES.length],
