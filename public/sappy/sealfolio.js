@@ -424,13 +424,13 @@
     state.error = "";
     render();
     try {
-      const path = `/api/nfts?wallet=${encodeURIComponent(address)}`;
+      const path = `/api/nfts?wallet=${encodeURIComponent(address)}&_=${Date.now()}`;
       const endpoints = [path];
       if (/^(127\.0\.0\.1|localhost)$/.test(location.hostname)) endpoints.push(`https://www.gerrystephen.com${path}`);
       let data = null;
       for (const endpoint of endpoints) {
         try {
-          const response = await fetch(endpoint, { headers: { accept: "application/json" } });
+          const response = await fetch(endpoint, { cache: "no-store", headers: { accept: "application/json" } });
           const type = response.headers.get("content-type") || "";
           if (!response.ok || !type.includes("application/json")) continue;
           const json = await response.json();

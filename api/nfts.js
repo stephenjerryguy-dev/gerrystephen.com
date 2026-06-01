@@ -31,6 +31,7 @@ const OMNIA_PET_IMAGE_OVERRIDES = {
 };
 const SAPPY_SEALS_CONTRACT = '0x364c828ee171616a39897688a831c2499ad972ec';
 const STAKED_SAPPY_SEALS_CONTRACT = '0x1c70d0a86475cc707b48aa79f112857e7957274f';
+const SAPPY_SEAL_IMAGE_BASE = 'https://dweb.link/ipfs/QmUs4WQP47QKGwzPLjVMmhqTbspJfAC344abDEE2UT52HF';
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
 const LOCAL_INKFINITY_IMAGES = {
   1: 'assets/inkfinity-visionary.png',
@@ -196,6 +197,7 @@ function localImageFor(contract, tokenId) {
 function canonicalImageFor(contract, tokenId, image) {
   const normalizedContract = contract?.toLowerCase?.();
   const id = String(tokenId || '').replace(/\D/g, '') || String(tokenId || '');
+  if ((normalizedContract === SAPPY_SEALS_CONTRACT || normalizedContract === STAKED_SAPPY_SEALS_CONTRACT) && id) return `${SAPPY_SEAL_IMAGE_BASE}/${id}.png`;
   if (normalizedContract === SAPPY_KEY_CONTRACT) return SAPPY_KEY_IMAGE;
   if (normalizedContract === OMNIA_ITEMS_CONTRACT && id) return `${OMNIA_ITEM_IMAGE_BASE}/${id}.png`;
   if (normalizedContract === OMNIA_PETS_CONTRACT && OMNIA_PET_IMAGE_OVERRIDES[id]) return OMNIA_PET_IMAGE_OVERRIDES[id];
