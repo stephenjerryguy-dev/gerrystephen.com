@@ -119,13 +119,14 @@ window.Sappy = (function () {
     else if (kind === "none") addLoader(frame);
   }
   function hydrate(root) {
-    (root || document).querySelectorAll(".sealframe:not([data-built])").forEach((f) => {
+    (root || document).querySelectorAll(".sealframe:not([data-built]):not([data-skip-hydrate])").forEach((f) => {
       f.setAttribute("data-built", "1"); buildFrame(f);
     });
   }
   function reroll() {
     document.querySelectorAll(".sealframe").forEach((f) => {
       if (f.dataset.pin === "1") return; // keep pinned ids
+      if (f.dataset.skipHydrate === "1") return;
       f.querySelectorAll(".seal-loader, .seal-photo").forEach((n) => n.remove());
       f.removeAttribute("data-built"); if (f.dataset.id === undefined) delete f.dataset.tokenId;
     });

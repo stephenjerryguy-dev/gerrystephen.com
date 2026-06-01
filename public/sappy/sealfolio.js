@@ -24,6 +24,14 @@
     key: "0x3d3ad7b00e885d3d969e03bfcbaed80fb3df6667",
     artifacts: "0xb1cdf2bfab043ea1d81d0a73b3b849efaac1d31a",
   };
+  const MEDIA = {
+    seals: "https://dweb.link/ipfs/QmUs4WQP47QKGwzPLjVMmhqTbspJfAC344abDEE2UT52HF",
+    pixseals: "https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4",
+    key: "https://gold-ready-vicuna-5.mypinata.cloud/ipfs/QmUYJi27E6p9f4BpvqEijtEe2kKyztqrtcEwr7iM3RAqLi/KeyGIF.gif",
+    omniaItems: "https://dweb.link/ipfs/QmZbN8LpJe6aRdey277wx5SvsyVTom8AS9FzKMmJYFDtdh",
+    artifact: "/sappy/assets/digital-artifact-1.png",
+    omnia: "/sappy/assets/omnia-logo.png",
+  };
   const EMOJI_PACKS = {
     exclusive: "https://t.me/addemoji/SappySsemoji",
     easy: "https://t.me/addemoji/SappySealsEmojis2",
@@ -218,17 +226,30 @@
   function renderTokenArt(o) {
     const type = contractType(o.contract);
     const id = String(o.id || "").replace(/\D/g, "") || o.id || "";
-    if (o.image || o.animation) {
-      return `<a class="sealframe token-art" href="${o.href || "#"}" target="_blank" rel="noopener">
-        <img class="seal-photo show" src="${o.image || o.animation}" alt="${esc(o.name || `Sappy asset #${o.id}`)}" loading="lazy" referrerpolicy="no-referrer">
+    const image = canonicalTokenImage(o);
+    if (image || o.animation) {
+      return `<a class="token-art token-art-static token-art-${type}" data-skip-hydrate="1" href="${o.href || "#"}" target="_blank" rel="noopener">
+        <img class="nft-photo show" src="${image || o.animation}" alt="${esc(o.name || `Sappy asset #${o.id}`)}" loading="lazy" referrerpolicy="no-referrer">
       </a>`;
     }
     if (isSealAsset(o) && id) return `<div class="sealframe" data-pin="1" data-kind="seal" data-id="${id}" data-px="320"></div>`;
-    if (o.contract && id) return `<div class="sealframe token-art token-art-fetch token-art-${type}" data-kind="${type}" data-contract="${esc(o.contract)}" data-chain="${o.chain === "matic" ? "polygon" : "eth"}" data-id="${esc(id)}" data-px="320"></div>`;
+    if (o.contract && id) return `<div class="token-art token-art-missing token-art-${type}" data-skip-hydrate="1"><span>${esc(type.replace(/-/g, " ").toUpperCase())}<br>#${esc(id)}</span></div>`;
     if (Array.isArray(state.nfts)) {
-      return `<div class="sealframe token-art token-art-missing token-art-${type}"><span>${esc(type.replace(/-/g, " ").toUpperCase())}<br>ART PENDING</span></div>`;
+      return `<div class="token-art token-art-missing token-art-${type}" data-skip-hydrate="1"><span>${esc(type.replace(/-/g, " ").toUpperCase())}<br>ART PENDING</span></div>`;
     }
-    return `<div class="sealframe token-art token-art-missing token-art-${type}"><span>CONNECT<br>WALLET</span></div>`;
+    return `<div class="token-art token-art-missing token-art-${type}" data-skip-hydrate="1"><span>CONNECT<br>WALLET</span></div>`;
+  }
+
+  function canonicalTokenImage(o) {
+    const type = contractType(o.contract);
+    const id = String(o.id || "").replace(/\D/g, "") || "";
+    if (type === "seal" && id) return `${MEDIA.seals}/${id}.png`;
+    if (type === "pixseal" && id) return `${MEDIA.pixseals}/${id}.png`;
+    if (type === "omnia-item" && id) return `${MEDIA.omniaItems}/${id}.png`;
+    if (type === "sappy-key") return MEDIA.key;
+    if (type === "artifact") return normalizeImage(o.image || o.animation) || MEDIA.artifact;
+    if (type === "omnia-pet") return normalizeImage(o.image || o.animation);
+    return normalizeImage(o.image || o.animation);
   }
 
   function render() {
