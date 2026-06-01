@@ -145,6 +145,7 @@
 
   function normalizeOwned() {
     if (!state.nfts) return [];
+    const seen = new Set();
     return state.nfts.map((nft) => {
       const contract = nft.contract?.toLowerCase?.() || "";
       const id = String(nft.tokenId || "").replace(/\D/g, "") || nft.tokenId || "";
@@ -161,6 +162,13 @@
         contract,
         staked: contract === CONTRACTS.staked || /staked/i.test(`${nft.collection || ""} ${nft.name || ""}`),
       };
+    }).filter((nft) => {
+      const key = (nft.contract === CONTRACTS.seals || nft.contract === CONTRACTS.staked)
+        ? `sappy-seal:${nft.id}`
+        : `${nft.contract}:${nft.id}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
     });
   }
 

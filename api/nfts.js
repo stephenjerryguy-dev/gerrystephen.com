@@ -20,6 +20,8 @@ const PIXSEALS_CONTRACT = '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b';
 const DIGITAL_ARTIFACT_CONTRACT = '0xb1cdf2bfab043ea1d81d0a73b3b849efaac1d31a';
 const SAPPY_KEY_CONTRACT = '0x3d3ad7b00e885d3d969e03bfcbaed80fb3df6667';
 const SAPPY_KEY_IMAGE = 'https://gold-ready-vicuna-5.mypinata.cloud/ipfs/QmUYJi27E6p9f4BpvqEijtEe2kKyztqrtcEwr7iM3RAqLi/KeyGIF.gif';
+const SAPPY_SEALS_CONTRACT = '0x364c828ee171616a39897688a831c2499ad972ec';
+const STAKED_SAPPY_SEALS_CONTRACT = '0x1c70d0a86475cc707b48aa79f112857e7957274f';
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
 const LOCAL_INKFINITY_IMAGES = {
   1: 'assets/inkfinity-visionary.png',
@@ -28,8 +30,8 @@ const LOCAL_INKFINITY_IMAGES = {
 };
 const FORCE_METADATA_REFRESH = new Set([OMNIA_PETS_CONTRACT, OMNIA_ITEMS_CONTRACT, INKFINITY_CONTRACT]);
 const FORCE_OPENSEA_REFRESH = new Set([
-  '0x1c70d0a86475cc707b48aa79f112857e7957274f',
-  '0x364c828ee171616a39897688a831c2499ad972ec',
+  STAKED_SAPPY_SEALS_CONTRACT,
+  SAPPY_SEALS_CONTRACT,
   OMNIA_PETS_CONTRACT,
   OMNIA_ITEMS_CONTRACT,
   SAPPY_KEY_CONTRACT,
@@ -88,8 +90,8 @@ const ECOSYSTEMS = [
     id: 'sappy',
     label: 'Sappy Seals ecosystem',
     contracts: [
-      '0x1c70d0a86475cc707b48aa79f112857e7957274f',
-      '0x364c828ee171616a39897688a831c2499ad972ec',
+      STAKED_SAPPY_SEALS_CONTRACT,
+      SAPPY_SEALS_CONTRACT,
       '0x4e76c23fe2a4e37b5e07b5625e17098baab86c18',
       '0xf0ea56402b2e2b27556d7abf4236c7327722fe41',
       SAPPY_KEY_CONTRACT,
@@ -141,8 +143,8 @@ function isCoveredSappyContract(nft) {
 
 function normalizeCollectionName(name, contract) {
   const normalizedContract = contract?.toLowerCase?.();
-  if (normalizedContract === '0x364c828ee171616a39897688a831c2499ad972ec') return 'Sappy Seals';
-  if (normalizedContract === '0x1c70d0a86475cc707b48aa79f112857e7957274f') return 'Staked Sappy Seals';
+  if (normalizedContract === SAPPY_SEALS_CONTRACT) return 'Sappy Seals';
+  if (normalizedContract === STAKED_SAPPY_SEALS_CONTRACT) return 'Staked Sappy Seals';
   if (normalizedContract === OMNIA_PETS_CONTRACT) return 'Omnia Pets';
   if (normalizedContract === OMNIA_ITEMS_CONTRACT) return 'Omnia items';
   if (normalizedContract === INKFINITY_CONTRACT) return 'Inkfinity Canvas';
@@ -155,7 +157,7 @@ function normalizeCollectionName(name, contract) {
 function normalizeItemName(name, contract) {
   const normalizedContract = contract?.toLowerCase?.();
   const raw = typeof name === 'string' ? name : '';
-  if (normalizedContract === '0x364c828ee171616a39897688a831c2499ad972ec' || normalizedContract === '0x1c70d0a86475cc707b48aa79f112857e7957274f') {
+  if (normalizedContract === SAPPY_SEALS_CONTRACT || normalizedContract === STAKED_SAPPY_SEALS_CONTRACT) {
     const id = raw.match(/#?\s*(\d+)/)?.[1];
     return id ? `Sappy Seal #${id}` : raw || 'Sappy Seal';
   }
@@ -223,6 +225,12 @@ function curatedEcosystemNfts(nfts, options = {}) {
     if (nft.ecosystem === 'sappy') return 12;
     return 8;
   };
+  const identityKey = (nft) => {
+    const contract = nft.contract?.toLowerCase?.() || nft.contract || 'unknown';
+    const tokenId = String(nft.tokenId || '').toLowerCase();
+    if ((contract === SAPPY_SEALS_CONTRACT || contract === STAKED_SAPPY_SEALS_CONTRACT) && tokenId) return `sappy-seal:${tokenId}`;
+    return `${contract}:${tokenId}`;
+  };
   return nfts
     .map((nft) => {
       const ecosystem = ecosystemForNft(nft);
@@ -231,7 +239,7 @@ function curatedEcosystemNfts(nfts, options = {}) {
     })
     .filter(Boolean)
     .filter((nft) => {
-      const key = `${nft.contract?.toLowerCase?.() || nft.contract}:${nft.tokenId}`;
+      const key = identityKey(nft);
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
