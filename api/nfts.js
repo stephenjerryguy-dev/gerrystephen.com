@@ -20,6 +20,15 @@ const PIXSEALS_CONTRACT = '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b';
 const DIGITAL_ARTIFACT_CONTRACT = '0xb1cdf2bfab043ea1d81d0a73b3b849efaac1d31a';
 const SAPPY_KEY_CONTRACT = '0x3d3ad7b00e885d3d969e03bfcbaed80fb3df6667';
 const SAPPY_KEY_IMAGE = 'https://gold-ready-vicuna-5.mypinata.cloud/ipfs/QmUYJi27E6p9f4BpvqEijtEe2kKyztqrtcEwr7iM3RAqLi/KeyGIF.gif';
+const OMNIA_ITEM_IMAGE_BASE = 'https://dweb.link/ipfs/QmZbN8LpJe6aRdey277wx5SvsyVTom8AS9FzKMmJYFDtdh';
+const OMNIA_PET_IMAGE_OVERRIDES = {
+  7262: 'https://dweb.link/ipfs/QmWrbaUmFYMga5uXNo32ff8fEbHEDGvCinGGmEsph4bY2c/Water.gif',
+  7263: 'https://storage.googleapis.com/pv-pp-bucket-1/images-v2/19d2d613d9e662c86e1306505316e5d25a66cfb104d4cf6e3454c98310288c96.png',
+  9162: 'https://storage.googleapis.com/pv-pp-bucket-1/images-v2/87a3d35cdaa08756e2dfe9caae1969629147d0e1e3a73575473b76b4522606ac.png',
+  9163: 'https://storage.googleapis.com/pv-pp-bucket-1/images-v2/0771b981bcf5a6235d7bc42259f143f305c4c8426d9935891294b3f1c98ad22f.png',
+  11756: 'https://storage.googleapis.com/pv-pp-bucket-1/images-v2/6763b824a1c3f4dc6e664275e654da45221f37cd100c6bdedcf25d7069dbc886.png',
+  12501: 'https://storage.googleapis.com/pv-pp-bucket-1/images-v2/59c14f0564c3d6fa10185998ecb8f7d3f807c1c7caf568c0e2b3153bc32d07fd.png',
+};
 const SAPPY_SEALS_CONTRACT = '0x364c828ee171616a39897688a831c2499ad972ec';
 const STAKED_SAPPY_SEALS_CONTRACT = '0x1c70d0a86475cc707b48aa79f112857e7957274f';
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
@@ -186,8 +195,11 @@ function localImageFor(contract, tokenId) {
 
 function canonicalImageFor(contract, tokenId, image) {
   const normalizedContract = contract?.toLowerCase?.();
+  const id = String(tokenId || '').replace(/\D/g, '') || String(tokenId || '');
   if (normalizedContract === SAPPY_KEY_CONTRACT) return SAPPY_KEY_IMAGE;
-  if (normalizedContract === DIGITAL_ARTIFACT_CONTRACT && String(tokenId) === '1') return '/sappy/assets/digital-artifact-1.png';
+  if (normalizedContract === OMNIA_ITEMS_CONTRACT && id) return `${OMNIA_ITEM_IMAGE_BASE}/${id}.png`;
+  if (normalizedContract === OMNIA_PETS_CONTRACT && OMNIA_PET_IMAGE_OVERRIDES[id]) return OMNIA_PET_IMAGE_OVERRIDES[id];
+  if (normalizedContract === DIGITAL_ARTIFACT_CONTRACT && id === '1') return '/sappy/assets/digital-artifact-1.png';
   return image;
 }
 

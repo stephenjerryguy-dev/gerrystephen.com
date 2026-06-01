@@ -78,7 +78,6 @@ window.addEventListener('error', (event) => {
 const settings = {
   appName: 'Sappy Sealfolio',
   appLogoUrl: `${window.location.origin}/sappy/assets/sappy-seal-emoji.webp`,
-  apiBaseUrl: `${window.location.origin}/dynamic-api`,
   environmentId: SAPPY_DYNAMIC_ENV_ID,
   initialAuthenticationMode: 'connect-and-sign',
   theme: 'light',
