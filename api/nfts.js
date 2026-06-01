@@ -18,6 +18,8 @@ const OMNIA_ITEMS_CONTRACT = '0xf0ea56402b2e2b27556d7abf4236c7327722fe41';
 const INKFINITY_CONTRACT = '0x4de49a57235cc0d4d22baad106a4dc302c8d935e';
 const PIXSEALS_CONTRACT = '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b';
 const DIGITAL_ARTIFACT_CONTRACT = '0xb1cdf2bfab043ea1d81d0a73b3b849efaac1d31a';
+const SAPPY_KEY_CONTRACT = '0x3d3ad7b00e885d3d969e03bfcbaed80fb3df6667';
+const SAPPY_KEY_IMAGE = 'https://gold-ready-vicuna-5.mypinata.cloud/ipfs/QmUYJi27E6p9f4BpvqEijtEe2kKyztqrtcEwr7iM3RAqLi/KeyGIF.gif';
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
 const LOCAL_INKFINITY_IMAGES = {
   1: 'assets/inkfinity-visionary.png',
@@ -30,7 +32,7 @@ const FORCE_OPENSEA_REFRESH = new Set([
   '0x364c828ee171616a39897688a831c2499ad972ec',
   OMNIA_PETS_CONTRACT,
   OMNIA_ITEMS_CONTRACT,
-  '0x3d3ad7b00e885d3d969e03bfcbaed80fb3df6667',
+  SAPPY_KEY_CONTRACT,
   PIXSEALS_CONTRACT,
   DIGITAL_ARTIFACT_CONTRACT,
 ].map((contract) => contract.toLowerCase()));
@@ -90,7 +92,7 @@ const ECOSYSTEMS = [
       '0x364c828ee171616a39897688a831c2499ad972ec',
       '0x4e76c23fe2a4e37b5e07b5625e17098baab86c18',
       '0xf0ea56402b2e2b27556d7abf4236c7327722fe41',
-      '0x3d3ad7b00e885d3d969e03bfcbaed80fb3df6667',
+      SAPPY_KEY_CONTRACT,
       PIXSEALS_CONTRACT,
       DIGITAL_ARTIFACT_CONTRACT,
     ],
@@ -145,6 +147,7 @@ function normalizeCollectionName(name, contract) {
   if (normalizedContract === OMNIA_ITEMS_CONTRACT) return 'Omnia items';
   if (normalizedContract === INKFINITY_CONTRACT) return 'Inkfinity Canvas';
   if (normalizedContract === PIXSEALS_CONTRACT) return 'Pixseals by Sappy Seals';
+  if (normalizedContract === SAPPY_KEY_CONTRACT) return 'Sappy Key Coverage';
   if (normalizedContract === DIGITAL_ARTIFACT_CONTRACT) return 'Digital Artifacts';
   return name;
 }
@@ -177,6 +180,13 @@ function localImageFor(contract, tokenId) {
     return LOCAL_INKFINITY_IMAGES[String(tokenId)];
   }
   return undefined;
+}
+
+function canonicalImageFor(contract, tokenId, image) {
+  const normalizedContract = contract?.toLowerCase?.();
+  if (normalizedContract === SAPPY_KEY_CONTRACT) return SAPPY_KEY_IMAGE;
+  if (normalizedContract === DIGITAL_ARTIFACT_CONTRACT && String(tokenId) === '1') return '/sappy/assets/digital-artifact-1.png';
+  return image;
 }
 
 function curatedEcosystemNfts(nfts, options = {}) {
@@ -221,7 +231,7 @@ function curatedEcosystemNfts(nfts, options = {}) {
     })
     .filter(Boolean)
     .filter((nft) => {
-      const key = `${nft.contract}:${nft.tokenId}`;
+      const key = `${nft.contract?.toLowerCase?.() || nft.contract}:${nft.tokenId}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -280,17 +290,20 @@ function normalizeOpenSeaNft(item, wallet = 'collection', chain = 'ethereum') {
     : item?.contract?.address || item?.asset_contract?.address;
   const tokenId = item?.identifier || item?.token_id || item?.tokenId;
   if (!contract || !tokenId) return null;
+  const normalizedContract = String(contract).toLowerCase();
   const collectionName = typeof item?.collection === 'string'
     ? item.collection
     : item?.collection?.name || item?.collection?.slug;
+  const image = localImageFor(normalizedContract, tokenId)
+    || ipfsToHttps(item?.display_image_url || item?.image_url || item?.image || item?.metadata?.image);
 
   return {
-    name: normalizeItemName(item?.name || `${collectionName || 'NFT'} #${tokenId}`, contract),
-    collection: normalizeCollectionName(collectionName || 'Collected NFT', contract),
-    image: localImageFor(contract, tokenId) || ipfsToHttps(item?.display_image_url || item?.image_url || item?.image || item?.metadata?.image),
+    name: normalizeItemName(item?.name || `${collectionName || 'NFT'} #${tokenId}`, normalizedContract),
+    collection: normalizeCollectionName(collectionName || 'Collected NFT', normalizedContract),
+    image: canonicalImageFor(normalizedContract, tokenId, image),
     animationUrl: ipfsToHttps(item?.display_animation_url || item?.animation_url),
-    href: item?.opensea_url || `https://opensea.io/item/${openseaChain(chain)}/${contract}/${tokenId}`,
-    contract,
+    href: item?.opensea_url || `https://opensea.io/item/${openseaChain(chain)}/${normalizedContract}/${tokenId}`,
+    contract: normalizedContract,
     tokenId,
     chain: openseaChain(chain),
     wallet: wallet === 'collection' ? 'collection' : `${wallet.slice(0, 6)}...${wallet.slice(-4)}`,
@@ -408,13 +421,16 @@ function normalizeToken(item, wallet = 'collection', chain = 'ethereum') {
   const tokenId = token.tokenId || token.token_id;
 
   if (!contract || !tokenId) return null;
+  const normalizedContract = String(contract).toLowerCase();
+  const image = localImageFor(normalizedContract, tokenId)
+    || ipfsToHttps(token.imageSmall || token.image || token.imageUrl || token.metadata?.image);
 
   return {
-    name: normalizeItemName(token.name || `${collection.name || 'NFT'} #${tokenId}`, contract),
-    collection: normalizeCollectionName(collection.name || 'Collected NFT', contract),
-    image: localImageFor(contract, tokenId) || ipfsToHttps(token.imageSmall || token.image || token.imageUrl || token.metadata?.image),
-    href: `https://opensea.io/assets/${chain}/${contract}/${tokenId}`,
-    contract,
+    name: normalizeItemName(token.name || `${collection.name || 'NFT'} #${tokenId}`, normalizedContract),
+    collection: normalizeCollectionName(collection.name || 'Collected NFT', normalizedContract),
+    image: canonicalImageFor(normalizedContract, tokenId, image),
+    href: `https://opensea.io/assets/${chain}/${normalizedContract}/${tokenId}`,
+    contract: normalizedContract,
     tokenId,
     chain,
     wallet: wallet === 'collection' ? 'collection' : `${wallet.slice(0, 6)}...${wallet.slice(-4)}`,
@@ -423,7 +439,7 @@ function normalizeToken(item, wallet = 'collection', chain = 'ethereum') {
 
 function normalizeBlockscoutNft(item, wallet) {
   const token = item?.token || {};
-  const contract = token.address_hash;
+  const contract = token.address_hash?.toLowerCase?.();
   const tokenId = item?.id || item?.token_id;
   if (!contract || !tokenId) return null;
 
@@ -435,7 +451,7 @@ function normalizeBlockscoutNft(item, wallet) {
   return {
     name: normalizeItemName(item?.metadata?.name || `${token.name || token.symbol || 'NFT'} #${tokenId}`, contract),
     collection: normalizeCollectionName(token.name || token.symbol || 'Collected NFT', contract),
-    image: localImageFor(contract, tokenId) || ipfsToHttps(item?.image_url || item?.media_url || item?.metadata?.image || item?.metadata?.image_url),
+    image: canonicalImageFor(contract, tokenId, localImageFor(contract, tokenId) || ipfsToHttps(item?.image_url || item?.media_url || item?.metadata?.image || item?.metadata?.image_url)),
     metadataUri,
     href: `https://opensea.io/assets/ethereum/${contract}/${tokenId}`,
     contract,
@@ -537,7 +553,7 @@ async function refreshNftMetadata(nft) {
     ...nft,
     name: normalizeItemName(openSea?.name || metadata?.name || nft.name, nft.contract),
     collection: normalizeCollectionName(openSea?.collection || nft.collection, nft.contract),
-    image: openSea?.image || openSea?.animationUrl || metadata?.image || nft.image,
+    image: canonicalImageFor(nft.contract, nft.tokenId, openSea?.image || openSea?.animationUrl || metadata?.image || nft.image),
     href: openSea?.href || nft.href,
   };
 }
