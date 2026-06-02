@@ -52,10 +52,36 @@
     ].filter(Boolean).join(" ").toLowerCase();
   }
 
+  function searchNeedle() {
+    return state.query.trim().replace(/^@/, "").toLowerCase();
+  }
+
+  function memberSearchFields(member) {
+    return [
+      member.h,
+      member.xHandle,
+      member.openseaUsername,
+      member.address,
+      member.vibe,
+    ].filter(Boolean).map((value) => String(value).replace(/^@/, "").toLowerCase());
+  }
+
+  function searchScore(member, q) {
+    const fields = memberSearchFields(member);
+    if (fields.some((field) => field === q)) return 0;
+    if (fields.some((field) => field.startsWith(q))) return 1;
+    if (fields.some((field) => field.includes(q))) return 2;
+    return holderText(member).includes(q) ? 3 : 99;
+  }
+
   function filteredMembers(members) {
-    const q = state.query.trim().toLowerCase();
+    const q = searchNeedle();
     if (!q) return members;
-    return members.filter((member) => holderText(member).includes(q.replace(/^@/, "")));
+    return members
+      .map((member) => ({ member, score: searchScore(member, q) }))
+      .filter((item) => item.score < 99)
+      .sort((a, b) => a.score - b.score || Number(b.member.n || 0) - Number(a.member.n || 0))
+      .map((item) => item.member);
   }
 
   function mapHolder(holder, index, offset = 3200) {
@@ -91,8 +117,10 @@
       return { h, vibe: VIBES[seed % VIBES.length], n, countType: "ecosystem", seed, id: (seed * 3) % 10000, href: `sealfolio.html?u=${h}&seed=${seed}` };
     });
     const localFiltered = filteredMembers(members);
-    const filtered = state.queryResults || localFiltered;
+    const apiResults = Array.isArray(state.queryResults) ? state.queryResults : null;
+    const filtered = apiResults?.length ? apiResults : localFiltered;
     const searchingOpenSea = state.queryLoading && state.query.trim().length >= 2;
+    const q = searchNeedle();
     document.getElementById("community").innerHTML = `
       <div class="page-head">
         <span class="eyebrow">▪ THE POD</span>
@@ -111,7 +139,7 @@
         <div class="holder-toolbar">
           <div>
             <h2>${state.totalHolders ? `${fmt(state.totalHolders)} holders across the pod` : state.holders ? "Live holders from the contracts" : "Live holders and growing"}</h2>
-            <p>${searchingOpenSea ? "Searching OpenSea accounts and holder profiles..." : state.holders ? "Profiles are populated from holder data and enriched with OpenSea-linked socials where available." : "Loading the live pod, with local samples while the API wakes up."}</p>
+            <p>${q ? `${filtered.length} possible ${filtered.length === 1 ? "profile" : "profiles"} for “${esc(state.query)}”${searchingOpenSea ? " · checking OpenSea..." : ""}` : searchingOpenSea ? "Searching OpenSea accounts and holder profiles..." : state.holders ? "Profiles are populated from holder data and enriched with OpenSea-linked socials where available." : "Loading the live pod, with local samples while the API wakes up."}</p>
           </div>
           <label class="holder-search">
             <span>Search holders</span>
@@ -120,7 +148,7 @@
         </div>
         ${state.loading ? '<div class="folio-loading">Loading holder list from Sappy Seals and staked Sappy Seals...</div>' : ""}
         ${searchingOpenSea ? '<div class="folio-loading">Checking OpenSea for that holder profile...</div>' : ""}
-        ${!filtered.length && !searchingOpenSea ? `<div class="folio-loading">No holders matched “${esc(state.query)}”. Try a wallet, ENS, OpenSea username or X handle.</div>` : ""}
+        ${!filtered.length && !searchingOpenSea ? `<div class="folio-loading">No holders matched “${esc(state.query)}”. Keep typing a wallet, ENS, OpenSea username or X handle.</div>` : ""}
         <div class="pod-grid">${filtered.map((m) => `
           <a class="pod-card ${m.claimable ? "verified-holder" : ""}" href="${m.href}">
             ${m.image ? `<img class="pod-pfp" src="${m.image}" alt="${m.h} profile picture" referrerpolicy="no-referrer" loading="lazy">` : `<div class="sealframe" data-pin="1" data-kind="seal" data-id="${m.id}" data-px="320"></div>`}
