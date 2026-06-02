@@ -125,6 +125,13 @@
       || (haystack.includes("digital artifact") && (haystack.includes("btc") || haystack.includes("bitcoin") || haystack.includes("ordinal") || haystack.includes("artifact")));
   }
 
+  function artifactTokenId(o) {
+    const raw = o?.id || o?.tokenId || o?.identifier || o?.token_id || "";
+    const direct = String(raw || "").match(/\d+/)?.[0];
+    if (direct) return direct;
+    return `${o?.name || ""} ${o?.collection || ""}`.match(/(?:artifact|#)\s*#?\s*(\d+)/i)?.[1] || "";
+  }
+
   function isSealAsset(o) {
     return contractType(o.contract) === "seal" || /sappy seal/i.test(`${o.collection || ""} ${o.name || ""}`);
   }
@@ -168,7 +175,8 @@
     const seen = new Set();
     return state.nfts.map((nft) => {
       const contract = nft.contract?.toLowerCase?.() || "";
-      const id = String(nft.tokenId || "").replace(/\D/g, "") || nft.tokenId || "";
+      const artifact = isDigitalArtifactAsset(nft);
+      const id = artifact ? artifactTokenId(nft) : (String(nft.tokenId || "").replace(/\D/g, "") || nft.tokenId || "");
       return {
         id,
         name: nft.name || `${nft.collection || "NFT"} #${id}`,
@@ -179,12 +187,12 @@
         href: nft.href,
         chain: nft.chain || "ethereum",
         wallet: nft.wallet,
-        contract,
+        contract: artifact ? CONTRACTS.artifacts : contract,
         staked: contract === CONTRACTS.staked || /staked/i.test(`${nft.collection || ""} ${nft.name || ""}`),
       };
     }).filter((nft) => {
       const key = isDigitalArtifactAsset(nft)
-        ? `digital-artifact:${nft.id || nft.name || nft.collection || "artifact"}`
+        ? `digital-artifact:${artifactTokenId(nft) || nft.name || nft.collection || "artifact"}`
         : (nft.contract === CONTRACTS.seals || nft.contract === CONTRACTS.staked)
         ? `sappy-seal:${nft.id}`
         : `${nft.contract}:${nft.id}`;
@@ -263,7 +271,10 @@
     if (type === "pixseal" && id) return `${MEDIA.pixseals}/${id}.png`;
     if (type === "omnia-item" && id) return `${MEDIA.omniaItems}/${id}.png`;
     if (type === "sappy-key") return MEDIA.key;
-    if (type === "artifact" || isDigitalArtifactAsset(o)) return normalizeImage(o.image || o.animation) || MEDIA.artifact;
+    if (type === "artifact" || isDigitalArtifactAsset(o)) {
+      const media = normalizeImage(o.image || o.animation);
+      return media && !/digital-artifact-93\.jpg/i.test(media) ? media : MEDIA.artifact;
+    }
     if (type === "omnia-pet") return normalizeImage(o.image || o.animation);
     return normalizeImage(o.image || o.animation);
   }

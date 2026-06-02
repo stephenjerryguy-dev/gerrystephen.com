@@ -88,7 +88,7 @@ const STATIC_ASSETS = [
     ecosystem: 'sappy',
     name: 'Digital Artifact #93',
     collection: 'Digital Artifact',
-    image: 'assets/digital-artifact-93.jpg',
+    image: '/sappy/assets/digital-artifact-1.png',
     chain: 'Ethereum',
     tokenId: '93',
     contract: '0xb1cdf2bfab043ea1d81d0a73b3b849efaac1d31a',

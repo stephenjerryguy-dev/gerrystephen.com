@@ -12,7 +12,7 @@ const FALLBACK = {
   change24h: 0,
   sales24h: null,
   volume24h: null,
-  holders: 3885,
+  holders: 2367,
   updatedAt: null,
   source: 'fallback',
 };

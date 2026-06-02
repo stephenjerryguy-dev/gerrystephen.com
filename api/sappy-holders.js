@@ -42,6 +42,10 @@ const SAMPLE = [
   { address: '0x382556a543aad855c07678e7f8e820d0d90429bb', count: 12 },
   { address: '0xc3ce1eb539c1cc031ecd7b95e8c00768bf324403', count: 8 },
 ];
+const KNOWN_DIGITAL_ARTIFACTS_BY_WALLET = {
+  '0x741047ae552e58e89f1ff51d9a06e5d9dfba3feb': 1,
+  '0xcf3b8981abaa56a8e41117b0c721c05f608400a7': 1,
+};
 
 const POD_ECOSYSTEM_CONTRACTS = [
   OMNIA_PETS_CONTRACT,
@@ -111,6 +115,21 @@ function nftContract(item) {
   ).toLowerCase();
 }
 
+function isDigitalArtifactLike(item) {
+  const haystack = [
+    item?.name,
+    item?.identifier,
+    item?.token_id,
+    item?.collection?.name,
+    item?.collection?.slug,
+    item?.collection,
+    item?.contract,
+    item?.chain,
+  ].filter(Boolean).join(' ').toLowerCase();
+  return nftContract(item) === DIGITAL_ARTIFACT_CONTRACT
+    || (haystack.includes('digital artifact') && (haystack.includes('btc') || haystack.includes('bitcoin') || haystack.includes('ordinal') || haystack.includes('artifact')));
+}
+
 async function countOpenSeaEcosystemNfts(address, chain) {
   if (!process.env.OPENSEA_API_KEY || !ADDRESS_RE.test(address)) return 0;
   let count = 0;
@@ -123,7 +142,7 @@ async function countOpenSeaEcosystemNfts(address, chain) {
     }).catch(() => undefined);
     if (!response?.ok) break;
     const data = await response.json().catch(() => ({}));
-    count += (data.nfts || []).filter((nft) => ECOSYSTEM_CONTRACTS.has(nftContract(nft))).length;
+    count += (data.nfts || []).filter((nft) => ECOSYSTEM_CONTRACTS.has(nftContract(nft)) || isDigitalArtifactLike(nft)).length;
     next = data.next;
     if (!next) break;
   }
@@ -134,12 +153,13 @@ async function holderFromOpenSeaQuery(query) {
   const account = await fetchOpenSeaAccount(query);
   const address = account?.address;
   if (!ADDRESS_RE.test(address || '')) return null;
-  const [profile, ethCount, polygonCount] = await Promise.all([
+  const [profile, ethCount, polygonCount, bitcoinCount] = await Promise.all([
     fetchOpenSeaProfile(address),
     countOpenSeaEcosystemNfts(address, 'ethereum'),
     countOpenSeaEcosystemNfts(address, 'matic'),
+    countOpenSeaEcosystemNfts(address, 'bitcoin'),
   ]);
-  const count = ethCount + polygonCount;
+  const count = ethCount + polygonCount + bitcoinCount + (KNOWN_DIGITAL_ARTIFACTS_BY_WALLET[address.toLowerCase()] || 0);
   const xHandle = profile?.xHandle || pickTwitter(account);
   const label = xHandle ? `@${xHandle}` : (account.username || account.name || profile?.label || shortAddress(address));
   const cleanUser = String(xHandle || account.username || label || shortAddress(address)).replace(/^@/, '');
@@ -376,6 +396,11 @@ export default async function handler(req, res) {
         current.count += owner.count;
         ecosystemAggregate.set(key, current);
       });
+    Object.entries(KNOWN_DIGITAL_ARTIFACTS_BY_WALLET).forEach(([address, count]) => {
+      const current = ecosystemAggregate.get(address) || { address, count: 0 };
+      current.count += count;
+      ecosystemAggregate.set(address, current);
+    });
 
     const sealCandidates = [...aggregate.values()]
       .sort((a, b) => b.count - a.count)

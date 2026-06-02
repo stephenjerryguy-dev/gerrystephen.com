@@ -52,7 +52,7 @@ const STATIC_PREVIEW_NFTS = [
   {
     name: 'Digital Artifact #93',
     collection: 'Digital Artifact',
-    image: 'assets/digital-artifact-93.jpg',
+    image: '/sappy/assets/digital-artifact-1.png',
     href: `https://opensea.io/item/ethereum/${DIGITAL_ARTIFACT_CONTRACT}/93`,
     contract: DIGITAL_ARTIFACT_CONTRACT,
     tokenId: '93',
@@ -95,6 +95,10 @@ const STATIC_PREVIEW_NFTS = [
     wallet: 'collection',
   },
 ];
+const KNOWN_DIGITAL_ARTIFACTS_BY_WALLET = {
+  '0x741047ae552e58e89f1ff51d9a06e5d9dfba3feb': ['93'],
+  '0xcf3b8981abaa56a8e41117b0c721c05f608400a7': ['93'],
+};
 const ECOSYSTEMS = [
   {
     id: 'sappy',
@@ -165,6 +169,14 @@ function isDigitalArtifactLike(nft) {
   );
 }
 
+function artifactTokenId(nft) {
+  const raw = nft?.tokenId || nft?.identifier || nft?.token_id || nft?.id || nft?.ordinal_id || nft?.inscription_id || '';
+  const direct = String(raw || '').match(/\d+/)?.[0];
+  if (direct) return direct;
+  const fromName = `${nft?.name || ''} ${nft?.collection || ''}`.match(/(?:artifact|#)\s*#?\s*(\d+)/i)?.[1];
+  return fromName || '';
+}
+
 function normalizeCollectionName(name, contract) {
   const normalizedContract = contract?.toLowerCase?.();
   if (normalizedContract === SAPPY_SEALS_CONTRACT) return 'Sappy Seals';
@@ -215,7 +227,7 @@ function canonicalImageFor(contract, tokenId, image) {
   if (normalizedContract === SAPPY_KEY_CONTRACT) return SAPPY_KEY_IMAGE;
   if (normalizedContract === OMNIA_ITEMS_CONTRACT && id) return `${OMNIA_ITEM_IMAGE_BASE}/${id}.png`;
   if (normalizedContract === OMNIA_PETS_CONTRACT && OMNIA_PET_IMAGE_OVERRIDES[id]) return OMNIA_PET_IMAGE_OVERRIDES[id];
-  if (normalizedContract === DIGITAL_ARTIFACT_CONTRACT && id === '1') return '/sappy/assets/digital-artifact-1.png';
+  if (normalizedContract === DIGITAL_ARTIFACT_CONTRACT) return image || '/sappy/assets/digital-artifact-1.png';
   return image;
 }
 
@@ -257,7 +269,7 @@ function curatedEcosystemNfts(nfts, options = {}) {
     const contract = nft.contract?.toLowerCase?.() || nft.contract || 'unknown';
     const tokenId = String(nft.tokenId || '').toLowerCase();
     if ((contract === SAPPY_SEALS_CONTRACT || contract === STAKED_SAPPY_SEALS_CONTRACT) && tokenId) return `sappy-seal:${tokenId}`;
-    if (isDigitalArtifactLike(nft)) return `digital-artifact:${tokenId || nft.name || nft.collection || 'artifact'}`;
+    if (isDigitalArtifactLike(nft)) return `digital-artifact:${artifactTokenId(nft) || tokenId || nft.name || nft.collection || 'artifact'}`;
     return `${contract}:${tokenId}`;
   };
   return nfts
@@ -266,13 +278,16 @@ function curatedEcosystemNfts(nfts, options = {}) {
       if (fullWallet && (!ecosystem || ecosystem.id !== 'sappy' || (!isCoveredSappyContract(nft) && !isDigitalArtifactLike(nft)))) return null;
       if (!ecosystem) return null;
       const artifact = isDigitalArtifactLike(nft);
+      const artifactId = artifactTokenId(nft);
       return {
         ...nft,
         ecosystem: ecosystem.id,
         ecosystemLabel: ecosystem.label,
         contract: artifact ? DIGITAL_ARTIFACT_CONTRACT : nft.contract,
         collection: artifact ? 'Digital Artifacts' : nft.collection,
-        name: artifact && !/digital artifact/i.test(nft.name || '') ? `Digital Artifact #${nft.tokenId || 'Ordinal'}` : nft.name,
+        tokenId: artifact ? (artifactId || nft.tokenId) : nft.tokenId,
+        image: artifact && /digital-artifact-93\.jpg/i.test(String(nft.image || '')) ? '/sappy/assets/digital-artifact-1.png' : nft.image,
+        name: artifact && !/digital artifact/i.test(nft.name || '') ? `Digital Artifact #${artifactId || nft.tokenId || 'Ordinal'}` : nft.name,
       };
     })
     .filter(Boolean)
@@ -334,10 +349,10 @@ function normalizeOpenSeaNft(item, wallet = 'collection', chain = 'ethereum') {
   const contract = typeof item?.contract === 'string'
     ? item.contract
     : item?.contract?.address || item?.asset_contract?.address;
-  const tokenId = item?.identifier || item?.token_id || item?.tokenId;
   const collectionName = typeof item?.collection === 'string'
     ? item.collection
     : item?.collection?.name || item?.collection?.slug;
+  const tokenId = item?.identifier || item?.token_id || item?.tokenId || artifactTokenId({ ...item, collection: collectionName });
   const artifactLike = isDigitalArtifactLike({
     contract,
     tokenId,
@@ -696,6 +711,17 @@ export default async function handler(req, res) {
       ...blockscoutResponses.flatMap((result) => (result.status === 'fulfilled' ? result.value : [])),
       ...previewResponses.flatMap((result) => (result.status === 'fulfilled' ? result.value : [])),
       ...sampleResponses.flatMap((result) => (result.status === 'fulfilled' ? result.value : [])),
+      ...(requestedWallet ? (KNOWN_DIGITAL_ARTIFACTS_BY_WALLET[requestedWallet.toLowerCase()] || []).map((tokenId) => ({
+        name: `Digital Artifact #${tokenId}`,
+        collection: 'Digital Artifacts',
+        image: '/sappy/assets/digital-artifact-1.png',
+        href: `https://opensea.io/item/ethereum/${DIGITAL_ARTIFACT_CONTRACT}/${tokenId}`,
+        contract: DIGITAL_ARTIFACT_CONTRACT,
+        tokenId,
+        chain: 'ethereum',
+        wallet: `${requestedWallet.slice(0, 6)}...${requestedWallet.slice(-4)}`,
+        source: 'claimed-profile',
+      })) : []),
       ...(requestedWallet ? [] : STATIC_PREVIEW_NFTS),
     ];
 
