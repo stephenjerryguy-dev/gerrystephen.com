@@ -4,6 +4,36 @@
   "cleanUrls": true,
   "outputDirectory": "dist",
   "rewrites": [
+    {
+      "source": "/api/:path*",
+      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
+      "destination": "/api/:path*"
+    },
+    {
+      "source": "/assets/:path*",
+      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
+      "destination": "/assets/:path*"
+    },
+    {
+      "source": "/src/:path*",
+      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
+      "destination": "/src/:path*"
+    },
+    {
+      "source": "/sappy/:path*",
+      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
+      "destination": "/sappy/:path*"
+    },
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
+      "destination": "/sappy.html"
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
+      "destination": "/sappy/:path*"
+    },
     { "source": "/fresh", "destination": "/" },
     { "source": "/reset-app", "destination": "/" },
     { "source": "/dynamic-api/:path*", "destination": "https://app.dynamicauth.com/api/v0/:path*" },
