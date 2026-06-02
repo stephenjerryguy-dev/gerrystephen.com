@@ -139,6 +139,7 @@ async function holderFromOpenSeaQuery(query) {
     address,
     label,
     count,
+    countType: 'ecosystem',
     rank: null,
     source: 'opensea-account',
     xHandle,
@@ -165,6 +166,7 @@ async function enrichHolders(holders) {
       profileImage: profile.profileImage,
       profileUrl: profile.profileUrl,
       claimable: Boolean(profile.xHandle),
+      countType: holder.countType || 'seals',
       profile: `/sappy/sealfolio.html?wallet=${holder.address}&u=${encodeURIComponent((profile.xHandle || label || holder.label).replace(/^@/, ''))}`,
     };
   });
@@ -341,6 +343,7 @@ export default async function handler(req, res) {
         address: holder.address,
         label: shortAddress(holder.address),
         count: holder.count,
+        countType: 'seals',
         rank: index + 1,
         profile: `/sappy/sealfolio.html?wallet=${holder.address}&u=${shortAddress(holder.address)}`,
       })));
@@ -365,6 +368,7 @@ export default async function handler(req, res) {
     res.status(200).json({ holders: holders.length ? holders : SAMPLE.map((holder, index) => ({
       ...holder,
       label: shortAddress(holder.address),
+      countType: 'seals',
       rank: index + 1,
       profile: `/sappy/sealfolio.html?wallet=${holder.address}&u=${shortAddress(holder.address)}`,
     })) });
@@ -372,6 +376,7 @@ export default async function handler(req, res) {
     res.status(200).json({ holders: SAMPLE.map((holder, index) => ({
       ...holder,
       label: shortAddress(holder.address),
+      countType: 'seals',
       rank: index + 1,
       profile: `/sappy/sealfolio.html?wallet=${holder.address}&u=${shortAddress(holder.address)}`,
     })) });

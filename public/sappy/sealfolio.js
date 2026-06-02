@@ -119,6 +119,12 @@
     return "asset";
   }
 
+  function isDigitalArtifactAsset(o) {
+    const haystack = `${o?.collection || ""} ${o?.name || ""} ${o?.contract || ""} ${o?.chain || ""}`.toLowerCase();
+    return contractType(o?.contract) === "artifact"
+      || (haystack.includes("digital artifact") && (haystack.includes("btc") || haystack.includes("bitcoin") || haystack.includes("ordinal") || haystack.includes("artifact")));
+  }
+
   function isSealAsset(o) {
     return contractType(o.contract) === "seal" || /sappy seal/i.test(`${o.collection || ""} ${o.name || ""}`);
   }
@@ -138,7 +144,7 @@
       omnia: owned.filter((o) => contractType(o.contract).startsWith("omnia")).length,
       pixseals: owned.filter((o) => contractType(o.contract) === "pixseal").length,
       keys: owned.filter((o) => contractType(o.contract) === "sappy-key").length,
-      artifacts: owned.filter((o) => contractType(o.contract) === "artifact").length,
+      artifacts: owned.filter((o) => isDigitalArtifactAsset(o)).length,
       delegates: state.delegatedWallets.length,
       collections: new Set(owned.map((o) => o.collection).filter(Boolean)).size,
     };
@@ -177,7 +183,9 @@
         staked: contract === CONTRACTS.staked || /staked/i.test(`${nft.collection || ""} ${nft.name || ""}`),
       };
     }).filter((nft) => {
-      const key = (nft.contract === CONTRACTS.seals || nft.contract === CONTRACTS.staked)
+      const key = isDigitalArtifactAsset(nft)
+        ? `digital-artifact:${nft.id || nft.name || nft.collection || "artifact"}`
+        : (nft.contract === CONTRACTS.seals || nft.contract === CONTRACTS.staked)
         ? `sappy-seal:${nft.id}`
         : `${nft.contract}:${nft.id}`;
       if (seen.has(key)) return false;
@@ -210,7 +218,9 @@
     };
     return BADGE_CATALOG.map((badge) => {
       const role = discord.find((item) => normalizeRole(item.name) === normalizeRole(badge.n));
-      const discordMatch = badge.kind === "discord" && (roleNames.has(normalizeRole(badge.n)) || (badge.n === "Sealuminati Holder" && has("sealuminati")));
+      const discordMatch = badge.kind === "discord" && (roleNames.has(normalizeRole(badge.n))
+        || (badge.n === "Sealuminati Holder" && has("sealuminati"))
+        || (badge.n === "BTC Digital Artifact Holder" && owned.some(isDigitalArtifactAsset)));
       const have = badge.kind === "discord" ? discordMatch : badge.test(ctx);
       return { ...badge, have, role, discord: badge.kind === "discord" };
     }).filter((badge, index, badges) => badges.findIndex((item) => normalizeRole(item.n) === normalizeRole(badge.n)) === index);
@@ -253,7 +263,7 @@
     if (type === "pixseal" && id) return `${MEDIA.pixseals}/${id}.png`;
     if (type === "omnia-item" && id) return `${MEDIA.omniaItems}/${id}.png`;
     if (type === "sappy-key") return MEDIA.key;
-    if (type === "artifact") return normalizeImage(o.image || o.animation) || MEDIA.artifact;
+    if (type === "artifact" || isDigitalArtifactAsset(o)) return normalizeImage(o.image || o.animation) || MEDIA.artifact;
     if (type === "omnia-pet") return normalizeImage(o.image || o.animation);
     return normalizeImage(o.image || o.animation);
   }

@@ -286,7 +286,10 @@ window.Sappy = (function () {
     }
   }
   function dynamicHost() {
-    return document.querySelector("#dynamic-widget, #sappy-dynamic-widget .dynamic-shadow-dom, #sappy-dynamic-widget button, #sappy-dynamic-widget [role='button']");
+    const shadowButton = document.querySelector("#dynamic-widget")?.shadowRoot?.querySelector("button, [role='button']");
+    return shadowButton
+      || document.querySelector("#sappy-dynamic-widget .dynamic-shadow-dom")?.shadowRoot?.querySelector("button, [role='button']")
+      || document.querySelector("#dynamic-widget, #sappy-dynamic-widget .dynamic-shadow-dom, #sappy-dynamic-widget button, #sappy-dynamic-widget [role='button']");
   }
   function dynamicAuthOpen() {
     const htmlLocked = document.documentElement.classList.contains("dynamic-no-scroll");

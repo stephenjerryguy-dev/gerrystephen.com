@@ -61,6 +61,7 @@
   function mapHolder(holder, index, offset = 3200) {
     const seed = offset + index * 97;
     const label = holder.label || holder.xHandle || holder.openseaUsername || holder.address;
+    const countType = holder.countType || (holder.source === "opensea-account" ? "ecosystem" : "seals");
     const params = new URLSearchParams({
       u: label || holder.address || `holder-${index + 1}`,
     });
@@ -71,6 +72,7 @@
       h: label,
       vibe: holder.source === "opensea-account" ? "OpenSea profile" : index < 3 ? "Top Holder" : VIBES[seed % VIBES.length],
       n: holder.count || 1,
+      countType,
       seed,
       id: (seed * 5) % 10000,
       image: holder.profileImage,
@@ -86,7 +88,7 @@
     const members = state.holders || NAMES.map((h, i) => {
       const seed = 1000 + i * 137;
       const n = 1 + ((seed * 7) % 40);
-      return { h, vibe: VIBES[seed % VIBES.length], n, seed, id: (seed * 3) % 10000, href: `sealfolio.html?u=${h}&seed=${seed}` };
+      return { h, vibe: VIBES[seed % VIBES.length], n, countType: "ecosystem", seed, id: (seed * 3) % 10000, href: `sealfolio.html?u=${h}&seed=${seed}` };
     });
     const localFiltered = filteredMembers(members);
     const filtered = state.queryResults || localFiltered;
@@ -125,12 +127,18 @@
             <div class="info">
               <div class="n">${m.h}</div>
               <div class="t">${m.vibe}</div>
-              <div class="cnt">${m.n} ${m.n === 1 ? "SEAL" : "SEALS"}${m.claimable ? " · CLAIM READY" : ""}</div>
+              <div class="cnt">${countLabel(m)}${m.claimable ? " · CLAIM READY" : ""}</div>
               ${m.address ? `<div class="holder-wallet">${m.address.slice(0, 6)}...${m.address.slice(-4)}</div>` : ""}
             </div>
           </a>`).join("")}</div>
       </div>`;
     wireSearch();
+  }
+
+  function countLabel(member) {
+    const n = Number(member.n || 0) || 0;
+    if (member.countType === "seals") return `${n} ${n === 1 ? "SEAL" : "SEALS"}`;
+    return `${n} ECO ASSET${n === 1 ? "" : "S"}`;
   }
 
   function wireSearch() {

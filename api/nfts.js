@@ -151,6 +151,20 @@ function isCoveredSappyContract(nft) {
   return SAPPY_CONTRACTS.has(nft?.contract?.toLowerCase?.());
 }
 
+function isDigitalArtifactLike(nft) {
+  const haystack = `${nft?.collection || ''} ${nft?.name || ''} ${nft?.contract || ''} ${nft?.chain || ''}`.toLowerCase();
+  return (
+    nft?.contract?.toLowerCase?.() === DIGITAL_ARTIFACT_CONTRACT
+    || (haystack.includes('digital artifact') && (
+      haystack.includes('sappy')
+      || haystack.includes('btc')
+      || haystack.includes('bitcoin')
+      || haystack.includes('ordinal')
+      || haystack.includes('artifact')
+    ))
+  );
+}
+
 function normalizeCollectionName(name, contract) {
   const normalizedContract = contract?.toLowerCase?.();
   if (normalizedContract === SAPPY_SEALS_CONTRACT) return 'Sappy Seals';
@@ -243,13 +257,23 @@ function curatedEcosystemNfts(nfts, options = {}) {
     const contract = nft.contract?.toLowerCase?.() || nft.contract || 'unknown';
     const tokenId = String(nft.tokenId || '').toLowerCase();
     if ((contract === SAPPY_SEALS_CONTRACT || contract === STAKED_SAPPY_SEALS_CONTRACT) && tokenId) return `sappy-seal:${tokenId}`;
+    if (isDigitalArtifactLike(nft)) return `digital-artifact:${tokenId || nft.name || nft.collection || 'artifact'}`;
     return `${contract}:${tokenId}`;
   };
   return nfts
     .map((nft) => {
       const ecosystem = ecosystemForNft(nft);
-      if (fullWallet && (!ecosystem || ecosystem.id !== 'sappy' || !isCoveredSappyContract(nft))) return null;
-      return ecosystem ? { ...nft, ecosystem: ecosystem.id, ecosystemLabel: ecosystem.label } : null;
+      if (fullWallet && (!ecosystem || ecosystem.id !== 'sappy' || (!isCoveredSappyContract(nft) && !isDigitalArtifactLike(nft)))) return null;
+      if (!ecosystem) return null;
+      const artifact = isDigitalArtifactLike(nft);
+      return {
+        ...nft,
+        ecosystem: ecosystem.id,
+        ecosystemLabel: ecosystem.label,
+        contract: artifact ? DIGITAL_ARTIFACT_CONTRACT : nft.contract,
+        collection: artifact ? 'Digital Artifacts' : nft.collection,
+        name: artifact && !/digital artifact/i.test(nft.name || '') ? `Digital Artifact #${nft.tokenId || 'Ordinal'}` : nft.name,
+      };
     })
     .filter(Boolean)
     .filter((nft) => {
@@ -311,11 +335,18 @@ function normalizeOpenSeaNft(item, wallet = 'collection', chain = 'ethereum') {
     ? item.contract
     : item?.contract?.address || item?.asset_contract?.address;
   const tokenId = item?.identifier || item?.token_id || item?.tokenId;
-  if (!contract || !tokenId) return null;
-  const normalizedContract = String(contract).toLowerCase();
   const collectionName = typeof item?.collection === 'string'
     ? item.collection
     : item?.collection?.name || item?.collection?.slug;
+  const artifactLike = isDigitalArtifactLike({
+    contract,
+    tokenId,
+    collection: collectionName,
+    name: item?.name,
+    chain,
+  });
+  if ((!contract && !artifactLike) || !tokenId) return null;
+  const normalizedContract = String(contract || DIGITAL_ARTIFACT_CONTRACT).toLowerCase();
   const image = localImageFor(normalizedContract, tokenId)
     || ipfsToHttps(item?.display_image_url || item?.image_url || item?.image || item?.metadata?.image);
 
@@ -646,6 +677,7 @@ export default async function handler(req, res) {
         ? wallets.flatMap((wallet) => [
           fetchOpenSeaAccountNfts(wallet, 'ethereum'),
           fetchOpenSeaAccountNfts(wallet, 'matic'),
+          fetchOpenSeaAccountNfts(wallet, 'bitcoin'),
         ])
         : []
     );

@@ -30,7 +30,9 @@ const wagmiConfig = createConfig({
 const queryClient = new QueryClient();
 
 function fallbackOpenDynamic() {
-  const widgetButton = document.querySelector('#sappy-dynamic-widget button, #sappy-dynamic-widget [role="button"], #dynamic-widget button, #dynamic-widget [role="button"]');
+  const widgetButton = document.querySelector('#dynamic-widget')?.shadowRoot?.querySelector('button, [role="button"]')
+    || document.querySelector('#sappy-dynamic-widget .dynamic-shadow-dom')?.shadowRoot?.querySelector('button, [role="button"]')
+    || document.querySelector('#sappy-dynamic-widget button, #sappy-dynamic-widget [role="button"], #dynamic-widget button, #dynamic-widget [role="button"]');
   if (widgetButton) {
     widgetButton.click();
     return;
