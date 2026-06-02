@@ -74,7 +74,7 @@ function parseCollection(collection) {
     change24h: change24h ?? FALLBACK.change24h,
     sales24h: FALLBACK.sales24h,
     volume24h: FALLBACK.volume24h,
-    holders: holders ?? FALLBACK.holders,
+    holders: FALLBACK.holders,
     updatedAt: new Date().toISOString(),
     source: 'reservoir',
   };
@@ -110,7 +110,7 @@ function parseStats(stats) {
     change24h: change24h ?? FALLBACK.change24h,
     sales24h: FALLBACK.sales24h,
     volume24h: FALLBACK.volume24h,
-    holders: holders ?? FALLBACK.holders,
+    holders: FALLBACK.holders,
     updatedAt: new Date().toISOString(),
     source: 'reservoir',
   };
@@ -157,7 +157,7 @@ function parseOpenSeaStats(data) {
     change24h: change24h ?? FALLBACK.change24h,
     sales24h: sales24h ?? FALLBACK.sales24h,
     volume24h: volume24h ?? FALLBACK.volume24h,
-    holders: holders ?? FALLBACK.holders,
+    holders: FALLBACK.holders,
     updatedAt: new Date().toISOString(),
     source: 'opensea',
   };
