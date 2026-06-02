@@ -43,6 +43,14 @@ const SAMPLE = [
   { address: '0xc3ce1eb539c1cc031ecd7b95e8c00768bf324403', count: 8 },
 ];
 
+const POD_ECOSYSTEM_CONTRACTS = [
+  OMNIA_PETS_CONTRACT,
+  OMNIA_ITEMS_CONTRACT,
+  SAPPY_KEY_CONTRACT,
+  PIXSEALS_CONTRACT,
+  DIGITAL_ARTIFACT_CONTRACT,
+];
+
 function reservoirHeaders() {
   return {
     accept: 'application/json',
@@ -304,6 +312,28 @@ async function fetchOwnersFromTokens(contract) {
   return owners.map((address) => ({ address, count: 1 }));
 }
 
+function interleaveGroups(groups, limit = 32) {
+  const out = [];
+  const seen = new Set();
+  let index = 0;
+  while (out.length < limit) {
+    let added = false;
+    for (const group of groups) {
+      const item = group[index];
+      if (!item) continue;
+      const key = item.address.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(item);
+      added = true;
+      if (out.length >= limit) break;
+    }
+    if (!added && groups.every((group) => index >= group.length - 1)) break;
+    index += 1;
+  }
+  return out;
+}
+
 export default async function handler(req, res) {
   setCors(res);
   if (req.method === 'OPTIONS') return res.status(204).end();
@@ -336,9 +366,21 @@ export default async function handler(req, res) {
       aggregate.set(key, current);
     });
 
-    const enriched = await enrichHolders([...aggregate.values()]
+    const ecosystemResponses = await Promise.allSettled(POD_ECOSYSTEM_CONTRACTS.map((contract) => fetchOwnersFromTokens(contract)));
+    const ecosystemAggregate = new Map();
+    ecosystemResponses
+      .flatMap((result) => (result.status === 'fulfilled' ? result.value : []))
+      .forEach((owner) => {
+        const key = owner.address.toLowerCase();
+        const current = ecosystemAggregate.get(key) || { address: owner.address, count: 0 };
+        current.count += owner.count;
+        ecosystemAggregate.set(key, current);
+      });
+
+    const sealCandidates = [...aggregate.values()]
       .sort((a, b) => b.count - a.count)
-      .slice(0, 48)
+      .filter((holder) => holder.count <= 64)
+      .slice(0, 36)
       .map((holder, index) => ({
         address: holder.address,
         label: shortAddress(holder.address),
@@ -346,7 +388,20 @@ export default async function handler(req, res) {
         countType: 'seals',
         rank: index + 1,
         profile: `/sappy/sealfolio.html?wallet=${holder.address}&u=${shortAddress(holder.address)}`,
-      })));
+      }));
+    const ecosystemCandidates = [...ecosystemAggregate.values()]
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 36)
+      .map((holder, index) => ({
+        address: holder.address,
+        label: shortAddress(holder.address),
+        count: holder.count,
+        countType: 'ecosystem',
+        rank: index + 1,
+        profile: `/sappy/sealfolio.html?wallet=${holder.address}&u=${shortAddress(holder.address)}`,
+      }));
+
+    const enriched = await enrichHolders(interleaveGroups([sealCandidates, ecosystemCandidates], 48));
     const xLinked = enriched.filter((holder) => holder.xHandle);
     let holders = (xLinked.length ? [...xLinked, ...enriched.filter((holder) => !holder.xHandle)] : enriched).slice(0, 32);
     if (query) {
