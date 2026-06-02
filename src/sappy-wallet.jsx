@@ -48,6 +48,12 @@ function fallbackOpenDynamic() {
 }
 window.sappyOpenDynamic = fallbackOpenDynamic;
 
+function dynamicModalVisible() {
+  return Boolean(
+    document.querySelector('[data-testid*="dynamic"], [class*="dynamic-modal"], [class*="DynamicModal"], [id*="dynamic-modal"]')
+  );
+}
+
 function fallbackOpenDynamicSocial(provider) {
   window.__sappyPendingDynamicSocial = provider || 'twitter';
   window.dispatchEvent(new CustomEvent('sappy-wallet-status', {
@@ -243,12 +249,19 @@ function SappyDynamicBridge() {
         sessionStorage.setItem('sappy_dynamic_connecting', String(Date.now()));
         sessionStorage.setItem('sappy_dynamic_next', window.location.href);
       } catch (_) {}
+      allowThisPageAuthRef.current = true;
       const authenticated = Boolean(user || primaryWallet?.address || wallets?.length);
       if (authenticated) {
         setShowLinkNewWalletModal?.(true);
+        window.setTimeout(() => {
+          if (!dynamicModalVisible()) fallbackOpenDynamic();
+        }, 250);
         return;
       }
       setShowAuthFlow?.(true);
+      window.setTimeout(() => {
+        if (!dynamicModalVisible()) fallbackOpenDynamic();
+      }, 250);
     };
     window.sappyOpenDynamic = openWallet;
     window.sappyLogoutDynamic = async () => {
@@ -264,7 +277,7 @@ function SappyDynamicBridge() {
       const authenticated = Boolean(user || primaryWallet?.address || wallets?.length);
       if (!authenticated) {
         window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: 'Create your Sealfolio with your wallet first. Then link X or Discord for next-time login.' } }));
-        setShowAuthFlow?.(true);
+        openWallet();
         return;
       }
       try {
@@ -333,10 +346,6 @@ function SappyDynamicBridge() {
       }
     });
   }, [user, getLinkedAccountInformation, getLinkedAccounts]);
-
-  useEffect(() => {
-    clearLocalWallet();
-  }, [primaryWallet, wallets]);
 
   useEffect(() => {
     const wallet = wallets?.find?.((item) => /^EVM|ETH$/i.test(String(item?.chain || ''))) || wallets?.[0] || primaryWallet;

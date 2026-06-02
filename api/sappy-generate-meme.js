@@ -1,49 +1,5 @@
 import { rateLimit } from "./_rate-limit.js";
 
-const escapeHtml = (value) => String(value || "")
-  .replace(/&/g, "&amp;")
-  .replace(/</g, "&lt;")
-  .replace(/>/g, "&gt;")
-  .replace(/"/g, "&quot;");
-
-function fallbackSvg({ concept, style, aspectRatio }, index) {
-  const [w, h] = aspectRatio === "16:9" ? [1280, 720]
-    : aspectRatio === "9:16" ? [900, 1600]
-      : aspectRatio === "4:3" ? [1200, 900]
-        : [1024, 1024];
-  const title = escapeHtml((concept || "Stay sappy").slice(0, 74));
-  const label = escapeHtml((style || "viral").toUpperCase());
-  const hue = (index * 41 + title.length * 7) % 360;
-  return `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" role="img" aria-label="Sappy AI preview">
-      <defs>
-        <linearGradient id="bg${index}" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="hsl(${hue}, 86%, 78%)"/>
-          <stop offset=".55" stop-color="#dff4ff"/>
-          <stop offset="1" stop-color="hsl(${(hue + 68) % 360}, 80%, 86%)"/>
-        </linearGradient>
-        <filter id="shadow${index}" x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="24" stdDeviation="24" flood-color="#102a3d" flood-opacity=".28"/>
-        </filter>
-      </defs>
-      <rect width="${w}" height="${h}" rx="${Math.round(Math.min(w, h) * .045)}" fill="url(#bg${index})"/>
-      <circle cx="${w * .78}" cy="${h * .18}" r="${Math.min(w, h) * .18}" fill="#fff" opacity=".42"/>
-      <circle cx="${w * .2}" cy="${h * .82}" r="${Math.min(w, h) * .25}" fill="#1e93d6" opacity=".14"/>
-      <g filter="url(#shadow${index})" transform="translate(${w * .5} ${h * .49})">
-        <ellipse cx="0" cy="${h * .2}" rx="${w * .17}" ry="${h * .035}" fill="#14354c" opacity=".18"/>
-        <rect x="${-w * .16}" y="${-h * .2}" width="${w * .32}" height="${h * .36}" rx="${w * .13}" fill="#f8fbff"/>
-        <circle cx="${-w * .055}" cy="${-h * .07}" r="${Math.min(w, h) * .014}" fill="#15202a"/>
-        <circle cx="${w * .055}" cy="${-h * .07}" r="${Math.min(w, h) * .014}" fill="#15202a"/>
-        <path d="M ${-w * .035} ${h * .015} Q 0 ${h * .04} ${w * .035} ${h * .015}" fill="none" stroke="#15202a" stroke-width="${Math.max(5, w * .006)}" stroke-linecap="round"/>
-        <path d="M ${-w * .16} ${h * .02} Q ${-w * .26} ${h * .06} ${-w * .18} ${h * .16}" fill="#f8fbff"/>
-        <path d="M ${w * .16} ${h * .02} Q ${w * .26} ${h * .06} ${w * .18} ${h * .16}" fill="#f8fbff"/>
-      </g>
-      <text x="${w * .06}" y="${h * .11}" font-family="Arial, sans-serif" font-size="${Math.max(22, w * .028)}" font-weight="900" fill="#15689b" letter-spacing="2">${label} PREVIEW</text>
-      <text x="${w * .06}" y="${h * .9}" font-family="Arial, sans-serif" font-size="${Math.max(42, w * .062)}" font-weight="900" fill="#15202a">${title}</text>
-      <text x="${w * .06}" y="${h * .95}" font-family="Arial, sans-serif" font-size="${Math.max(18, w * .018)}" font-weight="700" fill="#446274">Claude concept preview · seal-aware prompt direction</text>
-    </svg>`;
-}
-
 function sealBrief(seal) {
   if (!seal) return '';
   const traits = Array.isArray(seal.traits)
@@ -60,17 +16,24 @@ function sealBrief(seal) {
 function fallbackResponse(body, claudePlan) {
   const count = Math.max(1, Math.min(4, Number(body.n) || 2));
   const concepts = Array.isArray(claudePlan?.concepts) ? claudePlan.concepts : [];
+  const references = Array.isArray(body.references) ? body.references : [];
   return {
     provider: claudePlan ? "claude" : "fallback",
-    plan: claudePlan?.plan || "Preview mode: add ANTHROPIC_API_KEY on Vercel for Claude-powered meme direction.",
+    plan: claudePlan?.plan || "Studio preview mode: add ANTHROPIC_API_KEY on Vercel for Claude scene direction. No fake image render is shown until a real image model is connected.",
     captions: claudePlan?.captions || [],
     images: Array.from({ length: count }, (_, i) => ({
-      model: claudePlan ? `Claude concept ${i + 1}` : `prompt preview ${i + 1}`,
+      model: claudePlan ? `Claude scene pack ${i + 1}` : `scene pack ${i + 1}`,
       revisedPrompt: concepts[i]?.prompt || body.prompt,
-      caption: concepts[i]?.caption,
+      caption: concepts[i]?.caption || body.concept,
+      scene: concepts[i]?.scene || body.concept,
+      shot: concepts[i]?.shot || "Hero character scene",
+      adaptationNotes: concepts[i]?.adaptationNotes || "Preserve the loaded NFT traits and adapt only the environment, pose, props, and story.",
+      negativePrompt: concepts[i]?.negativePrompt || "No random seal, no changed trait set, no unrelated mascot, no distorted face, no illegible text.",
       referenceUrl: body.seal?.image,
       sealName: body.seal?.name,
-      svg: fallbackSvg({ ...body, concept: concepts[i]?.caption || body.concept || body.prompt }, i),
+      sceneReferenceUrl: references[i % Math.max(1, references.length)]?.url || references[0]?.url || "",
+      sceneReferenceLabel: references[i % Math.max(1, references.length)]?.label || references[0]?.label || "Scene reference",
+      kind: "scene-brief",
     })),
   };
 }
@@ -95,12 +58,12 @@ async function buildClaudePlan(body, prompt) {
     },
     body: JSON.stringify({
       model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5",
-      max_tokens: 1200,
+      max_tokens: 1500,
       temperature: 0.8,
-      system: "You are Gerry's AI Studio for the Sappy Seals ecosystem. Create polished, consumer-ready image-generation briefs for X memes. Preserve the provided Sappy Seal's exact outfit, visible traits, and identity. Keep it Sappy-native, never mention Okay Bears, and avoid generic AI slop.",
+      system: "You are Gerry's AI Studio for the Sappy Seals ecosystem. Create production-grade image-generation direction for Sappy Seal NFT scene adaptation. The loaded NFT is the character identity lock. Preserve the exact visible outfit, headwear, accessories, expression, body color, and recognizable silhouette. Transform the pose, lighting, props, and environment to match the user's scenario. Keep it Sappy-native, never mention Okay Bears, never invent another collection, and avoid generic AI slop.",
       messages: [{
         role: "user",
-        content: `Return only valid JSON with keys plan, captions, concepts. concepts must have ${count} items. Each item needs caption and prompt. The prompt must explicitly preserve the seal traits and describe a finished illustrated scene, not a collage. ${sealBrief(body.seal)} User request: ${prompt}`,
+        content: `Return only valid JSON with keys plan, captions, concepts. concepts must have ${count} items. Each item needs caption, scene, shot, adaptationNotes, negativePrompt and prompt. The prompt must explicitly preserve the seal traits and describe a finished illustrated scene, not a collage and not a new character. Make the output ready for an image model that accepts NFT reference images. ${sealBrief(body.seal)} User request: ${prompt}`,
       }],
     }),
   });

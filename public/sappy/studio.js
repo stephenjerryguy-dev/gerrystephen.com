@@ -166,9 +166,9 @@
       sealInstruction(),
       `User concept: ${concept}.`,
       `Style: ${styleInstruction()}.`,
-      "Create a polished Sappy Seal meme image direction like a finished illustration: strong character consistency, clean scene, expressive pose, and premium social polish.",
-      "If the scene changes the outfit, adapt the real seal's existing traits into the new outfit instead of inventing a random seal.",
-      "Use the attached style references as quality direction: cute full-body seal character, consistent turns/poses, and polished environment scenes.",
+      "Create a polished Sappy Seal scene adaptation like a finished illustration: strong character consistency, clean environment, expressive pose, and premium social polish.",
+      "Treat the loaded NFT as the identity lock. If the scenario changes clothing, translate the real seal's existing outfit, headwear, accessories, expression, and colors into the new outfit instead of inventing a random seal.",
+      "Use the attached references as quality direction: cute full-body seal character, consistent turns/poses, and finished environment scenes.",
       "Avoid clutter. Leave clean negative space for captions. Keep the tone wholesome, funny, and community-native.",
       "Do not reference Okay Bears or any other collection.",
     ].join(" ");
@@ -179,12 +179,12 @@
     if (plan !== undefined) state.aiPlan = plan;
     const btn = $("aigen");
     if (btn) {
-      btn.textContent = status === "loading" ? "Generating..." : "Generate studio briefs";
+      btn.textContent = status === "loading" ? "Building scene pack..." : "Generate scene pack";
       btn.disabled = status === "loading";
     }
     const planEl = $("aiplan");
     if (planEl) {
-      planEl.innerHTML = state.aiPlan || "Describe the joke or moment. Claude will shape it into polished Sappy-ready options.";
+      planEl.innerHTML = state.aiPlan || "Describe the joke or moment. Claude will shape it into a Sappy-ready scene pack.";
       planEl.classList.toggle("working", status === "loading");
     }
   }
@@ -196,15 +196,32 @@
 
   function generatedCard(image, index) {
     const prompt = image.revisedPrompt || image.prompt || "";
+    const sealImage = image.referenceUrl || state.sealRef?.image || "";
+    const sceneImage = image.sceneReferenceUrl || REFERENCE_ASSETS[index % REFERENCE_ASSETS.length]?.[0] || "";
     return `
       <article class="ai-result-card">
         <div class="ai-result-media">
-          ${image.url ? `<img src="${image.url}" alt="Generated Sappy meme ${index + 1}" loading="lazy">` : `<div class="ai-result-fallback">${image.svg || "AI preview"}</div>`}
+          ${image.url ? `<img src="${image.url}" alt="Generated Sappy meme ${index + 1}" loading="lazy">` : `
+            <div class="ai-scene-board">
+              <div class="ai-scene-ref primary">
+                ${sealImage ? `<img src="${esc(sealImage)}" alt="${esc(image.sealName || "Loaded seal reference")}" loading="lazy" referrerpolicy="no-referrer">` : ""}
+                <span>Identity lock</span>
+              </div>
+              <div class="ai-scene-ref">
+                ${sceneImage ? `<img src="${esc(sceneImage)}" alt="${esc(image.sceneReferenceLabel || "Scene reference")}" loading="lazy">` : ""}
+                <span>${esc(image.sceneReferenceLabel || "Scene direction")}</span>
+              </div>
+              <div class="ai-scene-caption">${esc(image.caption || "Sappy scene ready")}</div>
+            </div>`}
         </div>
-        ${image.referenceUrl ? `<div class="ai-result-brief"><img src="${esc(image.referenceUrl)}" alt="${esc(image.sealName || "Seal reference")}" loading="lazy"><p>${esc(image.caption || "Concept ready for image generation.")}</p></div>` : ""}
+        <div class="ai-result-brief">
+          ${sealImage ? `<img src="${esc(sealImage)}" alt="${esc(image.sealName || "Seal reference")}" loading="lazy" referrerpolicy="no-referrer">` : ""}
+          <p>${esc(image.adaptationNotes || image.caption || "Scene pack ready for image generation.")}</p>
+        </div>
+        ${image.negativePrompt ? `<div class="ai-negative"><strong>Avoid</strong><p>${esc(image.negativePrompt)}</p></div>` : ""}
         ${prompt ? `<div class="ai-prompt-output"><strong>Image brief</strong><p>${esc(prompt)}</p></div>` : ""}
         <div class="ai-result-actions">
-          <span>${image.model || "studio preview"} · ${ratioLabel()}</span>
+          <span>${image.model || "studio scene pack"} · ${ratioLabel()}</span>
           ${prompt ? `<button class="btn btn-ghost btn-sm" data-copy-prompt="${esc(prompt)}" type="button">Copy brief</button>` : ""}
           ${image.url ? `<a class="btn btn-ghost btn-sm" href="${image.url}" target="_blank" rel="noopener">Open</a>` : ""}
         </div>
@@ -219,8 +236,8 @@
       : `<div class="ai-empty">
           <div class="ai-empty-card">
             <span>Ready when your seal is.</span>
-            <strong>Load a token, write the bit, ship a premium prompt pack.</strong>
-            <p>Outputs include caption direction, the exact Sappy Seal reference, and image briefs ready for a generation model or designer.</p>
+            <strong>Load a token, write the bit, build a scene pack.</strong>
+            <p>Outputs lock the real Sappy Seal NFT as the character reference, then shape scene, pose, caption and negative prompt direction for a real image model or designer.</p>
           </div>
         </div>`;
     grid.querySelectorAll("[data-copy-prompt]").forEach((button) => {
@@ -309,7 +326,7 @@
     state.aiStyle = $("aistyle").value;
     state.aiRatio = $("airatio").value;
     state.aiCount = Math.max(1, Math.min(4, +$("aicount").value || 2));
-    setAIStatus("loading", "Claude is shaping the joke, captions, composition notes, and premium Sappy prompt direction...");
+    setAIStatus("loading", "Claude is locking the NFT identity, shaping the scene, and writing image-model ready adaptation notes...");
     try {
       const r = await fetch("/api/sappy-generate-meme", {
         method: "POST",
@@ -327,9 +344,9 @@
       if (!r.ok) throw new Error("generation_failed");
       const json = await r.json();
       state.aiImages = json.images || [];
-      setAIStatus("ready", json.plan || "Generated premium meme options.");
+      setAIStatus("ready", json.plan || "Generated premium Sappy scene packs.");
       renderAIResults();
-      S.toast(json.provider === "fallback" ? "Drafts generated." : json.provider === "claude" ? "Claude concepts generated." : "Memes generated.");
+      S.toast(json.provider === "fallback" ? "Scene packs drafted." : json.provider === "claude" ? "Claude scene packs generated." : "Memes generated.");
     } catch (e) {
       state.aiImages = [];
       setAIStatus("error", "Generation did not complete. Try a shorter concept or refresh the studio.");
@@ -349,12 +366,12 @@
       <section class="studio-hero">
         <div>
           <span class="eyebrow">▪ GERRY'S AI STUDIO</span>
-          <h1 class="section-title studio-title">Turn a real seal into a finished meme concept.</h1>
-          <p class="section-sub">Enter the token number, lock the actual NFT traits, then let Claude build scene direction, captions and image prompts that keep your seal recognizable.</p>
+          <h1 class="section-title studio-title">Turn a real seal into a scene-ready meme.</h1>
+          <p class="section-sub">Enter the token number, lock the actual NFT traits, then let Claude build scene direction, captions and image-model prompts that keep your seal recognizable.</p>
           <div class="studio-steps" aria-label="Studio workflow">
             <span>1. Load seal</span>
             <span>2. Pick the bit</span>
-            <span>3. Generate briefs</span>
+            <span>3. Generate scene pack</span>
           </div>
           <div class="studio-hero-actions">
             <a class="btn btn-accent" href="#studio-maker">Start creating →</a>
@@ -390,8 +407,8 @@
             <label>Format<select id="airatio" class="input">${AI_RATIOS.map(([v, n]) => `<option value="${v}" ${state.aiRatio === v ? "selected" : ""}>${n} · ${v}</option>`).join("")}</select></label>
             <label>Outputs<select id="aicount" class="input">${[1, 2, 3, 4].map((n) => `<option value="${n}" ${state.aiCount === n ? "selected" : ""}>${n}</option>`).join("")}</select></label>
           </div>
-          <button class="btn btn-accent full ai-generate" id="aigen">Generate studio briefs</button>
-          <div class="ai-plan" id="aiplan">Describe the joke or moment. Claude will shape it into polished Sappy-ready options.</div>
+          <button class="btn btn-accent full ai-generate" id="aigen">Generate scene pack</button>
+          <div class="ai-plan" id="aiplan">Describe the joke or moment. Claude will shape it into a Sappy-ready scene pack.</div>
         </div>
         <div class="studio-stage-panel">
           <div class="studio-stage">
@@ -408,14 +425,14 @@
       <section class="ai-output-section">
         <div class="eco-head">
           <span class="eyebrow">▪ OUTPUTS</span>
-          <h2 class="section-title">Prompt packs that can actually ship.</h2>
-          <p class="section-sub">Each run returns captions, a visual direction, the real seal reference and copyable image briefs.</p>
+          <h2 class="section-title">Scene packs, not fake renders.</h2>
+          <p class="section-sub">Each run returns captions, visual direction, the real seal reference, negative prompts and copyable image briefs.</p>
         </div>
         <div class="ai-results" id="airesults"></div>
       </section>
       <section class="ai-note-strip">
         <strong>Reference quality:</strong>
-        <span>Studio uses the real seal token plus these target examples for character consistency, pose control, and finished-scene polish.</span>
+        <span>Studio uses the real seal token plus these target examples for character consistency, pose control, and finished-scene polish. Claude writes the direction; a dedicated image model is still needed for final renders.</span>
       </section>`;
     renderAIResults();
     renderSealRef();
