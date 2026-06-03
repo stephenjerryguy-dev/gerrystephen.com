@@ -1,6 +1,7 @@
 import { rateLimit } from './_rate-limit.js';
 
 const RESERVOIR_API = 'https://api.reservoir.tools';
+const POLYGON_RESERVOIR_API = 'https://api-polygon.reservoir.tools';
 const ETH_RPCS = [
   'https://ethereum.publicnode.com',
   'https://eth.llamarpc.com',
@@ -14,8 +15,10 @@ const OMNIA_ITEMS_CONTRACT = '0xf0ea56402b2e2b27556d7abf4236c7327722fe41';
 const SAPPY_KEY_CONTRACT = '0x3d3ad7b00e885d3d969e03bfcbaed80fb3df6667';
 const PIXSEALS_CONTRACT = '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b';
 const DIGITAL_ARTIFACT_CONTRACT = '0xb1cdf2bfab043ea1d81d0a73b3b849efaac1d31a';
+const PIXL_CONTRACT = '0x427a03fb96d9a94a6727fbcfbba143444090dd64';
 const OPENSEA_API = 'https://api.opensea.io/api/v2';
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
+const ERC20_BALANCE_OF_SELECTOR = '0x70a08231';
 const ECOSYSTEM_CONTRACTS = new Set([
   SAPPY_SEALS_CONTRACT,
   STAKED_SEALS_CONTRACT,
@@ -51,8 +54,6 @@ const KNOWN_HOLDER_OVERRIDES = {
     label: '@gerrydoteth',
     xHandle: 'gerrydoteth',
     openseaUsername: 'gerrydoteth',
-    count: 66,
-    countType: 'ecosystem',
     vibe: 'Top Holder',
     profileImage: 'https://i2c.seadn.io/profiles/0xcf3b8981abaa56a8e41117b0c721c05f608400a7/avatar/7b623b1827b698849dc6fdb293f3af/de7b623b1827b698849dc6fdb293f3af.png',
     claimable: true,
@@ -174,17 +175,58 @@ async function countOpenSeaEcosystemNfts(address, chain) {
   return count;
 }
 
+async function countReservoirWalletNfts(address, contract, api = RESERVOIR_API) {
+  if (!ADDRESS_RE.test(address || '')) return 0;
+  let count = 0;
+  let continuation = undefined;
+  for (let page = 0; page < 4; page += 1) {
+    const params = new URLSearchParams({
+      collection: contract,
+      limit: '200',
+      excludeSpam: 'true',
+      excludeNsfw: 'true',
+    });
+    if (continuation) params.set('continuation', continuation);
+    const response = await fetch(`${api}/users/${address}/tokens/v10?${params.toString()}`, {
+      headers: reservoirHeaders(),
+    }).catch(() => undefined);
+    if (!response?.ok) break;
+    const data = await response.json().catch(() => ({}));
+    count += Array.isArray(data.tokens) ? data.tokens.length : 0;
+    continuation = data.continuation;
+    if (!continuation) break;
+  }
+  return count;
+}
+
+async function countReservoirEcosystemNfts(address) {
+  const counts = await Promise.all([
+    SAPPY_SEALS_CONTRACT,
+    STAKED_SEALS_CONTRACT,
+    OMNIA_PETS_CONTRACT,
+    OMNIA_ITEMS_CONTRACT,
+    SAPPY_KEY_CONTRACT,
+    DIGITAL_ARTIFACT_CONTRACT,
+  ].map((contract) => countReservoirWalletNfts(address, contract)));
+  const polygon = await countReservoirWalletNfts(address, PIXSEALS_CONTRACT, POLYGON_RESERVOIR_API).catch(() => 0);
+  return counts.reduce((sum, value) => sum + (Number(value) || 0), 0) + (Number(polygon) || 0);
+}
+
 async function holderFromOpenSeaQuery(query) {
   const account = await fetchOpenSeaAccount(query);
   const address = account?.address;
   if (!ADDRESS_RE.test(address || '')) return null;
-  const [profile, ethCount, polygonCount, bitcoinCount] = await Promise.all([
+  const [profile, ethCount, polygonCount, bitcoinCount, reservoirCount, pixlBalance] = await Promise.all([
     fetchOpenSeaProfile(address),
     countOpenSeaEcosystemNfts(address, 'ethereum'),
     countOpenSeaEcosystemNfts(address, 'matic'),
     countOpenSeaEcosystemNfts(address, 'bitcoin'),
+    countReservoirEcosystemNfts(address),
+    fetchPixlBalance(address),
   ]);
-  const count = ethCount + polygonCount + bitcoinCount + (KNOWN_DIGITAL_ARTIFACTS_BY_WALLET[address.toLowerCase()] || 0);
+  const openSeaCount = ethCount + polygonCount + bitcoinCount;
+  const knownArtifacts = KNOWN_DIGITAL_ARTIFACTS_BY_WALLET[address.toLowerCase()] || 0;
+  const count = Math.max(openSeaCount, reservoirCount) + (openSeaCount || reservoirCount ? 0 : knownArtifacts);
   const xHandle = profile?.xHandle || pickTwitter(account);
   const label = xHandle ? `@${xHandle}` : (account.username || account.name || profile?.label || shortAddress(address));
   const cleanUser = String(xHandle || account.username || label || shortAddress(address)).replace(/^@/, '');
@@ -199,6 +241,7 @@ async function holderFromOpenSeaQuery(query) {
     openseaUsername: account.username || profile?.openseaUsername,
     profileImage: account.profile_image_url || account.profileImageUrl || profile?.profileImage,
     profileUrl: `https://opensea.io/${account.username || address}`,
+    pixlBalance,
     claimable: Boolean(xHandle || account.username),
     profile: `/sappy/sealfolio.html?wallet=${address}&u=${encodeURIComponent(cleanUser)}`,
   });
@@ -284,6 +327,10 @@ function ownerOfData(tokenId) {
   return `${OWNER_OF_SELECTOR}${BigInt(tokenId).toString(16).padStart(64, '0')}`;
 }
 
+function balanceOfData(address) {
+  return `${ERC20_BALANCE_OF_SELECTOR}${address.toLowerCase().replace(/^0x/, '').padStart(64, '0')}`;
+}
+
 function decodeOwner(result) {
   if (!result || typeof result !== 'string' || result.length < 66) return undefined;
   const address = `0x${result.slice(-40)}`;
@@ -328,6 +375,27 @@ async function fetchOwnersFromOwnerOf(contract, count = 160) {
     if (singleOwners.length) return singleOwners;
   }
   return [];
+}
+
+async function fetchPixlBalance(address) {
+  if (!ADDRESS_RE.test(address || '')) return 0;
+  for (const rpc of ETH_RPCS) {
+    const response = await fetch(rpc, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'eth_call',
+        params: [{ to: PIXL_CONTRACT, data: balanceOfData(address) }, 'latest'],
+      }),
+    }).catch(() => undefined);
+    if (!response?.ok) continue;
+    const json = await response.json().catch(() => ({}));
+    if (!json?.result || json.result === '0x') continue;
+    return Number(BigInt(json.result) / 10n ** 18n);
+  }
+  return 0;
 }
 
 async function fetchOwnersFromTokens(contract) {

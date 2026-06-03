@@ -13,11 +13,13 @@ const OPENSEA_API = 'https://api.opensea.io/api/v2';
 const ETH_RPC = 'https://eth.llamarpc.com';
 const TOKEN_URI_SELECTOR = '0xc87b56dd';
 const ERC1155_URI_SELECTOR = '0x0e89341c';
+const ERC20_BALANCE_OF_SELECTOR = '0x70a08231';
 const OMNIA_PETS_CONTRACT = '0x4e76c23fe2a4e37b5e07b5625e17098baab86c18';
 const OMNIA_ITEMS_CONTRACT = '0xf0ea56402b2e2b27556d7abf4236c7327722fe41';
 const INKFINITY_CONTRACT = '0x4de49a57235cc0d4d22baad106a4dc302c8d935e';
 const PIXSEALS_CONTRACT = '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b';
 const DIGITAL_ARTIFACT_CONTRACT = '0xb1cdf2bfab043ea1d81d0a73b3b849efaac1d31a';
+const PIXL_CONTRACT = '0x427a03fb96d9a94a6727fbcfbba143444090dd64';
 const SAPPY_KEY_CONTRACT = '0x3d3ad7b00e885d3d969e03bfcbaed80fb3df6667';
 const SAPPY_KEY_IMAGE = 'https://gold-ready-vicuna-5.mypinata.cloud/ipfs/QmUYJi27E6p9f4BpvqEijtEe2kKyztqrtcEwr7iM3RAqLi/KeyGIF.gif';
 const OMNIA_ITEM_IMAGE_BASE = 'https://dweb.link/ipfs/QmZbN8LpJe6aRdey277wx5SvsyVTom8AS9FzKMmJYFDtdh';
@@ -423,6 +425,10 @@ function tokenCallData(selector, tokenId) {
   return `${selector}${id}`;
 }
 
+function balanceOfData(address) {
+  return `${ERC20_BALANCE_OF_SELECTOR}${address.toLowerCase().replace(/^0x/, '').padStart(64, '0')}`;
+}
+
 function decodeAbiString(hex) {
   if (!hex || hex === '0x') return undefined;
   const clean = hex.slice(2);
@@ -446,6 +452,13 @@ async function ethCall(contract, data) {
   if (!response.ok) return undefined;
   const json = await response.json();
   return json.result;
+}
+
+async function fetchPixlBalance(wallet) {
+  if (!ADDRESS_RE.test(wallet || '')) return 0;
+  const result = await ethCall(PIXL_CONTRACT, balanceOfData(wallet)).catch(() => undefined);
+  if (!result || result === '0x') return 0;
+  return Number(BigInt(result) / 10n ** 18n);
 }
 
 async function fetchTokenMetadata(contract, tokenId) {
@@ -680,6 +693,9 @@ export default async function handler(req, res) {
     const wallets = requestedWallet
       ? [requestedWallet, ...await fetchDelegateWallets(requestedWallet)]
       : WALLETS;
+    const pixlBalance = requestedWallet
+      ? await Promise.all(wallets.map(fetchPixlBalance)).then((balances) => balances.reduce((sum, value) => sum + (Number(value) || 0), 0)).catch(() => 0)
+      : 0;
     const reservoirResponses = await Promise.allSettled(
       wallets.flatMap((wallet) => [
         fetchReservoirNfts(wallet, undefined, { fullWallet: Boolean(requestedWallet) }),
@@ -736,8 +752,8 @@ export default async function handler(req, res) {
     }
 
     res.setHeader('Cache-Control', requestedWallet ? 'no-store' : 's-maxage=3600, stale-while-revalidate=86400');
-    res.status(200).json({ nfts, wallet: requestedWallet, delegatedWallets: requestedWallet ? wallets.slice(1) : [] });
+    res.status(200).json({ nfts, wallet: requestedWallet, delegatedWallets: requestedWallet ? wallets.slice(1) : [], pixlBalance });
   } catch (error) {
-    res.status(200).json({ nfts: [] });
+    res.status(200).json({ nfts: [], pixlBalance: 0 });
   }
 }

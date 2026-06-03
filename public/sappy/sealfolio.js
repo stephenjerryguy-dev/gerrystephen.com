@@ -74,6 +74,7 @@
     profileWallet: /^0x[a-fA-F0-9]{40}$/.test(urlWallet) ? urlWallet : "",
     nfts: null,
     delegatedWallets: [],
+    pixlBalance: 0,
     loading: false,
     error: "",
     profile: loadLocalProfile(),
@@ -87,6 +88,14 @@
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
+  }
+
+  function formatPixl(value) {
+    const n = Number(value || 0);
+    if (!Number.isFinite(n) || n <= 0) return "0";
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1)}M`;
+    if (n >= 1_000) return `${(n / 1_000).toFixed(n >= 100_000 ? 0 : 1)}K`;
+    return Math.round(n).toLocaleString("en-US");
   }
 
   function cleanXHandle(value) {
@@ -153,6 +162,7 @@
       keys: owned.filter((o) => contractType(o.contract) === "sappy-key").length,
       artifacts: owned.filter((o) => isDigitalArtifactAsset(o)).length,
       delegates: state.delegatedWallets.length,
+      pixl: Number(state.pixlBalance || 0),
       collections: new Set(owned.map((o) => o.collection).filter(Boolean)).size,
     };
     const sealScore = Math.min(420, counts.seals ? 120 + Math.max(0, Math.min(counts.seals, 5) - 1) * 30 + Math.max(0, counts.seals - 5) * 12 : 0);
@@ -161,12 +171,13 @@
     const artifactScore = Math.min(80, counts.artifacts * 35);
     const omniaScore = Math.min(180, Math.round(Math.sqrt(counts.omnia) * 22));
     const pixsealScore = Math.min(90, Math.round(Math.sqrt(counts.pixseals) * 13));
+    const pixlScore = Math.min(90, counts.pixl >= 1_000_000 ? 90 : counts.pixl >= 250_000 ? 70 : counts.pixl >= 100_000 ? 50 : counts.pixl >= 10_000 ? 25 : counts.pixl > 0 ? 10 : 0);
     const delegateScore = Math.min(50, counts.delegates * 25);
     const varietyScore = Math.min(90, counts.collections * 15);
     return {
       counts,
-      parts: { sealScore, stakedScore, keyScore, artifactScore, omniaScore, pixsealScore, delegateScore, varietyScore },
-      total: Math.min(999, sealScore + stakedScore + keyScore + artifactScore + omniaScore + pixsealScore + delegateScore + varietyScore),
+      parts: { sealScore, stakedScore, keyScore, artifactScore, omniaScore, pixsealScore, pixlScore, delegateScore, varietyScore },
+      total: Math.min(999, sealScore + stakedScore + keyScore + artifactScore + omniaScore + pixsealScore + pixlScore + delegateScore + varietyScore),
     };
   }
 
@@ -362,8 +373,9 @@
         <div class="fstat"><div class="v">${badges.filter(b=>b.have).length}</div><div class="k">Badges</div></div>
         <div class="fstat"><div class="v">${staked}</div><div class="k">Staked</div></div>
         <div class="fstat"><div class="v">${score}</div><div class="k">Score</div></div>
+        <div class="fstat"><div class="v">${formatPixl(state.pixlBalance)}</div><div class="k">$PIXL</div></div>
       </div>
-      ${hasProfile ? `<div class="score-explain">Score curve: seals ${breakdown.parts.sealScore}, staked ${breakdown.parts.stakedScore}, keys ${breakdown.parts.keyScore}, artifacts ${breakdown.parts.artifactScore}, Omnia ${breakdown.parts.omniaScore}, Pixseals ${breakdown.parts.pixsealScore}, Delegate.xyz ${breakdown.parts.delegateScore}, collection variety ${breakdown.parts.varietyScore}. Whale scores now require real depth, not just a long mixed asset list.</div>` : ""}
+      ${hasProfile ? `<div class="score-explain">Score curve: seals ${breakdown.parts.sealScore}, staked ${breakdown.parts.stakedScore}, keys ${breakdown.parts.keyScore}, artifacts ${breakdown.parts.artifactScore}, Omnia ${breakdown.parts.omniaScore}, Pixseals ${breakdown.parts.pixsealScore}, $PIXL ${breakdown.parts.pixlScore}, Delegate.xyz ${breakdown.parts.delegateScore}, collection variety ${breakdown.parts.varietyScore}. $PIXL counts toward score, but it is not counted as an NFT asset.</div>` : ""}
 
       <div class="folio-sec">
         <h2>${hasProfile ? "Claim your Sealfolio" : "Create your Sealfolio"}</h2>
@@ -492,9 +504,11 @@
       data = data || { nfts: [] };
       state.nfts = Array.isArray(data.nfts) ? data.nfts : [];
       state.delegatedWallets = Array.isArray(data.delegatedWallets) ? data.delegatedWallets : [];
+      state.pixlBalance = Number(data.pixlBalance || 0) || 0;
     } catch (e) {
       state.error = "collection_sync_failed";
       state.nfts = [];
+      state.pixlBalance = 0;
     } finally {
       state.loading = false;
       render();
