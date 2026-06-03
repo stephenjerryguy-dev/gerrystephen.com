@@ -29,6 +29,11 @@ export default defineConfig({
         'sappy/ecosystem': resolve(__dirname, 'sappy/ecosystem.html'),
         'sappy/community': resolve(__dirname, 'sappy/community.html'),
         'sappy/memes': resolve(__dirname, 'sappy/memes.html')
+      },
+      output: {
+        manualChunks(id) {
+          if (id.includes('@dynamic-labs')) return 'dynamic';
+        }
       }
     }
   }

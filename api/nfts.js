@@ -11,6 +11,11 @@ const POLYGON_RESERVOIR_API = 'https://api-polygon.reservoir.tools';
 const BLOCKSCOUT_API = 'https://eth.blockscout.com/api/v2';
 const OPENSEA_API = 'https://api.opensea.io/api/v2';
 const ETH_RPC = 'https://eth.llamarpc.com';
+const ETH_RPCS = [
+  'https://ethereum.publicnode.com',
+  ETH_RPC,
+  'https://cloudflare-eth.com',
+];
 const TOKEN_URI_SELECTOR = '0xc87b56dd';
 const ERC1155_URI_SELECTOR = '0x0e89341c';
 const ERC20_BALANCE_OF_SELECTOR = '0x70a08231';
@@ -439,19 +444,23 @@ function decodeAbiString(hex) {
 }
 
 async function ethCall(contract, data) {
-  const response = await fetch(ETH_RPC, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'eth_call',
-      params: [{ to: contract, data }, 'latest'],
-    }),
+  const body = JSON.stringify({
+    jsonrpc: '2.0',
+    id: 1,
+    method: 'eth_call',
+    params: [{ to: contract, data }, 'latest'],
   });
-  if (!response.ok) return undefined;
-  const json = await response.json();
-  return json.result;
+  for (const rpc of ETH_RPCS) {
+    const response = await fetch(rpc, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body,
+    }).catch(() => undefined);
+    if (!response?.ok) continue;
+    const json = await response.json().catch(() => ({}));
+    if (json?.result && json.result !== '0x') return json.result;
+  }
+  return undefined;
 }
 
 async function fetchPixlBalance(wallet) {
