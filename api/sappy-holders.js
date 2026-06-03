@@ -212,21 +212,48 @@ async function countReservoirEcosystemNfts(address) {
   return counts.reduce((sum, value) => sum + (Number(value) || 0), 0) + (Number(polygon) || 0);
 }
 
-async function holderFromOpenSeaQuery(query) {
-  const account = await fetchOpenSeaAccount(query);
-  const address = account?.address;
-  if (!ADDRESS_RE.test(address || '')) return null;
-  const [profile, ethCount, polygonCount, bitcoinCount, reservoirCount, pixlBalance] = await Promise.all([
-    fetchOpenSeaProfile(address),
+async function fetchDelegateWallets(wallet) {
+  if (!ADDRESS_RE.test(wallet || '')) return [];
+  const chainIds = [1, 137];
+  const settled = await Promise.allSettled(chainIds.map(async (chainId) => {
+    const response = await fetch(`https://api.delegate.xyz/registry/v2/${wallet}?chainId=${chainId}`, {
+      headers: { accept: 'application/json' },
+    }).catch(() => undefined);
+    if (!response?.ok) return [];
+    const delegations = await response.json().catch(() => []);
+    return (Array.isArray(delegations) ? delegations : [])
+      .filter((delegation) => delegation?.to?.toLowerCase?.() === wallet.toLowerCase())
+      .map((delegation) => delegation.from)
+      .filter((address) => ADDRESS_RE.test(address));
+  }));
+  return [...new Set(settled.flatMap((entry) => (entry.status === 'fulfilled' ? entry.value : [])))];
+}
+
+async function countWalletEcosystemNfts(address) {
+  const [ethCount, polygonCount, bitcoinCount, reservoirCount] = await Promise.all([
     countOpenSeaEcosystemNfts(address, 'ethereum'),
     countOpenSeaEcosystemNfts(address, 'matic'),
     countOpenSeaEcosystemNfts(address, 'bitcoin'),
     countReservoirEcosystemNfts(address),
-    fetchPixlBalance(address),
   ]);
   const openSeaCount = ethCount + polygonCount + bitcoinCount;
   const knownArtifacts = KNOWN_DIGITAL_ARTIFACTS_BY_WALLET[address.toLowerCase()] || 0;
-  const count = Math.max(openSeaCount, reservoirCount) + (openSeaCount || reservoirCount ? 0 : knownArtifacts);
+  return Math.max(openSeaCount, reservoirCount) + (openSeaCount || reservoirCount ? 0 : knownArtifacts);
+}
+
+async function holderFromOpenSeaQuery(query) {
+  const account = await fetchOpenSeaAccount(query);
+  const address = account?.address;
+  if (!ADDRESS_RE.test(address || '')) return null;
+  const delegatedWallets = await fetchDelegateWallets(address).catch(() => []);
+  const wallets = [address, ...delegatedWallets];
+  const [profile, walletCounts, pixlBalances] = await Promise.all([
+    fetchOpenSeaProfile(address),
+    Promise.all(wallets.map((wallet) => countWalletEcosystemNfts(wallet).catch(() => 0))),
+    Promise.all(wallets.map((wallet) => fetchPixlBalance(wallet).catch(() => 0))),
+  ]);
+  const count = walletCounts.reduce((sum, value) => sum + (Number(value) || 0), 0);
+  const pixlBalance = pixlBalances.reduce((sum, value) => sum + (Number(value) || 0), 0);
   const xHandle = profile?.xHandle || pickTwitter(account);
   const label = xHandle ? `@${xHandle}` : (account.username || account.name || profile?.label || shortAddress(address));
   const cleanUser = String(xHandle || account.username || label || shortAddress(address)).replace(/^@/, '');
@@ -242,6 +269,7 @@ async function holderFromOpenSeaQuery(query) {
     profileImage: account.profile_image_url || account.profileImageUrl || profile?.profileImage,
     profileUrl: `https://opensea.io/${account.username || address}`,
     pixlBalance,
+    delegatedWallets,
     claimable: Boolean(xHandle || account.username),
     profile: `/sappy/sealfolio.html?wallet=${address}&u=${encodeURIComponent(cleanUser)}`,
   });
