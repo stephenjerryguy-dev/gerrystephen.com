@@ -46,6 +46,18 @@ const KNOWN_DIGITAL_ARTIFACTS_BY_WALLET = {
   '0x741047ae552e58e89f1ff51d9a06e5d9dfba3feb': 1,
   '0xcf3b8981abaa56a8e41117b0c721c05f608400a7': 1,
 };
+const KNOWN_HOLDER_OVERRIDES = {
+  '0xcf3b8981abaa56a8e41117b0c721c05f608400a7': {
+    label: '@gerrydoteth',
+    xHandle: 'gerrydoteth',
+    openseaUsername: 'gerrydoteth',
+    count: 66,
+    countType: 'ecosystem',
+    vibe: 'Top Holder',
+    profileImage: 'https://i2c.seadn.io/profiles/0xcf3b8981abaa56a8e41117b0c721c05f608400a7/avatar/7b623b1827b698849dc6fdb293f3af/de7b623b1827b698849dc6fdb293f3af.png',
+    claimable: true,
+  },
+};
 
 const POD_ECOSYSTEM_CONTRACTS = [
   OMNIA_PETS_CONTRACT,
@@ -64,6 +76,19 @@ function reservoirHeaders() {
 
 function shortAddress(address) {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
+
+function applyHolderOverride(holder) {
+  const key = String(holder?.address || '').toLowerCase();
+  const override = KNOWN_HOLDER_OVERRIDES[key];
+  if (!override) return holder;
+  return {
+    ...holder,
+    ...override,
+    address: holder.address,
+    profileUrl: holder.profileUrl || `https://opensea.io/${override.openseaUsername || holder.address}`,
+    profile: `/sappy/sealfolio.html?wallet=${holder.address}&u=${encodeURIComponent((override.xHandle || override.label || shortAddress(holder.address)).replace(/^@/, ''))}`,
+  };
 }
 
 function openseaHeaders() {
@@ -163,7 +188,7 @@ async function holderFromOpenSeaQuery(query) {
   const xHandle = profile?.xHandle || pickTwitter(account);
   const label = xHandle ? `@${xHandle}` : (account.username || account.name || profile?.label || shortAddress(address));
   const cleanUser = String(xHandle || account.username || label || shortAddress(address)).replace(/^@/, '');
-  return {
+  return applyHolderOverride({
     address,
     label,
     count,
@@ -176,7 +201,7 @@ async function holderFromOpenSeaQuery(query) {
     profileUrl: `https://opensea.io/${account.username || address}`,
     claimable: Boolean(xHandle || account.username),
     profile: `/sappy/sealfolio.html?wallet=${address}&u=${encodeURIComponent(cleanUser)}`,
-  };
+  });
 }
 
 async function enrichHolders(holders) {
@@ -186,7 +211,7 @@ async function enrichHolders(holders) {
     const profile = profiles[index]?.status === 'fulfilled' ? profiles[index].value : null;
     if (!profile) return holder;
     const label = profile.label || holder.label;
-    return {
+    return applyHolderOverride({
       ...holder,
       label,
       xHandle: profile.xHandle,
@@ -196,7 +221,7 @@ async function enrichHolders(holders) {
       claimable: Boolean(profile.xHandle),
       countType: holder.countType || 'seals',
       profile: `/sappy/sealfolio.html?wallet=${holder.address}&u=${encodeURIComponent((profile.xHandle || label || holder.label).replace(/^@/, ''))}`,
-    };
+    });
   });
 }
 
@@ -428,7 +453,7 @@ export default async function handler(req, res) {
 
     const enriched = await enrichHolders(interleaveGroups([sealCandidates, ecosystemCandidates], 48));
     const xLinked = enriched.filter((holder) => holder.xHandle);
-    let holders = (xLinked.length ? [...xLinked, ...enriched.filter((holder) => !holder.xHandle)] : enriched).slice(0, 32);
+    let holders = (xLinked.length ? [...xLinked, ...enriched.filter((holder) => !holder.xHandle)] : enriched).map(applyHolderOverride).slice(0, 32);
     if (query) {
       const q = query.toLowerCase();
       const matches = holders.filter((holder) => [
@@ -441,7 +466,7 @@ export default async function handler(req, res) {
       holders = [
         ...(direct ? [direct] : []),
         ...matches.filter((holder) => !direct || holder.address.toLowerCase() !== direct.address.toLowerCase()),
-      ].slice(0, 32);
+      ].map(applyHolderOverride).slice(0, 32);
     }
 
     res.setHeader('Cache-Control', 's-maxage=900, stale-while-revalidate=3600');

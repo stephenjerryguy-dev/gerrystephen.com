@@ -167,7 +167,8 @@
       `User concept: ${concept}.`,
       `Style: ${styleInstruction()}.`,
       "Create a polished Sappy Seal scene adaptation like a finished illustration: strong character consistency, clean environment, expressive pose, and premium social polish.",
-      "Treat the loaded NFT as the identity lock. If the scenario changes clothing, translate the real seal's existing outfit, headwear, accessories, expression, and colors into the new outfit instead of inventing a random seal.",
+      "Replace the main character in the target scene with the loaded Sappy Seal. The final image should look like the NFT seal is now performing that scene, not like two reference images placed side by side.",
+      "Treat the loaded NFT as the identity lock. Translate the real seal's outfit, headwear, accessories, expression, and colors onto the character in the scene instead of inventing a random seal.",
       "Use the attached references as quality direction: cute full-body seal character, consistent turns/poses, and finished environment scenes.",
       "Avoid clutter. Leave clean negative space for captions. Keep the tone wholesome, funny, and community-native.",
       "Do not reference Okay Bears or any other collection.",
@@ -202,15 +203,14 @@
       <article class="ai-result-card">
         <div class="ai-result-media">
           ${image.url ? `<img src="${image.url}" alt="Generated Sappy meme ${index + 1}" loading="lazy">` : `
-            <div class="ai-scene-board">
-              <div class="ai-scene-ref primary">
+            <div class="ai-scene-board ai-scene-replace">
+              ${sceneImage ? `<img class="ai-scene-bg" src="${esc(sceneImage)}" alt="${esc(image.sceneReferenceLabel || "Scene reference")}" loading="lazy">` : ""}
+              <div class="ai-replacement-token">
                 ${sealImage ? `<img src="${esc(sealImage)}" alt="${esc(image.sealName || "Loaded seal reference")}" loading="lazy" referrerpolicy="no-referrer">` : ""}
-                <span>Identity lock</span>
+                <span>Replace main character</span>
               </div>
-              <div class="ai-scene-ref">
-                ${sceneImage ? `<img src="${esc(sceneImage)}" alt="${esc(image.sceneReferenceLabel || "Scene reference")}" loading="lazy">` : ""}
-                <span>${esc(image.sceneReferenceLabel || "Scene direction")}</span>
-              </div>
+              <div class="ai-replacement-arrow">→</div>
+              <div class="ai-replacement-label">${esc(image.sealName || "Loaded seal")} becomes the scene lead</div>
               <div class="ai-scene-caption">${esc(image.caption || "Sappy scene ready")}</div>
             </div>`}
         </div>

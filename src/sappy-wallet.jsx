@@ -15,16 +15,15 @@ import { EthereumWalletConnectors } from '@dynamic-labs/ethereum';
 import { ProviderEnum } from '@dynamic-labs/sdk-api-core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http } from 'viem';
-import { mainnet, polygon } from 'viem/chains';
+import { mainnet } from 'viem/chains';
 import { createConfig, WagmiProvider } from 'wagmi';
 
 const SAPPY_DYNAMIC_ENV_ID = window.SAPPY_DYNAMIC_ENV_ID || import.meta.env.VITE_SAPPY_DYNAMIC_ENV_ID || 'b62527ee-ec89-4502-86b3-37987b5720d4';
 const wagmiConfig = createConfig({
-  chains: [mainnet, polygon],
+  chains: [mainnet],
   multiInjectedProviderDiscovery: false,
   transports: {
     [mainnet.id]: http(),
-    [polygon.id]: http(),
   },
 });
 const queryClient = new QueryClient();
@@ -86,6 +85,7 @@ window.addEventListener('error', (event) => {
 const settings = {
   appName: 'Sappy Sealfolio',
   appLogoUrl: `${window.location.origin}/sappy/assets/sappy-seal-emoji.webp`,
+  apiBaseUrl: `${window.location.origin}/dynamic-api`,
   environmentId: SAPPY_DYNAMIC_ENV_ID,
   initialAuthenticationMode: 'connect-and-sign',
   theme: 'light',

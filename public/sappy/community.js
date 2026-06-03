@@ -96,7 +96,7 @@
     if (holder.xHandle) params.set("x", holder.xHandle.replace(/^@/, ""));
     return {
       h: label,
-      vibe: holder.source === "opensea-account" ? "OpenSea profile" : index < 3 ? "Top Holder" : VIBES[seed % VIBES.length],
+      vibe: holder.vibe || (holder.source === "opensea-account" ? "OpenSea profile" : index < 3 ? "Top Holder" : VIBES[seed % VIBES.length]),
       n: holder.count || 1,
       countType,
       seed,
