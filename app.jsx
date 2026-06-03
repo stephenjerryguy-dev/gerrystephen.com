@@ -25,6 +25,78 @@ import './styles.css';
 const SITE_BUILD_VERSION = 'ecosystems-app-92';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
+function safeStorage() {
+  try {
+    return typeof window !== 'undefined' ? window.localStorage : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function storageGet(key, fallback = '') {
+  try {
+    return safeStorage()?.getItem(key) ?? fallback;
+  } catch (_) {
+    return fallback;
+  }
+}
+
+function storageSet(key, value) {
+  try {
+    safeStorage()?.setItem(key, value);
+  } catch (_) {}
+}
+
+function storageRemove(key) {
+  try {
+    safeStorage()?.removeItem(key);
+  } catch (_) {}
+}
+
+function storageKeys() {
+  try {
+    const store = safeStorage();
+    return store ? Object.keys(store) : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function safeNow() {
+  try {
+    return typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
+  } catch (_) {
+    return Date.now();
+  }
+}
+
+class AppErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <main className="app-error-screen">
+          <section>
+            <p>App recovery</p>
+            <h1>Reload the iglu.</h1>
+            <span>{this.state.error?.message || 'The app hit a browser runtime issue.'}</span>
+            <button type="button" onClick={() => window.location.reload()}>Reload</button>
+          </section>
+        </main>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "parallaxIntensity": 60,
   "snowfall": true,
@@ -392,7 +464,7 @@ function useInView(ref, threshold = 0.15) {
 function slowScrollTo(targetY, duration = 2600) {
   const startY = window.scrollY;
   const delta = targetY - startY;
-  const start = performance.now();
+  const start = safeNow();
   const ease = (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
   function frame(now) {
@@ -1294,9 +1366,6 @@ function monergeWalletsFilter(options = []) {
 const DYNAMIC_SETTINGS = {
   appName: 'Monerge',
   appLogoUrl: `${window.location.origin}/assets/monerge-icon-512.png`,
-  apiBaseUrl: /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname)
-    ? 'https://app.dynamicauth.com/api/v0'
-    : `${window.location.origin}/dynamic-api`,
   environmentId: DYNAMIC_ENV_ID,
   initialAuthenticationMode: 'connect-and-sign',
   enableVisitTrackingOnConnectOnly: true,
@@ -1377,9 +1446,9 @@ const DYNAMIC_AUTH_OPTIONS = {
 
 function purgeDynamicWalletCache() {
   try {
-    Object.keys(localStorage).forEach((key) => {
+    storageKeys().forEach((key) => {
       if (/^dynamic_|^@dynamic|walletconnect|wallet-connect|wc@|appkit|w3m/i.test(key)) {
-        localStorage.removeItem(key);
+        storageRemove(key);
       }
     });
   } catch (_) {}
@@ -1587,11 +1656,11 @@ function readStoredProfileSignature(wallet = '') {
   try {
     const normalized = String(wallet || '').trim().toLowerCase();
     if (normalized) {
-      const walletSignature = localStorage.getItem(walletSignatureKey(normalized)) || '';
+      const walletSignature = storageGet(walletSignatureKey(normalized)) || '';
       if (walletSignature) return walletSignature;
     }
-    const globalSignature = localStorage.getItem(PROFILE_SIGNATURE_KEY) || '';
-    const savedWallet = (localStorage.getItem(PROFILE_SIGNATURE_WALLET_KEY) || '').toLowerCase();
+    const globalSignature = storageGet(PROFILE_SIGNATURE_KEY) || '';
+    const savedWallet = (storageGet(PROFILE_SIGNATURE_WALLET_KEY) || '').toLowerCase();
     if (!normalized || !savedWallet || savedWallet === normalized) return globalSignature;
     return '';
   } catch (_) {
@@ -1605,7 +1674,7 @@ function loadProfileSignature(wallet = '') {
 
 function loadProfile() {
   try {
-    return cleanProfile(JSON.parse(localStorage.getItem(PROFILE_KEY) || '{}'));
+    return cleanProfile(JSON.parse(storageGet(PROFILE_KEY) || '{}'));
   } catch (_) {
     return { username: '', pfp: '' };
   }
@@ -1732,7 +1801,7 @@ function MonergeProfileEditor({ profile, account, onProfileChange, onPfpUpload, 
 
 function loadLeaderboard() {
   try {
-    const parsed = JSON.parse(localStorage.getItem(LEADERBOARD_KEY) || localStorage.getItem(SCOREBOARD_KEY) || '[]');
+    const parsed = JSON.parse(storageGet(LEADERBOARD_KEY) || storageGet(SCOREBOARD_KEY) || '[]');
     return Array.isArray(parsed) ? dedupeLeaderboard(parsed).slice(0, 50) : [];
   } catch (_) {
     return [];
@@ -1740,7 +1809,7 @@ function loadLeaderboard() {
 }
 
 function saveLeaderboard(entries) {
-  localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(dedupeLeaderboard(entries).slice(0, 50)));
+  storageSet(LEADERBOARD_KEY, JSON.stringify(dedupeLeaderboard(entries).slice(0, 50)));
 }
 
 function sortLeaderboard(entries) {
@@ -2076,6 +2145,7 @@ function MonadGame() {
     primaryWallet,
     setShowAuthFlow,
     handleLogOut,
+    user,
     sdkHasLoaded,
     projectSettings,
     showAuthFlow
@@ -2086,7 +2156,7 @@ function MonadGame() {
   const [dynamicTimedOut, setDynamicTimedOut] = useState(false);
   const [board, setBoard] = useState(() => makeBoard());
   const [score, setScore] = useState(0);
-  const [best, setBest] = useState(() => Number(localStorage.getItem('monergeBlindBest') || localStorage.getItem('igluMergeBlindBest') || 0));
+  const [best, setBest] = useState(() => Number(storageGet('monergeBlindBest') || storageGet('igluMergeBlindBest') || 0));
   const [moves, setMoves] = useState(0);
   const [gameOver, setGameOver] = useState(false);
   const [touchStart, setTouchStart] = useState(null);
@@ -2153,8 +2223,8 @@ function MonadGame() {
       pfp: String(nextProfile.pfp || '').trim().slice(0, 1200000)
     };
     setProfile(next);
-    localStorage.setItem(PROFILE_KEY, JSON.stringify(next));
-    if (account) localStorage.setItem(walletProfileKey(account), JSON.stringify(next));
+    storageSet(PROFILE_KEY, JSON.stringify(next));
+    if (account) storageSet(walletProfileKey(account), JSON.stringify(next));
     if (account && profileSignature) {
       setWalletState('Profile saved. Your wallet stays signed.');
     }
@@ -2289,15 +2359,15 @@ function MonadGame() {
         const storedSignature = readStoredProfileSignature(address);
         if (!cancelled && storedSignature && storedSignature !== profileSignature) {
           setProfileSignature(storedSignature);
-          localStorage.setItem(PROFILE_SIGNATURE_KEY, storedSignature);
-          localStorage.setItem(PROFILE_SIGNATURE_WALLET_KEY, address);
+          storageSet(PROFILE_SIGNATURE_KEY, storedSignature);
+          storageSet(PROFILE_SIGNATURE_WALLET_KEY, address);
         }
         if (!cancelled && user && !storedSignature) {
           const dynamicSignature = `dynamic-auth:${user.userId || user.id || address}`;
           setProfileSignature(dynamicSignature);
-          localStorage.setItem(PROFILE_SIGNATURE_KEY, dynamicSignature);
-          localStorage.setItem(PROFILE_SIGNATURE_WALLET_KEY, address);
-          localStorage.setItem(walletSignatureKey(address), dynamicSignature);
+          storageSet(PROFILE_SIGNATURE_KEY, dynamicSignature);
+          storageSet(PROFILE_SIGNATURE_WALLET_KEY, address);
+          storageSet(walletSignatureKey(address), dynamicSignature);
           pendingProfileSignRef.current = false;
           setWalletState('Profile signed');
         } else if (!cancelled && pendingProfileSignRef.current && !profileSignature && !storedSignature) {
@@ -2308,15 +2378,15 @@ function MonadGame() {
         const storedSignature = readStoredProfileSignature(address);
         if (!cancelled && storedSignature && storedSignature !== profileSignature) {
           setProfileSignature(storedSignature);
-          localStorage.setItem(PROFILE_SIGNATURE_KEY, storedSignature);
-          localStorage.setItem(PROFILE_SIGNATURE_WALLET_KEY, address);
+          storageSet(PROFILE_SIGNATURE_KEY, storedSignature);
+          storageSet(PROFILE_SIGNATURE_WALLET_KEY, address);
         }
         if (!cancelled && user && !storedSignature) {
           const dynamicSignature = `dynamic-auth:${user.userId || user.id || address}`;
           setProfileSignature(dynamicSignature);
-          localStorage.setItem(PROFILE_SIGNATURE_KEY, dynamicSignature);
-          localStorage.setItem(PROFILE_SIGNATURE_WALLET_KEY, address);
-          localStorage.setItem(walletSignatureKey(address), dynamicSignature);
+          storageSet(PROFILE_SIGNATURE_KEY, dynamicSignature);
+          storageSet(PROFILE_SIGNATURE_WALLET_KEY, address);
+          storageSet(walletSignatureKey(address), dynamicSignature);
           pendingProfileSignRef.current = false;
           setWalletState('Profile signed');
         } else if (!cancelled && pendingProfileSignRef.current && !profileSignature && !storedSignature) {
@@ -2334,7 +2404,7 @@ function MonadGame() {
     if (!account) return;
     let walletProfile = { username: '', pfp: '' };
     try {
-      walletProfile = cleanProfile(JSON.parse(localStorage.getItem(walletProfileKey(account)) || '{}'));
+      walletProfile = cleanProfile(JSON.parse(storageGet(walletProfileKey(account)) || '{}'));
     } catch (_) {
       walletProfile = { username: '', pfp: '' };
     }
@@ -2343,20 +2413,20 @@ function MonadGame() {
       walletProfile.pfp !== cleanPlayerProfile.pfp
     )) {
       setProfile(walletProfile);
-      localStorage.setItem(PROFILE_KEY, JSON.stringify(walletProfile));
+      storageSet(PROFILE_KEY, JSON.stringify(walletProfile));
     }
     const storedSignature = readStoredProfileSignature(account);
     if (storedSignature && storedSignature !== profileSignature) {
       setProfileSignature(storedSignature);
-      localStorage.setItem(PROFILE_SIGNATURE_KEY, storedSignature);
-      localStorage.setItem(PROFILE_SIGNATURE_WALLET_KEY, account);
+      storageSet(PROFILE_SIGNATURE_KEY, storedSignature);
+      storageSet(PROFILE_SIGNATURE_WALLET_KEY, account);
       return;
     }
-    const savedWallet = localStorage.getItem(PROFILE_SIGNATURE_WALLET_KEY) || '';
+    const savedWallet = storageGet(PROFILE_SIGNATURE_WALLET_KEY) || '';
     if (profileSignature && !storedSignature && (!savedWallet || savedWallet.toLowerCase() !== account.toLowerCase())) {
       setProfileSignature('');
-      localStorage.removeItem(PROFILE_SIGNATURE_KEY);
-      localStorage.removeItem(PROFILE_SIGNATURE_WALLET_KEY);
+      storageRemove(PROFILE_SIGNATURE_KEY);
+      storageRemove(PROFILE_SIGNATURE_WALLET_KEY);
     }
   }, [account, profileSignature, cleanPlayerProfile.username, cleanPlayerProfile.pfp]);
 
@@ -2471,16 +2541,16 @@ function MonadGame() {
         const storedSignature = readStoredProfileSignature(connectedAddress);
         if (storedSignature) {
           setProfileSignature(storedSignature);
-          localStorage.setItem(PROFILE_SIGNATURE_KEY, storedSignature);
-          localStorage.setItem(PROFILE_SIGNATURE_WALLET_KEY, connectedAddress);
+          storageSet(PROFILE_SIGNATURE_KEY, storedSignature);
+          storageSet(PROFILE_SIGNATURE_WALLET_KEY, connectedAddress);
           pendingProfileSignRef.current = false;
           setWalletState('Dynamic wallet ready');
         } else if (user) {
           const dynamicSignature = `dynamic-auth:${user.userId || user.id || connectedAddress}`;
           setProfileSignature(dynamicSignature);
-          localStorage.setItem(PROFILE_SIGNATURE_KEY, dynamicSignature);
-          localStorage.setItem(PROFILE_SIGNATURE_WALLET_KEY, connectedAddress);
-          localStorage.setItem(walletSignatureKey(connectedAddress), dynamicSignature);
+          storageSet(PROFILE_SIGNATURE_KEY, dynamicSignature);
+          storageSet(PROFILE_SIGNATURE_WALLET_KEY, connectedAddress);
+          storageSet(walletSignatureKey(connectedAddress), dynamicSignature);
           pendingProfileSignRef.current = false;
           setWalletState('Profile signed');
         } else {
@@ -2507,8 +2577,8 @@ function MonadGame() {
     setChainId('');
     setWalletState('Wallet disconnected');
     setProfileSignature('');
-    localStorage.removeItem(PROFILE_SIGNATURE_KEY);
-    localStorage.removeItem(PROFILE_SIGNATURE_WALLET_KEY);
+    storageRemove(PROFILE_SIGNATURE_KEY);
+    storageRemove(PROFILE_SIGNATURE_WALLET_KEY);
   }
 
   function newGame() {
@@ -2726,7 +2796,7 @@ function MonadGame() {
     }
     if (final > best) {
       setBest(final);
-      localStorage.setItem('monergeBlindBest', String(final));
+      storageSet('monergeBlindBest', String(final));
     }
     setGameMessage(`Actual ${score}. Off by ${miss}. ${currentDifficulty.label} bonus ${difficultyBonusValue}. Final score ${final}. Run uploaded${account ? ' with your wallet.' : '.'}`);
   }
@@ -2777,9 +2847,9 @@ function MonadGame() {
       }
       const nextSignature = signature || 'signed';
       setProfileSignature(nextSignature);
-      localStorage.setItem(PROFILE_SIGNATURE_KEY, nextSignature);
-      localStorage.setItem(PROFILE_SIGNATURE_WALLET_KEY, signingAddress);
-      localStorage.setItem(walletSignatureKey(signingAddress), nextSignature);
+      storageSet(PROFILE_SIGNATURE_KEY, nextSignature);
+      storageSet(PROFILE_SIGNATURE_WALLET_KEY, signingAddress);
+      storageSet(walletSignatureKey(signingAddress), nextSignature);
       setWalletState('Profile signed');
       setGameMessage('Profile signed. Revealed runs upload automatically.');
     } catch (error) {
@@ -3443,16 +3513,28 @@ function TweaksUI({ tweaks, setTweak }) {
 
 }
 
-createRoot(document.getElementById('root')).render(
-  <DynamicContextProvider settings={DYNAMIC_SETTINGS}>
-      <WagmiProvider config={wagmiConfig}>
-        <QueryClientProvider client={queryClient}>
-          <DynamicWagmiConnector>
-            <span className="build-version" aria-hidden="true">{SITE_BUILD_VERSION}</span>
-            <MonergeDynamicBridge />
-            <App />
-          </DynamicWagmiConnector>
-      </QueryClientProvider>
-    </WagmiProvider>
-  </DynamicContextProvider>
-);
+function mountApp() {
+  const root = document.getElementById('root');
+  if (!root) return;
+  createRoot(root).render(
+    <AppErrorBoundary>
+      <DynamicContextProvider settings={DYNAMIC_SETTINGS}>
+          <WagmiProvider config={wagmiConfig}>
+            <QueryClientProvider client={queryClient}>
+              <DynamicWagmiConnector>
+                <span className="build-version" aria-hidden="true">{SITE_BUILD_VERSION}</span>
+                <MonergeDynamicBridge />
+                <App />
+              </DynamicWagmiConnector>
+          </QueryClientProvider>
+        </WagmiProvider>
+      </DynamicContextProvider>
+    </AppErrorBoundary>
+  );
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', mountApp, { once: true });
+} else {
+  mountApp();
+}

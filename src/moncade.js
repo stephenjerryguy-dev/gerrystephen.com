@@ -59,9 +59,17 @@ const cabinetModes = {
 };
 let activeMode = "raidfield";
 
+function safeStorage() {
+  try {
+    return window.localStorage || null;
+  } catch {
+    return null;
+  }
+}
+
 function safeJson(key, fallback) {
   try {
-    return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback));
+    return JSON.parse(safeStorage()?.getItem(key) || JSON.stringify(fallback));
   } catch {
     return fallback;
   }
@@ -69,7 +77,7 @@ function safeJson(key, fallback) {
 
 function saveJson(key, value) {
   try {
-    localStorage.setItem(key, JSON.stringify(value));
+    safeStorage()?.setItem(key, JSON.stringify(value));
   } catch {}
 }
 
@@ -83,14 +91,21 @@ async function connectWallet() {
     return;
   }
   try {
-    await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: MONAD_TESTNET.chainId }] });
+    const currentChain = await window.ethereum.request({ method: "eth_chainId" });
+    if (String(currentChain || "").toLowerCase() !== MONAD_TESTNET.chainId) {
+      await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: MONAD_TESTNET.chainId }] });
+    }
   } catch {
     try {
       await window.ethereum.request({ method: "wallet_addEthereumChain", params: [MONAD_TESTNET] });
     } catch {}
   }
-  const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-  setWalletStatus(shortAddress(accounts[0]));
+  try {
+    const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+    setWalletStatus(shortAddress(accounts[0]));
+  } catch {
+    setWalletStatus("connect cancelled");
+  }
 }
 
 function setWalletStatus(text) {

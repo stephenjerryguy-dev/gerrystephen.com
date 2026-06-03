@@ -46,6 +46,27 @@
 {"@context":"https://schema.org","@type":"VideoGame","name":"Monerge","url":"https://gerrystephen.com/monerge","description":"A wallet-backed Monad focus game by Gerry Stephen. Merge Monanimal tiles, choose difficulty, remember hidden points, and reveal public runs.","applicationCategory":"GameApplication","operatingSystem":"Web, iOS, Android","genre":["Puzzle","Strategy","Focus game"],"image":"https://gerrystephen.com/assets/twitter-monerge-card-v92.jpg","publisher":{"@type":"Person","name":"Gerry Stephen","url":"https://gerrystephen.com/"}}
 </script>
 <script>
+function installGerryMemoryStorage(name) {
+  try {
+    if (window[name]) return;
+  } catch (_) {}
+  const memory = {};
+  try {
+    Object.defineProperty(window, name, {
+      configurable: true,
+      value: {
+        getItem: (key) => Object.prototype.hasOwnProperty.call(memory, key) ? memory[key] : null,
+        setItem: (key, value) => { memory[key] = String(value); },
+        removeItem: (key) => { delete memory[key]; },
+        clear: () => { Object.keys(memory).forEach((key) => delete memory[key]); },
+        key: (index) => Object.keys(memory)[index] || null,
+        get length() { return Object.keys(memory).length; }
+      }
+    });
+  } catch (_) {}
+}
+installGerryMemoryStorage('localStorage');
+installGerryMemoryStorage('sessionStorage');
 const bootParams = new URLSearchParams(window.location.search);
 const bootIsGame = window.location.pathname.includes('monerge') || bootParams.get('app') === 'monerge' || bootParams.get('app') === 'iglu-merge';
 document.documentElement.dataset.fileMode = window.location.protocol === 'file:' ? 'true' : 'false';
@@ -107,11 +128,19 @@ html[data-file-mode="true"] .file-hint { display: block; }
 <script type="module" src="/app.jsx?v=ecosystems-app-92"></script>
 <script>
 const GERRY_SHELL_VERSION = 'ecosystems-app-92';
+function gerryShellStorage() {
+  try {
+    return window.localStorage || null;
+  } catch (_) {
+    return null;
+  }
+}
 async function resetOldGerryShell() {
   try {
-    const currentVersion = localStorage.getItem('gerry-shell-version');
+    const shellStorage = gerryShellStorage();
+    const currentVersion = shellStorage?.getItem('gerry-shell-version');
     const forcedReset = new URLSearchParams(window.location.search).has('reset');
-    localStorage.setItem('gerry-shell-version', GERRY_SHELL_VERSION);
+    shellStorage?.setItem('gerry-shell-version', GERRY_SHELL_VERSION);
     if ('caches' in window) {
       const keys = await caches.keys();
       await Promise.all(keys.filter((key) => key.includes('gerry-iglu')).map((key) => caches.delete(key)));

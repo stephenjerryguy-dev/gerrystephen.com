@@ -6913,6 +6913,60 @@ body:has(.game-app-page) {
   }
 }
 
+/* ---------- Runtime recovery ---------- */
+.app-error-screen {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(127, 210, 231, 0.24), transparent 36%),
+    linear-gradient(145deg, #101037 0%, #231651 56%, #9cdfe9 140%);
+  color: #f8fbff;
+  box-sizing: border-box;
+}
+
+.app-error-screen section {
+  width: min(460px, 100%);
+  padding: 28px;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 24px;
+  background: rgba(255,255,255,0.11);
+  box-shadow: 0 28px 90px rgba(6, 10, 32, 0.34), inset 0 1px 0 rgba(255,255,255,0.22);
+  backdrop-filter: blur(18px);
+}
+
+.app-error-screen p {
+  margin: 0 0 10px;
+  font: 700 12px/1 var(--mono);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(174, 233, 246, 0.84);
+}
+
+.app-error-screen h1 {
+  margin: 0 0 14px;
+  font: 800 clamp(38px, 9vw, 64px)/0.95 var(--display);
+}
+
+.app-error-screen span {
+  display: block;
+  color: rgba(247,251,255,0.72);
+  line-height: 1.5;
+}
+
+.app-error-screen button {
+  margin-top: 20px;
+  min-height: 48px;
+  padding: 0 22px;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 999px;
+  background: linear-gradient(135deg, #a28bff, #7fd2e7);
+  color: #120d2e;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 /* ---------- Foot ---------- */
 .foot {
   display: flex; justify-content: space-between;

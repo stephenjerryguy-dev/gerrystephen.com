@@ -135,7 +135,16 @@ const buildings = [
 ];
 
 const particles = [];
-let last = performance.now();
+
+function safeNow() {
+  try {
+    return typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
+  } catch {
+    return Date.now();
+  }
+}
+
+let last = safeNow();
 
 function enemy(x, y, type) {
   const stats = {
@@ -232,8 +241,8 @@ function moveToward(unit, target, speed, dt) {
 }
 
 function cast(action) {
-  if (performance.now() - state.lastCast < 220 || hero.energy < 8) return;
-  state.lastCast = performance.now();
+  if (safeNow() - state.lastCast < 220 || hero.energy < 8) return;
+  state.lastCast = safeNow();
   const costs = { slash: 8, shield: 14, dash: 18, vortex: 26 };
   if (hero.energy < costs[action]) return;
   hero.energy -= costs[action];
@@ -782,7 +791,8 @@ function setChainStatus(text, tone = "") {
 
 function safeStorageSet(key, value) {
   try {
-    window.localStorage?.setItem(key, value);
+    const store = window.localStorage;
+    store?.setItem(key, value);
   } catch (error) {
     return false;
   }
@@ -791,7 +801,8 @@ function safeStorageSet(key, value) {
 
 function safeStorageGet(key) {
   try {
-    return window.localStorage?.getItem(key) || "";
+    const store = window.localStorage;
+    return store?.getItem(key) || "";
   } catch (error) {
     return "";
   }
