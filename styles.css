@@ -303,6 +303,7 @@ a { color: inherit; text-decoration: none; }
   width: 100%;
   overflow: hidden;
   isolation: isolate;
+  contain: paint;
   background: linear-gradient(180deg, #FFD7B5 0%, #FFE6C9 18%, #BFEDE6 55%, #2DBFB0 100%);
 }
 .cold-wash {
@@ -317,7 +318,14 @@ a { color: inherit; text-decoration: none; }
   transition: opacity 0.12s linear;
 }
 
-.layer { position: absolute; inset: 0; pointer-events: none; will-change: transform; }
+.layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  will-change: transform;
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+}
 .layer.sky {
   background:
     radial-gradient(900px 600px at 75% 22%, rgba(255,235,210,0.7) 0%, rgba(255,235,210,0) 60%),
@@ -658,6 +666,22 @@ a { color: inherit; text-decoration: none; }
   .terminal-left { left: 5vw; top: 86px; }
   .terminal-right { right: 5vw; top: auto; bottom: 26vh; }
   .scroll-hint { display: none; }
+  .aurora {
+    animation: none;
+    filter: blur(12px);
+    opacity: 0.72;
+  }
+  .cloud {
+    filter: none;
+    opacity: 0.56;
+  }
+  .cloud.c3,
+  .wave.w3 {
+    display: none;
+  }
+  .cold-wash {
+    mix-blend-mode: normal;
+  }
 }
 @media (max-width: 560px) {
   .hero { height: 230vh; }
@@ -681,6 +705,17 @@ a { color: inherit; text-decoration: none; }
   }
   .father-note span { font-size: 23px; }
   .father-note small { font-size: 8px; }
+  .cloud.c2,
+  .palms g:nth-of-type(3) {
+    display: none;
+  }
+  .sun {
+    filter: none;
+    box-shadow: 0 0 70px 18px rgba(255, 200, 140, 0.32);
+  }
+  .pengcard img {
+    filter: drop-shadow(0 20px 30px rgba(14,31,44,0.18));
+  }
 }
 
 /* ---------- Snowfall ---------- */

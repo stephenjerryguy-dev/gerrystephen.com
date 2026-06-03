@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   DynamicContextProvider,
-  DynamicWidget,
   dynamicEvents,
   useDynamicContext,
   useDynamicModals,
@@ -49,9 +48,30 @@ function useScrollY() {
   return y;
 }
 
+function useMediaQuery(query, fallback = false) {
+  const [matches, setMatches] = useState(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return fallback;
+    return window.matchMedia(query).matches;
+  });
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return undefined;
+    const media = window.matchMedia(query);
+    const sync = () => setMatches(media.matches);
+    sync();
+    media.addEventListener?.('change', sync);
+    media.addListener?.(sync);
+    return () => {
+      media.removeEventListener?.('change', sync);
+      media.removeListener?.(sync);
+    };
+  }, [query]);
+  return matches;
+}
+
 function useMouse() {
   const [pos, setPos] = useState({ x: 0.5, y: 0.5 });
   useEffect(() => {
+    if (window.matchMedia?.('(pointer: coarse), (max-width: 900px)').matches) return undefined;
     const onMove = (e) => setPos({ x: e.clientX / window.innerWidth, y: e.clientY / window.innerHeight });
     window.addEventListener('mousemove', onMove);
     return () => window.removeEventListener('mousemove', onMove);
@@ -487,34 +507,17 @@ function Igloo({ width = 620 }) {
 }
 
 // ---------- Hero (cinematic parallax, sticky) ----------
-function Hero({ y, mouse, intensity }) {
-  const k = intensity / 100;
+function Hero({ y, mouse, intensity, lite = false }) {
+  const k = (intensity / 100) * (lite ? 0.42 : 1);
   const ref = useRef(null);
-  const [progress, setProgress] = useState(0);
-  useEffect(() => {
-    let raf = 0;
-    const compute = () => {
-      raf = 0;
-      if (!ref.current) return;
-      const r = ref.current.getBoundingClientRect();
-      const top = window.scrollY + r.top;
-      const len = Math.max(1, ref.current.offsetHeight - window.innerHeight);
-      const p = Math.max(0, Math.min(1, (window.scrollY - top) / len));
-      setProgress(p);
-    };
-    const onScroll = () => {if (!raf) raf = requestAnimationFrame(compute);};
-    compute();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
-    return () => {
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, []);
+  const viewport = typeof window !== 'undefined' ? window.innerHeight || 800 : 800;
+  const heroTop = ref.current?.offsetTop || 0;
+  const heroLength = ref.current ? Math.max(1, ref.current.offsetHeight - viewport) : Math.max(1, viewport * 1.3);
+  const progress = clamp((y - heroTop) / heroLength, 0, 1);
 
   const px = (mouse.x - 0.5) * 30 * k;
   const py = (mouse.y - 0.5) * 20 * k;
+  const scrollMotion = lite ? 0 : 1;
   const skyY = progress * -120 * k;
   const farY = progress * 60 * k;
   const midY = progress * 160 * k;
@@ -543,9 +546,9 @@ function Hero({ y, mouse, intensity }) {
           <div className="aurora" />
           <div className="sun" style={{ transform: `translate3d(${px * 0.3}px, ${progress * -40}px, 0)` }} />
         </div>
-        <div className="cloud c1" style={{ transform: `translate3d(${y * 0.25 * k - 60 + px * 0.4}px, ${progress * -20}px, 0)` }} />
-        <div className="cloud c2" style={{ transform: `translate3d(${y * -0.18 * k + 60 - px * 0.4}px, ${progress * -10}px, 0)` }} />
-        <div className="cloud c3" style={{ transform: `translate3d(${y * 0.12 * k + px * 0.2}px, ${progress * -30}px, 0)` }} />
+        <div className="cloud c1" style={{ transform: `translate3d(${y * 0.25 * k * scrollMotion - 60 + px * 0.4}px, ${progress * -20}px, 0)` }} />
+        <div className="cloud c2" style={{ transform: `translate3d(${y * -0.18 * k * scrollMotion + 60 - px * 0.4}px, ${progress * -10}px, 0)` }} />
+        <div className="cloud c3" style={{ transform: `translate3d(${y * 0.12 * k * scrollMotion + px * 0.2}px, ${progress * -30}px, 0)` }} />
 
         <svg className="layer mountains far" viewBox="0 0 1600 500" preserveAspectRatio="none"
         style={{ transform: `translate3d(${-progress * 80 * k + px * 0.6}px, ${farY + py * 0.3}px, 0)` }}>
@@ -564,8 +567,8 @@ function Hero({ y, mouse, intensity }) {
         {/* Sea behind ground */}
         <div className="layer sea" style={{ transform: `translate3d(0, ${nearY * 0.6 + py * 0.8}px, 0)` }}>
           <div className="sea-shimmer" />
-          <div className="wave w1" style={{ transform: `translateX(${(progress * 60 + y * 0.05) * -1}px)` }} />
-          <div className="wave w2" style={{ transform: `translateX(${progress * 80 + y * 0.04}px)` }} />
+          <div className="wave w1" style={{ transform: `translateX(${(progress * 60 + y * 0.05 * scrollMotion) * -1}px)` }} />
+          <div className="wave w2" style={{ transform: `translateX(${progress * 80 + y * 0.04 * scrollMotion}px)` }} />
           <div className="wave w3" style={{ transform: `translateX(${progress * 120 * -1}px)` }} />
         </div>
 
@@ -656,8 +659,8 @@ function Hero({ y, mouse, intensity }) {
           <div className="bt-kicker">welcome to</div>
           <div className="bt-title">THE IGLU</div>
           <div className="bt-sub">a small home on the internet · gerrystephen.eth</div>
-          <a className="abstract-veteran-card" href="https://abscan.org/address/0x382556A543aAd855C07678E7F8e820d0d90429BB" target="_blank" rel="noopener" aria-label="Abstract Gold tier 1 veteran wallet">
-            <img src="assets/abstract-gold-tier-card.png" alt="Abstract wallet Gold Tier I" />
+          <a className="abstract-veteran-card" href="https://abscan.org/address/0x382556A543aAd855C07678E7F8e820d0d90429BB" target="_blank" rel="noopener" aria-label="Abstract Gold II veteran wallet">
+            <img src="assets/abstract-gold-tier-card.png?v=gold-tier-ii-clean-card" alt="Abstract wallet Gold Tier II" />
           </a>
         </div>
 
@@ -1291,9 +1294,11 @@ function monergeWalletsFilter(options = []) {
 const DYNAMIC_SETTINGS = {
   appName: 'Monerge',
   appLogoUrl: `${window.location.origin}/assets/monerge-icon-512.png`,
-  apiBaseUrl: `${window.location.origin}/dynamic-api`,
+  apiBaseUrl: /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname)
+    ? 'https://app.dynamicauth.com/api/v0'
+    : `${window.location.origin}/dynamic-api`,
   environmentId: DYNAMIC_ENV_ID,
-  initialAuthenticationMode: 'connect-only',
+  initialAuthenticationMode: 'connect-and-sign',
   enableVisitTrackingOnConnectOnly: true,
   theme: 'dark',
   defaultNumberOfWalletsToShow: 8,
@@ -1573,12 +1578,29 @@ function walletProfileKey(wallet = '') {
   return normalized ? `${PROFILE_KEY}:${normalized}` : PROFILE_KEY;
 }
 
-function loadProfileSignature() {
+function walletSignatureKey(wallet = '') {
+  const normalized = String(wallet || '').trim().toLowerCase();
+  return normalized ? `${PROFILE_SIGNATURE_KEY}:${normalized}` : PROFILE_SIGNATURE_KEY;
+}
+
+function readStoredProfileSignature(wallet = '') {
   try {
-    return localStorage.getItem(PROFILE_SIGNATURE_KEY) || '';
+    const normalized = String(wallet || '').trim().toLowerCase();
+    if (normalized) {
+      const walletSignature = localStorage.getItem(walletSignatureKey(normalized)) || '';
+      if (walletSignature) return walletSignature;
+    }
+    const globalSignature = localStorage.getItem(PROFILE_SIGNATURE_KEY) || '';
+    const savedWallet = (localStorage.getItem(PROFILE_SIGNATURE_WALLET_KEY) || '').toLowerCase();
+    if (!normalized || !savedWallet || savedWallet === normalized) return globalSignature;
+    return '';
   } catch (_) {
     return '';
   }
+}
+
+function loadProfileSignature(wallet = '') {
+  return readStoredProfileSignature(wallet);
 }
 
 function loadProfile() {
@@ -1622,14 +1644,57 @@ function playerName(entry = {}) {
   return entry.username || (entry.wallet ? shortWallet(entry.wallet) : 'Guest player');
 }
 
-function MonergeWalletButton({ account, label = 'Connect wallet' }) {
+function MonergeWalletButton({
+  account,
+  label = 'Connect wallet',
+  onClick,
+  onSignOut,
+  onSign,
+  signed = false
+}) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const close = (event) => {
+      if (menuRef.current?.contains(event.target)) return;
+      setOpen(false);
+    };
+    document.addEventListener('pointerdown', close);
+    return () => document.removeEventListener('pointerdown', close);
+  }, [open]);
+
+  if (!account) {
+    return (
+      <div className="monerge-wallet-menu" ref={menuRef}>
+        <button type="button" className="monerge-dynamic-btn" onClick={onClick}>
+          {label}
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <DynamicWidget
-      variant="modal"
-      buttonContainerClassName="monerge-dynamic-wrap"
-      buttonClassName="monerge-dynamic-btn"
-      innerButtonComponent={<span>{account ? shortWallet(account) : label}</span>}
-    />
+    <div className="monerge-wallet-menu" ref={menuRef}>
+      <button
+        type="button"
+        className="monerge-dynamic-btn connected"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        {shortWallet(account)}
+      </button>
+      {open && (
+        <div className="wallet-dropdown" role="menu">
+          <span>{signed ? 'Profile signed' : 'Signature needed'}</span>
+          {!signed && <button type="button" role="menuitem" onClick={() => { setOpen(false); onSign?.(); }}>Sign profile</button>}
+          <button type="button" role="menuitem" onClick={() => { setOpen(false); onClick?.(); }}>Wallet settings</button>
+          <button type="button" role="menuitem" onClick={() => { setOpen(false); onSignOut?.(); }}>Sign out</button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -2010,7 +2075,6 @@ function MonadGame() {
   const {
     primaryWallet,
     setShowAuthFlow,
-    setAuthMode,
     handleLogOut,
     sdkHasLoaded,
     projectSettings,
@@ -2092,10 +2156,7 @@ function MonadGame() {
     localStorage.setItem(PROFILE_KEY, JSON.stringify(next));
     if (account) localStorage.setItem(walletProfileKey(account), JSON.stringify(next));
     if (account && profileSignature) {
-      setProfileSignature('');
-      localStorage.removeItem(PROFILE_SIGNATURE_KEY);
-      localStorage.removeItem(PROFILE_SIGNATURE_WALLET_KEY);
-      setWalletState('Profile updated. Tap your wallet to sign when ready.');
+      setWalletState('Profile saved. Your wallet stays signed.');
     }
   }
 
@@ -2192,10 +2253,6 @@ function MonadGame() {
   }, [isGameApp]);
 
   useEffect(() => {
-    setAuthMode?.('connect-only');
-  }, [setAuthMode]);
-
-  useEffect(() => {
     window.__monergeDynamicDebug = {
       appMode,
       environmentId: DYNAMIC_ENV_ID,
@@ -2229,21 +2286,49 @@ function MonadGame() {
         await primaryWallet.switchNetwork?.(143);
         const network = await primaryWallet.getNetwork?.();
         if (!cancelled && network) setChainId(`0x${Number(network).toString(16)}`);
-        if (!cancelled && pendingProfileSignRef.current && !profileSignature) {
+        const storedSignature = readStoredProfileSignature(address);
+        if (!cancelled && storedSignature && storedSignature !== profileSignature) {
+          setProfileSignature(storedSignature);
+          localStorage.setItem(PROFILE_SIGNATURE_KEY, storedSignature);
+          localStorage.setItem(PROFILE_SIGNATURE_WALLET_KEY, address);
+        }
+        if (!cancelled && user && !storedSignature) {
+          const dynamicSignature = `dynamic-auth:${user.userId || user.id || address}`;
+          setProfileSignature(dynamicSignature);
+          localStorage.setItem(PROFILE_SIGNATURE_KEY, dynamicSignature);
+          localStorage.setItem(PROFILE_SIGNATURE_WALLET_KEY, address);
+          localStorage.setItem(walletSignatureKey(address), dynamicSignature);
           pendingProfileSignRef.current = false;
-          window.setTimeout(() => signProfile(address, true), 250);
+          setWalletState('Profile signed');
+        } else if (!cancelled && pendingProfileSignRef.current && !profileSignature && !storedSignature) {
+          pendingProfileSignRef.current = false;
+          setWalletState('Dynamic connected. Sign profile from the wallet menu.');
         }
       } catch (_) {
-        if (!cancelled && pendingProfileSignRef.current && !profileSignature) {
+        const storedSignature = readStoredProfileSignature(address);
+        if (!cancelled && storedSignature && storedSignature !== profileSignature) {
+          setProfileSignature(storedSignature);
+          localStorage.setItem(PROFILE_SIGNATURE_KEY, storedSignature);
+          localStorage.setItem(PROFILE_SIGNATURE_WALLET_KEY, address);
+        }
+        if (!cancelled && user && !storedSignature) {
+          const dynamicSignature = `dynamic-auth:${user.userId || user.id || address}`;
+          setProfileSignature(dynamicSignature);
+          localStorage.setItem(PROFILE_SIGNATURE_KEY, dynamicSignature);
+          localStorage.setItem(PROFILE_SIGNATURE_WALLET_KEY, address);
+          localStorage.setItem(walletSignatureKey(address), dynamicSignature);
           pendingProfileSignRef.current = false;
-          window.setTimeout(() => signProfile(address, true), 250);
+          setWalletState('Profile signed');
+        } else if (!cancelled && pendingProfileSignRef.current && !profileSignature && !storedSignature) {
+          pendingProfileSignRef.current = false;
+          setWalletState('Dynamic connected. Sign profile from the wallet menu.');
         }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [primaryWallet, profileSignature]);
+  }, [primaryWallet, profileSignature, user]);
 
   useEffect(() => {
     if (!account) return;
@@ -2260,8 +2345,15 @@ function MonadGame() {
       setProfile(walletProfile);
       localStorage.setItem(PROFILE_KEY, JSON.stringify(walletProfile));
     }
+    const storedSignature = readStoredProfileSignature(account);
+    if (storedSignature && storedSignature !== profileSignature) {
+      setProfileSignature(storedSignature);
+      localStorage.setItem(PROFILE_SIGNATURE_KEY, storedSignature);
+      localStorage.setItem(PROFILE_SIGNATURE_WALLET_KEY, account);
+      return;
+    }
     const savedWallet = localStorage.getItem(PROFILE_SIGNATURE_WALLET_KEY) || '';
-    if (profileSignature && (!savedWallet || savedWallet.toLowerCase() !== account.toLowerCase())) {
+    if (profileSignature && !storedSignature && (!savedWallet || savedWallet.toLowerCase() !== account.toLowerCase())) {
       setProfileSignature('');
       localStorage.removeItem(PROFILE_SIGNATURE_KEY);
       localStorage.removeItem(PROFILE_SIGNATURE_WALLET_KEY);
@@ -2348,7 +2440,6 @@ function MonadGame() {
   }
 
   function openDynamicFlow(message = 'Opening Dynamic wallet connect.') {
-    setAuthMode?.('connect-only');
     if (!dynamicReady) {
       setWalletState('Dynamic settings are not loaded for this domain yet.');
       window.dispatchEvent(new CustomEvent('monerge-wallet-status', {
@@ -2370,22 +2461,39 @@ function MonadGame() {
 
   async function connectMonad() {
     unlockMonergeAudio();
-    setAuthMode?.('connect-only');
-    pendingProfileSignRef.current = true;
     if (primaryWallet) {
       try {
         await primaryWallet.switchNetwork?.(143);
         const network = await primaryWallet.getNetwork?.();
         if (network) setChainId(`0x${Number(network).toString(16)}`);
-        setAccount(primaryWallet.address || account);
-        setWalletState('Dynamic wallet on Monad');
-        await signProfile(primaryWallet.address || account, true);
+        const connectedAddress = primaryWallet.address || account;
+        setAccount(connectedAddress);
+        const storedSignature = readStoredProfileSignature(connectedAddress);
+        if (storedSignature) {
+          setProfileSignature(storedSignature);
+          localStorage.setItem(PROFILE_SIGNATURE_KEY, storedSignature);
+          localStorage.setItem(PROFILE_SIGNATURE_WALLET_KEY, connectedAddress);
+          pendingProfileSignRef.current = false;
+          setWalletState('Dynamic wallet ready');
+        } else if (user) {
+          const dynamicSignature = `dynamic-auth:${user.userId || user.id || connectedAddress}`;
+          setProfileSignature(dynamicSignature);
+          localStorage.setItem(PROFILE_SIGNATURE_KEY, dynamicSignature);
+          localStorage.setItem(PROFILE_SIGNATURE_WALLET_KEY, connectedAddress);
+          localStorage.setItem(walletSignatureKey(connectedAddress), dynamicSignature);
+          pendingProfileSignRef.current = false;
+          setWalletState('Profile signed');
+        } else {
+          pendingProfileSignRef.current = true;
+          setWalletState('Dynamic connected. Sign profile from the wallet menu.');
+        }
       } catch (error) {
         setWalletState(error?.message || 'Open Dynamic to finish wallet setup.');
         setShowAuthFlow?.(true, DYNAMIC_AUTH_OPTIONS);
       }
       return;
     }
+    pendingProfileSignRef.current = !readStoredProfileSignature(account);
     openDynamicFlow();
   }
 
@@ -2601,7 +2709,7 @@ function MonadGame() {
         saveLeaderboard(merged);
       })
       .catch(() => {});
-    if (account && profileSignature && MONERGE_RUNS_CONTRACT) {
+    if (account && MONERGE_RUNS_CONTRACT) {
       submitRunOnMonad(revealedEntry).then((txHash) => {
         if (!txHash) return;
         const verifiedEntry = { ...revealedEntry, txHash };
@@ -2615,14 +2723,12 @@ function MonadGame() {
       setOnChainRun({ status: 'not-configured', txHash: '', error: '' });
     } else if (!account) {
       setOnChainRun({ status: 'wallet-needed', txHash: '', error: 'Connect wallet to verify this run on Monad.' });
-    } else {
-      setOnChainRun({ status: 'signature-needed', txHash: '', error: 'Sign your profile before reveal to verify on Monad.' });
     }
     if (final > best) {
       setBest(final);
       localStorage.setItem('monergeBlindBest', String(final));
     }
-    setGameMessage(`Actual ${score}. Off by ${miss}. ${currentDifficulty.label} bonus ${difficultyBonusValue}. Final score ${final}. Run uploaded${profileSigned ? ' with your profile.' : '.'}`);
+    setGameMessage(`Actual ${score}. Off by ${miss}. ${currentDifficulty.label} bonus ${difficultyBonusValue}. Final score ${final}. Run uploaded${account ? ' with your wallet.' : '.'}`);
   }
 
   function handleTouchEnd(event) {
@@ -2673,6 +2779,7 @@ function MonadGame() {
       setProfileSignature(nextSignature);
       localStorage.setItem(PROFILE_SIGNATURE_KEY, nextSignature);
       localStorage.setItem(PROFILE_SIGNATURE_WALLET_KEY, signingAddress);
+      localStorage.setItem(walletSignatureKey(signingAddress), nextSignature);
       setWalletState('Profile signed');
       setGameMessage('Profile signed. Revealed runs upload automatically.');
     } catch (error) {
@@ -2684,7 +2791,7 @@ function MonadGame() {
     <section className={`monad-game ${isGameApp ? 'app-mode' : ''} ${isGameApp && !gameStarted ? 'start-mode' : ''}`} id="monerge">
       <div className="game-copy">
         <Chapter num="04" kicker="Built on Monad" title={<span className="monerge-logo">Monerge.</span>} />
-        <p className="lede">A wallet-backed focus game for BuildAnything. Merge Monad-coded tiles, choose your difficulty, remember the hidden points, then reveal your run. Connect once and sign your profile so scores upload automatically.</p>
+        <p className="lede">A wallet-backed focus game for BuildAnything. Merge Monad-coded tiles, choose your difficulty, remember the hidden points, then reveal your run. Connect once; profile signing is remembered so scores can upload without another signature.</p>
         <div className="monanimal-strip" aria-label="Monad character inspirations">
           {MONAD_CHARACTERS.map((character) =>
           <span key={character.name} className={`monanimal-chip tile-${character.value}`}>
@@ -2694,7 +2801,7 @@ function MonadGame() {
           )}
         </div>
         <div className="game-actions">
-          <MonergeWalletButton account={account} label="Connect wallet" onClick={connectMonad} onSignOut={disconnectWallet} onSign={() => signProfile(account)} />
+          <MonergeWalletButton account={account} label="Connect wallet" onClick={connectMonad} onSignOut={disconnectWallet} onSign={() => signProfile(account)} signed={profileSigned} />
           <button type="button" className="btn ghost" onClick={newGame}>New run</button>
         </div>
         {!isGameApp && <div className="desktop-game-details">
@@ -2748,9 +2855,9 @@ function MonadGame() {
           </div>
           <div className="start-actions">
             <button type="button" onClick={newGame}>Play</button>
-            <MonergeWalletButton account={account} label="Connect" onClick={connectMonad} onSignOut={disconnectWallet} onSign={() => signProfile(account)} />
+            <MonergeWalletButton account={account} label="Connect" onClick={connectMonad} onSignOut={disconnectWallet} onSign={() => signProfile(account)} signed={profileSigned} />
           </div>
-          <small>{account ? `${profileSigned ? 'Profile signed' : 'Signature needed'} as ${cleanPlayerProfile.username || shortWallet(account)}` : 'Connect before reveal to save your run'}</small>
+          <small>{account ? `${profileSigned ? 'Profile signed' : 'Connected'} as ${cleanPlayerProfile.username || shortWallet(account)}` : 'Connect before reveal to save your run'}</small>
           <p className="wallet-safety-note">Wallet connect is read-only. Monerge asks for a profile signature, never token approvals.</p>
           <div className="install-float-banner home-only" role="note">
             <button type="button" onClick={promptInstallApp}>Add Monerge to Home Screen</button>
@@ -2775,7 +2882,7 @@ function MonadGame() {
               </div>
               <button type="button" onClick={() => setGameMenuOpen(false)} aria-label="Close menu">×</button>
             </div>
-            <p>Choose the intensity, keep the hidden score in your head, reveal it at the end, and let Monerge publish the run. Connected wallets sign the player profile once.</p>
+            <p>Choose the intensity, keep the hidden score in your head, reveal it at the end, and let Monerge publish the run. Profile signing is remembered per wallet.</p>
             <MonergeProfileEditor profile={profile} account={account} onProfileChange={updateProfile} onPfpUpload={handlePfpUpload} />
             <div className="difficulty-select" aria-label="Difficulty">
               {DIFFICULTY_ORDER.map((key) =>
@@ -2786,7 +2893,7 @@ function MonadGame() {
               )}
             </div>
             <div className="game-menu-actions">
-              <MonergeWalletButton account={account} label="Connect wallet" onClick={connectMonad} onSignOut={disconnectWallet} onSign={() => signProfile(account)} />
+              <MonergeWalletButton account={account} label="Connect wallet" onClick={connectMonad} onSignOut={disconnectWallet} onSign={() => signProfile(account)} signed={profileSigned} />
               {isGameApp && gameStarted && <button type="button" onClick={returnToMonergeHome}>Home</button>}
               <button type="button" onClick={() => { newGame(); setGameMenuOpen(false); }}>New run</button>
               {isGameApp && <button type="button" onClick={() => { unlockMonergeAudio(); setGameMusic((value) => !value); }}>{gameMusic && musicReady ? 'Music off' : 'Music on'}</button>}
@@ -2847,7 +2954,7 @@ function MonadGame() {
           </div>
         </div>}
         <div className="game-shell-actions" aria-label="Wallet controls">
-          <MonergeWalletButton account={account} label="Connect" onClick={connectMonad} onSignOut={disconnectWallet} onSign={() => signProfile(account)} />
+          <MonergeWalletButton account={account} label="Connect" onClick={connectMonad} onSignOut={disconnectWallet} onSign={() => signProfile(account)} signed={profileSigned} />
         </div>
         <div className="game-hud">
           <div><span>Hidden score</span><strong>{scoreReveal ? score : '???'}</strong></div>
@@ -2921,7 +3028,7 @@ function MonadGame() {
               {!scoreReveal && <button type="submit">Reveal</button>}
               {scoreReveal && lastRevealedEntry && <button type="button" onClick={() => downloadMonergeWinnerCard(lastRevealedEntry)}>Save card</button>}
               {scoreReveal && lastRevealedEntry && <a href={shareMonergeRunUrl(lastRevealedEntry)} target="_blank" rel="noopener">Post on X</a>}
-              {scoreReveal && lastRevealedEntry && account && profileSignature && MONERGE_RUNS_CONTRACT && onChainRun.status !== 'submitted' && onChainRun.status !== 'pending' && <button type="button" onClick={() => submitRunOnMonad(lastRevealedEntry)}>Verify on Monad</button>}
+              {scoreReveal && lastRevealedEntry && account && MONERGE_RUNS_CONTRACT && onChainRun.status !== 'submitted' && onChainRun.status !== 'pending' && <button type="button" onClick={() => submitRunOnMonad(lastRevealedEntry)}>Verify on Monad</button>}
               <button type="button" onClick={newGame}>Run it back</button>
             </div>
           </form>}
@@ -3231,6 +3338,9 @@ function App() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const y = useScrollY();
   const mouse = useMouse();
+  const isMobileViewport = useMediaQuery('(max-width: 700px), (pointer: coarse)');
+  const prefersReducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
+  const liteParallax = isMobileViewport || prefersReducedMotion;
   const appMode = getAppMode();
   const isGameApp = appMode === 'monerge' || appMode === 'iglu-merge';
   const soundReady = useAmbientScrollSound(y, soundEnabled);
@@ -3290,8 +3400,8 @@ function App() {
         <span>Sound</span>
         <i>{soundReady && soundEnabled ? 'On' : 'Off'}</i>
       </button>
-      <Hero y={y} mouse={mouse} intensity={tweaks.parallaxIntensity} />
-      {tweaks.snowfall && <Snowfall count={60} intensity={tweaks.parallaxIntensity / 100} scrollY={y} />}
+      <Hero y={y} mouse={mouse} intensity={tweaks.parallaxIntensity} lite={liteParallax} />
+      {tweaks.snowfall && !prefersReducedMotion && <Snowfall count={isMobileViewport ? 22 : 60} intensity={(tweaks.parallaxIntensity / 100) * (isMobileViewport ? 0.62 : 1)} scrollY={y} />}
       <Marquee items={['gerrystephen.eth', 'inkfinity canvas', 'great terriers', 'sappy seals', 'pudgy penguins', 'web3 since 2021', 'building IRL', 'hot weather, iced coffee']} />
       <Timeline y={y} intensity={tweaks.parallaxIntensity} />
       <NftCarousel />
