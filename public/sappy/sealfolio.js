@@ -117,6 +117,35 @@
     try { localStorage.setItem("sappy_profile", JSON.stringify(state.profile)); } catch (_) {}
   }
 
+  const COLLECTION_CACHE_MS = 10 * 60 * 1000;
+
+  function collectionCacheKey(address) {
+    return `sappy_collection_${String(address || "").toLowerCase()}`;
+  }
+
+  function applyCollectionData(data) {
+    state.nfts = Array.isArray(data?.nfts) ? data.nfts : [];
+    state.delegatedWallets = Array.isArray(data?.delegatedWallets) ? data.delegatedWallets : [];
+    state.pixlBalance = Number(data?.pixlBalance || 0) || 0;
+  }
+
+  function readCollectionCache(address) {
+    try {
+      const cached = JSON.parse(localStorage.getItem(collectionCacheKey(address)) || "null");
+      if (!cached || !Array.isArray(cached.nfts)) return null;
+      if (Date.now() - Number(cached.cachedAt || 0) > COLLECTION_CACHE_MS) return null;
+      return cached;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function writeCollectionCache(address, data) {
+    try {
+      localStorage.setItem(collectionCacheKey(address), JSON.stringify({ ...data, cachedAt: Date.now() }));
+    } catch (_) {}
+  }
+
   function contractType(contract) {
     const c = String(contract || "").toLowerCase();
     if (c === CONTRACTS.seals || c === CONTRACTS.staked) return "seal";
@@ -493,11 +522,19 @@
   async function loadWalletCollection(address) {
     if (!address || state.loading) return;
     state.address = address;
-    state.loading = true;
-    state.error = "";
-    render();
+    const cached = readCollectionCache(address);
+    if (cached) {
+      applyCollectionData(cached);
+      state.loading = false;
+      state.error = "";
+      render();
+    } else {
+      state.loading = true;
+      state.error = "";
+      render();
+    }
     try {
-      const path = `/api/nfts?wallet=${encodeURIComponent(address)}&_=${Date.now()}`;
+      const path = `/api/nfts?wallet=${encodeURIComponent(address)}`;
       const endpoints = [path];
       if (/^(127\.0\.0\.1|localhost)$/.test(location.hostname)) endpoints.push(`https://www.gerrystephen.com${path}`);
       let data = null;
@@ -514,13 +551,14 @@
         } catch (_) {}
       }
       data = data || { nfts: [] };
-      state.nfts = Array.isArray(data.nfts) ? data.nfts : [];
-      state.delegatedWallets = Array.isArray(data.delegatedWallets) ? data.delegatedWallets : [];
-      state.pixlBalance = Number(data.pixlBalance || 0) || 0;
+      applyCollectionData(data);
+      writeCollectionCache(address, data);
     } catch (e) {
       state.error = "collection_sync_failed";
-      state.nfts = [];
-      state.pixlBalance = 0;
+      if (!cached) {
+        state.nfts = [];
+        state.pixlBalance = 0;
+      }
     } finally {
       state.loading = false;
       render();
