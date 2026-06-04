@@ -112,9 +112,29 @@
     window.addEventListener("scroll", onScroll, { passive: true });
   }
 
+  function mountHeroSealShuffle() {
+    const rare = [1, 3, 7, 9];
+    const random = [42, 777, 1184, 2021, 2772, 3333];
+    const pick = (pool, used) => {
+      const available = pool.filter((id) => !used.has(id));
+      const source = available.length ? available : pool;
+      const id = source[Math.floor(Math.random() * source.length)];
+      used.add(id);
+      return id;
+    };
+    const used = new Set();
+    document.querySelectorAll("[data-hero-seal]").forEach((img) => {
+      const pool = img.dataset.heroPool === "rare" ? rare : random;
+      const id = pick(pool, used);
+      img.src = `/assets/sappy-seals/${id}.png`;
+      img.alt = `Sappy Seal #${id}`;
+    });
+  }
+
   window.Sappy.ready(function () {
     window.SappyLayout.mount("home");
     window.Sappy.init();
+    mountHeroSealShuffle();
     mountLiveStats();
     mountParallax();
   });
