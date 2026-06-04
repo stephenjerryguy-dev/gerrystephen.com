@@ -165,19 +165,30 @@
       pixl: Number(state.pixlBalance || 0),
       collections: new Set(owned.map((o) => o.collection).filter(Boolean)).size,
     };
-    const sealScore = Math.min(420, counts.seals ? 120 + Math.max(0, Math.min(counts.seals, 5) - 1) * 30 + Math.max(0, counts.seals - 5) * 12 : 0);
-    const stakedScore = Math.min(160, counts.staked * 35);
-    const keyScore = Math.min(80, counts.keys * 35);
-    const artifactScore = Math.min(80, counts.artifacts * 35);
-    const omniaScore = Math.min(180, Math.round(Math.sqrt(counts.omnia) * 22));
-    const pixsealScore = Math.min(90, Math.round(Math.sqrt(counts.pixseals) * 13));
-    const pixlScore = Math.min(90, counts.pixl >= 1_000_000 ? 90 : counts.pixl >= 250_000 ? 70 : counts.pixl >= 100_000 ? 50 : counts.pixl >= 10_000 ? 25 : counts.pixl > 0 ? 10 : 0);
-    const delegateScore = Math.min(50, counts.delegates * 25);
-    const varietyScore = Math.min(90, counts.collections * 15);
+    const steppedScore = (count, steps) => {
+      let remaining = Math.max(0, Number(count || 0));
+      let total = 0;
+      steps.forEach(([limit, points]) => {
+        if (!remaining) return;
+        const take = limit === Infinity ? remaining : Math.min(remaining, limit);
+        total += take * points;
+        remaining -= take;
+      });
+      return Math.round(total);
+    };
+    const sealScore = counts.seals ? 140 + steppedScore(counts.seals, [[10, 30], [40, 15], [Infinity, 6]]) : 0;
+    const stakedScore = counts.staked ? Math.round(Math.sqrt(counts.staked) * 42 + Math.min(counts.staked, 10) * 6) : 0;
+    const keyScore = steppedScore(counts.keys, [[1, 55], [4, 25], [Infinity, 8]]);
+    const artifactScore = steppedScore(counts.artifacts, [[1, 75], [4, 35], [Infinity, 12]]);
+    const omniaScore = Math.round(Math.sqrt(counts.omnia) * 30 + Math.min(counts.omnia, 20) * 4);
+    const pixsealScore = Math.round(Math.sqrt(counts.pixseals) * 24 + Math.min(counts.pixseals, 25) * 2);
+    const pixlScore = counts.pixl > 0 ? Math.round(85 * Math.log10(1 + counts.pixl / 5_000)) : 0;
+    const delegateScore = Math.min(70, counts.delegates * 35);
+    const varietyScore = Math.min(150, counts.collections * 25);
     return {
       counts,
       parts: { sealScore, stakedScore, keyScore, artifactScore, omniaScore, pixsealScore, pixlScore, delegateScore, varietyScore },
-      total: Math.min(999, sealScore + stakedScore + keyScore + artifactScore + omniaScore + pixsealScore + pixlScore + delegateScore + varietyScore),
+      total: sealScore + stakedScore + keyScore + artifactScore + omniaScore + pixsealScore + pixlScore + delegateScore + varietyScore,
     };
   }
 
@@ -219,10 +230,11 @@
   }
 
   function rankFor(score) {
-    if (score >= 850) return "Seal Whale";
-    if (score >= 650) return "Legendary Collector";
-    if (score >= 420) return "Pod Member";
-    if (score >= 180) return "Seal Enjoyer";
+    if (score >= 2200) return "Apex Seal";
+    if (score >= 1500) return "Seal Whale";
+    if (score >= 1000) return "Legendary Collector";
+    if (score >= 650) return "Pod Member";
+    if (score >= 250) return "Seal Enjoyer";
     return "New Collector";
   }
 
