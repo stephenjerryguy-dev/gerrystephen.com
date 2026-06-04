@@ -307,7 +307,7 @@ window.Sappy = (function () {
       <div class="sm-title">Dynamic ${label} connect needs setup</div>
       <p class="sm-sub">The Dynamic SDK is on the page, but the hosted widget did not finish opening. This usually means a wallet or social provider is disabled in the Live environment, or the browser blocked the auth popup.</p>
       <div class="sm-fine">
-        Environment ID: <code>b62527ee-ec89-4502-86b3-37987b5720d4</code><br>
+        Environment ID: <code>7f5ed078-ee9f-49aa-b9d6-8a90434aaf40</code><br>
         Allowed domain should be <code>https://gerrystephen.com</code>. Paths such as <code>/sappy</code> do not need separate entries.<br>
         Wallets, X, and Discord must be enabled for this Live environment.
       </div>
