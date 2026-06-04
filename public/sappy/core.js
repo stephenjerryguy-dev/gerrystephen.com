@@ -361,8 +361,49 @@ window.Sappy = (function () {
     toast("Dynamic X connect is loading. Try again in a moment.");
   }
 
+  function hasConnectedWallet() {
+    try {
+      const wallet = JSON.parse(localStorage.getItem("sappy_wallet") || "{}");
+      return /^0x[a-fA-F0-9]{40}$/.test(wallet.address || "");
+    } catch (_) {
+      return false;
+    }
+  }
+
+  async function startDiscordRoleOAuth() {
+    const response = await fetch("/api/discord-config", { headers: { accept: "application/json" }, cache: "no-store" });
+    const config = await response.json().catch(() => ({}));
+    if (!response.ok || !config.clientId) return false;
+    const state = (window.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)) + Date.now().toString(36);
+    const redirectUri = `${location.origin}/sappy/discord-callback.html`;
+    try {
+      localStorage.setItem("sappy_discord_oauth", JSON.stringify({ state, next: location.href, createdAt: Date.now() }));
+    } catch (_) {}
+    const params = new URLSearchParams({
+      client_id: config.clientId,
+      redirect_uri: redirectUri,
+      response_type: "code",
+      scope: "identify",
+      state,
+      prompt: "consent",
+    });
+    location.href = `https://discord.com/oauth2/authorize?${params.toString()}`;
+    return true;
+  }
+
   async function startDiscordLogin() {
     closeModal();
+    if (!hasConnectedWallet()) {
+      toast("Connect wallet first, then link Discord roles.");
+      walletModal();
+      return;
+    }
+    try {
+      if (await startDiscordRoleOAuth()) {
+        toast("Opening Discord role check...");
+        return;
+      }
+    } catch (_) {}
     if (openDynamicSocial("discord")) return;
     toast("Dynamic Discord connect is loading. Try again in a moment.");
   }
