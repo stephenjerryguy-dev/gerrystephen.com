@@ -199,18 +199,22 @@
     const prompt = image.revisedPrompt || image.prompt || "";
     const sealImage = image.referenceUrl || state.sealRef?.image || "";
     const sceneImage = image.sceneReferenceUrl || REFERENCE_ASSETS[index % REFERENCE_ASSETS.length]?.[0] || "";
+    const sceneLabel = image.sceneReferenceLabel || "Scene direction";
     return `
       <article class="ai-result-card">
         <div class="ai-result-media">
           ${image.url ? `<img src="${image.url}" alt="Generated Sappy meme ${index + 1}" loading="lazy">` : `
-            <div class="ai-scene-board ai-scene-replace">
-              ${sceneImage ? `<img class="ai-scene-bg" src="${esc(sceneImage)}" alt="${esc(image.sceneReferenceLabel || "Scene reference")}" loading="lazy">` : ""}
-              <div class="ai-replacement-token">
+            <div class="ai-scene-compose">
+              ${sceneImage ? `<img class="ai-scene-bg" src="${esc(sceneImage)}" alt="${esc(sceneLabel)}" loading="lazy">` : ""}
+              <div class="ai-scene-vignette"></div>
+              <div class="ai-replacement-token" aria-label="Loaded seal character reference">
                 ${sealImage ? `<img src="${esc(sealImage)}" alt="${esc(image.sealName || "Loaded seal reference")}" loading="lazy" referrerpolicy="no-referrer">` : ""}
-                <span>Replace main character</span>
               </div>
-              <div class="ai-replacement-arrow">→</div>
-              <div class="ai-replacement-label">${esc(image.sealName || "Loaded seal")} becomes the scene lead</div>
+              <div class="ai-scene-directive">
+                <span>Identity lock</span>
+                <strong>${esc(image.sealName || state.sealRef?.name || "Loaded seal")}</strong>
+                <p>Becomes the main character in this scene.</p>
+              </div>
               <div class="ai-scene-caption">${esc(image.caption || "Sappy scene ready")}</div>
             </div>`}
         </div>
@@ -363,15 +367,19 @@
 
   function render() {
     $("studio").innerHTML = `
+      <section class="studio-brand-ribbon" aria-label="Gerry Stephen's Studio">
+        <span>Gerry Stephen</span>
+        <strong>Studio</strong>
+      </section>
       <section class="studio-hero">
         <div>
           <span class="eyebrow">▪ GERRY'S AI STUDIO</span>
-          <h1 class="section-title studio-title">Turn a real seal into a scene-ready meme.</h1>
-          <p class="section-sub">Enter the token number, lock the actual NFT traits, then let Claude build scene direction, captions and image-model prompts that keep your seal recognizable.</p>
+          <h1 class="section-title studio-title">Put your real Sappy Seal inside the bit.</h1>
+          <p class="section-sub">Load the token, preserve the exact outfit and traits, then generate a production-ready scene brief where your seal becomes the main character instead of a random mascot.</p>
           <div class="studio-steps" aria-label="Studio workflow">
-            <span>1. Load seal</span>
-            <span>2. Pick the bit</span>
-            <span>3. Generate scene pack</span>
+            <span>1. Token identity</span>
+            <span>2. Scene direction</span>
+            <span>3. Image-model brief</span>
           </div>
           <div class="studio-hero-actions">
             <a class="btn btn-accent" href="#studio-maker">Start creating →</a>
@@ -381,8 +389,8 @@
         <div class="studio-hero-preview">
           <img src="/sappy/assets/studio/seal-chef-scene.png" alt="Generated Sappy Seal breakfast scene">
           <div class="studio-preview-card">
-            <b>Scene system</b>
-            <span>Token traits → pose → caption → final prompt</span>
+            <b>Scene adaptation</b>
+            <span>Real token → same seal → new scenario</span>
           </div>
         </div>
       </section>
@@ -391,7 +399,7 @@
           <div>
             <span class="eyebrow">▪ TOKEN-AWARE CREATOR</span>
             <h2>Choose the seal. Direct the scene.</h2>
-            <p>OpenSea metadata powers the character lock, so outfits, headwear, expressions and palettes stay tied to the token instead of drifting into a random seal.</p>
+            <p>Metadata powers the character lock, so the generated direction keeps headwear, clothes, expression, body color and accessories tied to the real token.</p>
           </div>
           <div class="studio-seal-loader">
             <label>Seal number<input id="sealnumber" class="input" inputmode="numeric" placeholder="7262" value="${esc(state.sealNumber)}"></label>
@@ -411,11 +419,16 @@
           <div class="ai-plan" id="aiplan">Describe the joke or moment. Claude will shape it into a Sappy-ready scene pack.</div>
         </div>
         <div class="studio-stage-panel">
+          <div class="studio-stage-copy">
+            <span>Live director preview</span>
+            <strong>Your seal stays the hero.</strong>
+            <p>The scene can change. The seal identity should not.</p>
+          </div>
           <div class="studio-stage">
             <div class="stage-orbit"></div>
             <div class="stage-seal" id="stageSeal"></div>
-            <div class="stage-chip top">Character locked</div>
-            <div class="stage-chip bottom">Scene ready</div>
+            <div class="stage-chip top">Identity locked</div>
+            <div class="stage-chip bottom">Ready for scene</div>
           </div>
           <div class="studio-reference-strip">
             ${REFERENCE_ASSETS.map(([url, label]) => `<figure><img src="${url}" alt="${label}" loading="lazy"><figcaption>${label}</figcaption></figure>`).join("")}
@@ -425,14 +438,14 @@
       <section class="ai-output-section">
         <div class="eco-head">
           <span class="eyebrow">▪ OUTPUTS</span>
-          <h2 class="section-title">Scene packs, not fake renders.</h2>
-          <p class="section-sub">Each run returns captions, visual direction, the real seal reference, negative prompts and copyable image briefs.</p>
+          <h2 class="section-title">Briefs a real image model can use.</h2>
+          <p class="section-sub">Each run returns captions, scene direction, trait preservation notes, negative prompts and copyable image briefs. No fake final image unless a real renderer is connected.</p>
         </div>
         <div class="ai-results" id="airesults"></div>
       </section>
       <section class="ai-note-strip">
-        <strong>Reference quality:</strong>
-        <span>Studio uses the real seal token plus these target examples for character consistency, pose control, and finished-scene polish. Claude writes the direction; a dedicated image model is still needed for final renders.</span>
+        <strong>Current engine:</strong>
+        <span>Claude writes the creative direction and prompt pack. The final image should be rendered by a dedicated image model using the loaded seal as the identity reference.</span>
       </section>`;
     renderAIResults();
     renderSealRef();

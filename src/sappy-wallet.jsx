@@ -34,16 +34,17 @@ function fallbackOpenDynamic() {
     || document.querySelector('#sappy-dynamic-widget button, #sappy-dynamic-widget [role="button"], #dynamic-widget button, #dynamic-widget [role="button"]');
   if (widgetButton) {
     widgetButton.click();
-    return;
+    return true;
   }
   const widgetHost = document.querySelector('#dynamic-widget, #sappy-dynamic-widget .dynamic-shadow-dom');
   if (widgetHost) {
     widgetHost.click();
-    return;
+    return true;
   }
   window.dispatchEvent(new CustomEvent('sappy-dynamic-init-failed', {
     detail: { status: 'Dynamic did not render yet. Check the Dynamic environment domain settings and reload.' },
   }));
+  return false;
 }
 window.sappyOpenDynamic = fallbackOpenDynamic;
 
@@ -58,6 +59,7 @@ function fallbackOpenDynamicSocial(provider) {
   window.dispatchEvent(new CustomEvent('sappy-wallet-status', {
     detail: { status: `Dynamic ${provider || 'social'} connect is loading. Try again in a moment.` },
   }));
+  return false;
 }
 fallbackOpenDynamicSocial.isFallback = true;
 window.sappyOpenDynamicSocial = fallbackOpenDynamicSocial;
@@ -85,7 +87,6 @@ window.addEventListener('error', (event) => {
 const settings = {
   appName: 'Sappy Sealfolio',
   appLogoUrl: `${window.location.origin}/sappy/assets/sappy-seal-emoji.webp`,
-  apiBaseUrl: `${window.location.origin}/dynamic-api`,
   environmentId: SAPPY_DYNAMIC_ENV_ID,
   initialAuthenticationMode: 'connect-and-sign',
   theme: 'light',
@@ -256,12 +257,13 @@ function SappyDynamicBridge() {
         window.setTimeout(() => {
           if (!dynamicModalVisible()) fallbackOpenDynamic();
         }, 250);
-        return;
+        return true;
       }
       setShowAuthFlow?.(true);
       window.setTimeout(() => {
         if (!dynamicModalVisible()) fallbackOpenDynamic();
       }, 250);
+      return true;
     };
     window.sappyOpenDynamic = openWallet;
     window.sappyLogoutDynamic = async () => {
@@ -272,13 +274,13 @@ function SappyDynamicBridge() {
       const provider = SOCIAL_PROVIDERS[String(providerKey || '').toLowerCase()];
       if (!provider) {
         window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: 'That Dynamic social provider is not supported yet.' } }));
-        return;
+        return false;
       }
       const authenticated = Boolean(user || primaryWallet?.address || wallets?.length);
       if (!authenticated) {
         window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: 'Create your Sealfolio with your wallet first. Then link X or Discord for next-time login.' } }));
         openWallet();
-        return;
+        return true;
       }
       try {
         sessionStorage.setItem(`sappy_dynamic_${provider}_connecting`, String(Date.now()));
@@ -287,7 +289,7 @@ function SappyDynamicBridge() {
       const existing = getLinkedAccountInformation?.(provider) || getLinkedAccounts?.(provider)?.[0];
       if (existing) {
         window.dispatchEvent(new CustomEvent('sappy-social-connected', { detail: socialDetail(provider, existing) }));
-        return;
+        return true;
       }
       window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: `Opening Dynamic ${provider === ProviderEnum.Twitter ? 'X' : 'Discord'} connect...` } }));
       const options = {
@@ -313,6 +315,7 @@ function SappyDynamicBridge() {
       if (!connected) {
         window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: `${label} opened in Dynamic. Finish the popup and the linked profile will appear here.` } }));
       }
+      return true;
     };
     openSocial.isFallback = false;
     window.sappyOpenDynamicSocial = openSocial;
