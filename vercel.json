@@ -3,6 +3,20 @@
   "buildCommand": "npm run build",
   "cleanUrls": true,
   "outputDirectory": "dist",
+  "redirects": [
+    {
+      "source": "/sappy",
+      "has": [{ "type": "host", "value": "gerrystephen.com" }],
+      "destination": "https://www.gerrystephen.com/sappy",
+      "permanent": true
+    },
+    {
+      "source": "/sappy/:path*",
+      "has": [{ "type": "host", "value": "gerrystephen.com" }],
+      "destination": "https://www.gerrystephen.com/sappy/:path*",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/:path*",
