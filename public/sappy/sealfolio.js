@@ -563,7 +563,7 @@
             <span class="chip vibe">Vibe · ${vibe}</span>
             <span class="chip pixl">BITS pending</span>
             ${xHandle ? `<a class="chip xh" href="https://x.com/${xHandle}" target="_blank" rel="noopener">𝕏 @${xHandle}</a>` : ""}
-            ${canClaim ? `<span class="chip verified">${isClaimed ? "Claimed" : "Wallet verified"}</span>` : ""}
+            ${canClaim ? `<span class="chip verified">${isClaimed ? "Claimed" : "Ready to personalize"}</span>` : ""}
           </div>
           <details class="folio-edit folio-profile-edit" ${canClaim ? (isClaimed ? "" : "open") : "open"}>
             <summary>${canClaim ? "Edit profile" : "Claim or connect"}</summary>
