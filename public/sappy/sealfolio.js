@@ -30,7 +30,8 @@
     pixseals: "https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4",
     key: "https://gold-ready-vicuna-5.mypinata.cloud/ipfs/QmUYJi27E6p9f4BpvqEijtEe2kKyztqrtcEwr7iM3RAqLi/KeyGIF.gif",
     omniaItems: "https://dweb.link/ipfs/QmZbN8LpJe6aRdey277wx5SvsyVTom8AS9FzKMmJYFDtdh",
-    artifact: "/sappy/assets/digital-artifact-1.png",
+    artifact: "https://i2c.seadn.io/ethereum/0xb1cdf2bfab043ea1d81d0a73b3b849efaac1d31a/8f01708a2265650570c246d98b7f4f21.png",
+    artifactHtml93: "https://ipfs2.seadn.io/ipfs/bafybeia3j3pdbydo4ensqryfs6e2fq7oji6tywjto3uokbtw7je5vo2lpe/93.html",
     omnia: "/sappy/assets/omnia-logo.png",
   };
   const EMOJI_PACKS = {
@@ -103,10 +104,15 @@
     return /^[A-Za-z0-9_]{1,15}$/.test(cleaned) ? cleaned : "";
   }
 
-  function loadLocalProfile() {
+  function loadLocalProfile(target = urlWallet || handle) {
     try {
-      const profile = JSON.parse(localStorage.getItem("sappy_profile") || "{}");
-      return profile && typeof profile === "object" ? profile : {};
+      const key = localProfileKey(target);
+      const profiles = JSON.parse(localStorage.getItem("sappy_profiles_v1") || "{}");
+      const walletProfile = profiles && typeof profiles === "object" ? profiles[key] : null;
+      const legacy = JSON.parse(localStorage.getItem("sappy_profile") || "{}");
+      return walletProfile && typeof walletProfile === "object"
+        ? walletProfile
+        : (key.startsWith("wallet:") ? {} : (legacy && typeof legacy === "object" ? legacy : {}));
     } catch (_) {
       return {};
     }
@@ -114,7 +120,37 @@
 
   function saveLocalProfile(next) {
     state.profile = { ...state.profile, ...next, updatedAt: Date.now() };
-    try { localStorage.setItem("sappy_profile", JSON.stringify(state.profile)); } catch (_) {}
+    try {
+      const wallet = state.profileWallet || state.connectedAddress || state.address || urlWallet || handle;
+      const key = localProfileKey(wallet);
+      const profiles = JSON.parse(localStorage.getItem("sappy_profiles_v1") || "{}");
+      profiles[key] = state.profile;
+      localStorage.setItem("sappy_profiles_v1", JSON.stringify(profiles));
+      localStorage.setItem("sappy_profile", JSON.stringify(state.profile));
+    } catch (_) {}
+  }
+
+  function localProfileKey(value) {
+    const raw = String(value || "").trim().toLowerCase();
+    return /^0x[a-f0-9]{40}$/.test(raw) ? `wallet:${raw}` : `handle:${raw.replace(/^@/, "") || "sappyseal_holder"}`;
+  }
+
+  function reloadLocalProfileFor(wallet) {
+    state.profile = loadLocalProfile(wallet || state.profileWallet || state.connectedAddress || state.address || handle);
+  }
+
+  function markProfileClaimed(owned) {
+    const wallet = state.profileWallet || state.connectedAddress || state.address;
+    const walletMatchesProfile = Boolean(state.connectedAddress && (!state.profileWallet || state.connectedAddress.toLowerCase() === state.profileWallet.toLowerCase()));
+    if (!walletMatchesProfile || !owned?.length) return;
+    saveLocalProfile({
+      claimed: true,
+      verified: Boolean(state.profile.verified || urlPfp),
+      claimedWallet: wallet,
+      claimedAt: state.profile.claimedAt || Date.now(),
+      xHandle: cleanXHandle(state.profile.xHandle || urlXHandle),
+      pfp: state.profile.pfp || urlPfp || firstProfileImage(owned),
+    });
   }
 
   const COLLECTION_CACHE_MS = 10 * 60 * 1000;
@@ -127,6 +163,7 @@
     state.nfts = Array.isArray(data?.nfts) ? data.nfts : [];
     state.delegatedWallets = Array.isArray(data?.delegatedWallets) ? data.delegatedWallets : [];
     state.pixlBalance = Number(data?.pixlBalance || 0) || 0;
+    markProfileClaimed(normalizeOwned());
   }
 
   function readCollectionCache(address) {
@@ -303,6 +340,21 @@
     const type = contractType(o.contract);
     const id = String(o.id || "").replace(/\D/g, "") || o.id || "";
     const image = canonicalTokenImage(o);
+    if (type === "artifact" || isDigitalArtifactAsset(o)) {
+      const html = artifactHtmlUrl(o);
+      if (html) {
+        return `<div class="token-art token-art-html token-art-artifact" data-skip-hydrate="1">
+          <iframe src="${html}" title="${esc(o.name || `Digital Artifact #${id}`)}" loading="lazy" sandbox="allow-scripts allow-pointer-lock allow-popups allow-popups-to-escape-sandbox"></iframe>
+          <a class="artifact-open" href="${o.href || html}" target="_blank" rel="noopener">HTML NFT ↗</a>
+        </div>`;
+      }
+      if (image) {
+        return `<a class="token-art token-art-static token-art-artifact" data-skip-hydrate="1" href="${o.href || "#"}" target="_blank" rel="noopener">
+          <img class="nft-photo show" src="${image}" alt="${esc(o.name || `Digital Artifact #${id}`)}" loading="lazy" referrerpolicy="no-referrer">
+          <span class="artifact-open">HTML NFT ↗</span>
+        </a>`;
+      }
+    }
     if (image || o.animation) {
       return `<a class="token-art token-art-static token-art-${type}" data-skip-hydrate="1" href="${o.href || "#"}" target="_blank" rel="noopener">
         <img class="nft-photo show" src="${image || o.animation}" alt="${esc(o.name || `Sappy asset #${o.id}`)}" loading="lazy" referrerpolicy="no-referrer">
@@ -325,10 +377,17 @@
     if (type === "sappy-key") return MEDIA.key;
     if (type === "artifact" || isDigitalArtifactAsset(o)) {
       const media = normalizeImage(o.image || o.animation);
-      return media && !/digital-artifact-93\.jpg/i.test(media) ? media : MEDIA.artifact;
+      return media && !/\.html(?:[?#]|$)/i.test(media) && !/digital-artifact-93\.jpg/i.test(media) ? media : MEDIA.artifact;
     }
     if (type === "omnia-pet") return normalizeImage(o.image || o.animation);
     return normalizeImage(o.image || o.animation);
+  }
+
+  function artifactHtmlUrl(o) {
+    const id = String(o.id || "").replace(/\D/g, "") || "";
+    const media = normalizeImage(o.animation || o.animationUrl || "");
+    if (/\.html(?:[?#]|$)/i.test(media)) return media;
+    return id === "93" ? MEDIA.artifactHtml93 : "";
   }
 
   function render() {
@@ -342,6 +401,10 @@
     const targetWallet = state.profileWallet || state.connectedAddress || state.address;
     const walletMatchesProfile = Boolean(state.connectedAddress && (!state.profileWallet || state.connectedAddress.toLowerCase() === state.profileWallet.toLowerCase()));
     const canClaim = hasProfile && walletMatchesProfile;
+    const claimedWallet = String(state.profile.claimedWallet || "").toLowerCase();
+    const targetWalletLower = String(targetWallet || "").toLowerCase();
+    const isClaimed = Boolean(state.profile.claimed && (!claimedWallet || !targetWalletLower || claimedWallet === targetWalletLower));
+    const isVerifiedProfile = Boolean(state.profile.verified || state.profile.claimed || urlPfp);
     const canLinkSocials = Boolean(canClaim);
     const score = hasProfile ? scoreFor(owned) : 0;
     const breakdown = scoreBreakdown(owned, staked);
@@ -353,16 +416,16 @@
       ? ["Syncing your wallet.", "Pulling Sappy Seals, staked Seals, Pixseals, Omnia items, keys and artifacts from the covered contracts."]
       : isReal
         ? [
-          canClaim ? "Sealfolio ready to claim." : "Viewing a holder Sealfolio.",
+          canClaim ? (isClaimed ? "Sealfolio claimed." : "Sealfolio ready to claim.") : "Viewing a holder Sealfolio.",
           canClaim
-            ? (state.delegatedWallets.length ? `Wallet verified. Includes ${state.delegatedWallets.length} Delegate.xyz vault${state.delegatedWallets.length === 1 ? "" : "s"}.` : "Wallet verified. You can edit this profile and link socials.")
+            ? (state.delegatedWallets.length ? `Wallet verified. Includes ${state.delegatedWallets.length} Delegate.xyz vault${state.delegatedWallets.length === 1 ? "" : "s"}. Your claimed profile, bio and PFP stay saved on this browser.` : "Wallet verified. Your claimed profile, bio and PFP stay saved on this browser.")
             : state.profileWallet ? "Connect and sign with the matching wallet to claim or edit this profile." : `${owned.length} ecosystem asset${owned.length === 1 ? "" : "s"} found.`
         ]
         : ["Create your Sealfolio.", "Connect and sign with Dynamic to build your real Sappy identity from wallet holdings, Delegate.xyz vaults and linked socials."];
     document.getElementById("folio").innerHTML = `
       <a class="folio-back" href="community.html">← Back to the Pod</a>
       <div class="folio-hero">
-        <div class="folio-pfp sealframe ${profileImage || profileAsset ? "" : "folio-pfp-empty"} ${urlPfp ? "verified-pfp" : ""}" data-pin="${!profileImage && profileAsset ? "1" : "0"}" data-kind="${!profileImage && profileAsset ? "seal" : "none"}" data-id="${profileAsset ? profileAsset.id : ""}" data-px="300">
+        <div class="folio-pfp sealframe ${profileImage || profileAsset ? "" : "folio-pfp-empty"} ${isVerifiedProfile ? "verified-pfp" : ""}" data-pin="${!profileImage && profileAsset ? "1" : "0"}" data-kind="${!profileImage && profileAsset ? "seal" : "none"}" data-id="${profileAsset ? profileAsset.id : ""}" data-px="300">
           ${profileImage ? `<img class="seal-photo show" src="${profileImage}" alt="${esc(displayName)} profile picture" referrerpolicy="no-referrer">` : ""}
           ${!profileImage && !profileAsset ? `<img class="seal-photo show" src="/sappy/assets/sappy-seal-emoji.webp" alt="Sappy Sealfolio">` : ""}
         </div>
@@ -374,7 +437,7 @@
             <span class="chip vibe">Vibe · ${vibe}</span>
             <span class="chip pixl">BITS pending</span>
             ${xHandle ? `<a class="chip xh" href="https://x.com/${xHandle}" target="_blank" rel="noopener">𝕏 @${xHandle}</a>` : ""}
-            ${canClaim ? `<span class="chip verified">Wallet verified</span>` : ""}
+            ${canClaim ? `<span class="chip verified">${isClaimed ? "Claimed" : "Wallet verified"}</span>` : ""}
           </div>
         </div>
         <div class="score-card">
@@ -404,6 +467,7 @@
         <div>
           <label>Display name<input class="input" id="profile-name" value="${esc(displayName)}" maxlength="40"></label>
           <label>Bio<textarea class="input" id="profile-bio" maxlength="180" placeholder="Add a short Sappy bio...">${esc(bio)}</textarea></label>
+          <label>PFP URL<input class="input" id="profile-pfp" value="${esc(profileImage)}" maxlength="500" placeholder="Paste an image URL or leave your verified PFP"></label>
         </div>
         <button class="btn btn-ghost" data-save-profile>Save Profile</button>
       </div>` : ""}
@@ -511,6 +575,7 @@
     if (el) el.textContent = label;
     state.connectedAddress = detail.address;
     state.address = state.profileWallet || detail.address;
+    reloadLocalProfileFor(state.profileWallet || detail.address);
     try {
       localStorage.setItem("sappy_wallet", JSON.stringify({ address: detail.address, label, connectedAt: Date.now() }));
       localStorage.setItem("sappy_wallet_label", label);
@@ -598,7 +663,11 @@
         saveLocalProfile({
           displayName: document.getElementById("profile-name")?.value?.trim() || handle,
           bio: document.getElementById("profile-bio")?.value?.trim() || "",
-          pfp: firstProfileImage(),
+          pfp: normalizeImage(document.getElementById("profile-pfp")?.value?.trim()) || firstProfileImage(),
+          claimed: true,
+          verified: Boolean(state.profile.verified || state.profile.claimed || urlPfp),
+          claimedWallet: state.profileWallet || state.connectedAddress || state.address,
+          claimedAt: state.profile.claimedAt || Date.now(),
         });
         S.toast("Sealfolio profile saved.");
         render();
@@ -606,8 +675,8 @@
     });
   }
 
-  function firstProfileImage() {
-    const asset = firstProfileAsset(normalizeOwned());
+  function firstProfileImage(owned = normalizeOwned()) {
+    const asset = firstProfileAsset(owned);
     return asset?.image || "/sappy/assets/sappy-seal-emoji.webp";
   }
 

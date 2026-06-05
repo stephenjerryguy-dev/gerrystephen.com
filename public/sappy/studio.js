@@ -1,4 +1,4 @@
-/* ============ studio.js — rebuilding Gerry Stephen's Studio ============ */
+/* ============ studio.js — Gerry Stephen's Studio coming soon ============ */
 (function () {
   const S = window.Sappy;
 
@@ -9,12 +9,12 @@
       <section class="studio-soon">
         <div>
           <span class="eyebrow">▪ GERRY STEPHEN'S STUDIO</span>
-          <h1 class="section-title studio-title">Studio is being rebuilt.</h1>
-          <p class="section-sub">The next version has to lock the real Sappy Seal token, preserve its traits, and place that exact seal into a new scene. Until that is right, the AI studio stays off.</p>
+          <h1 class="section-title studio-title">Gerry Stephen's Studio is coming soon.</h1>
+          <p class="section-sub">A premium Sappy creative suite is on the way. Pick your seal, set the scene, and turn the pod's energy into visuals built for sharing.</p>
           <div class="studio-steps" aria-label="Studio rebuild goals">
-            <span>1. Real token identity</span>
-            <span>2. Trait-preserving scene</span>
-            <span>3. Image-model ready</span>
+            <span>1. Choose your seal</span>
+            <span>2. Set the scene</span>
+            <span>3. Share the vibe</span>
           </div>
           <div class="studio-hero-actions">
             <a class="btn btn-ghost" href="/sappy/community.html">Find your profile →</a>
@@ -24,7 +24,7 @@
           <img src="/sappy/assets/studio/seal-chef-scene.png" alt="Sappy Seal studio concept">
           <div class="studio-preview-card">
             <b>Coming soon</b>
-            <span>Exact seal → new scene</span>
+            <span>Your seal → new scene</span>
           </div>
         </div>
       </section>`;

@@ -17,7 +17,7 @@
     { name: "Pixseals", chain: "Polygon", kind: "ERC-721", desc: "Gas-free pixel airdrop, 1:1 mapped.",
       addr: "0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b", art: "image", image: "/sappy/assets/ecosystem/pixseal-1.avif", seed: "pixseals", id: 1, url: "https://opensea.io/assets/polygon/0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b/1" },
     { name: "Digital Artifacts", chain: "Bitcoin / Ethereum", kind: "ERC-721", desc: "Bitcoin Ordinal artifacts mirrored on Ethereum.",
-      addr: "0xb1cdf2bfab043ea1d81d0a73b3b849efaac1d31a", art: "image", image: "/sappy/assets/digital-artifact-1.png", seed: "artifacts", url: "https://opensea.io/item/ethereum/0xb1cdf2bfab043ea1d81d0a73b3b849efaac1d31a/1" },
+      addr: "0xb1cdf2bfab043ea1d81d0a73b3b849efaac1d31a", art: "html", image: "https://i2c.seadn.io/ethereum/0xb1cdf2bfab043ea1d81d0a73b3b849efaac1d31a/8f01708a2265650570c246d98b7f4f21.png", html: "https://ipfs2.seadn.io/ipfs/bafybeia3j3pdbydo4ensqryfs6e2fq7oji6tywjto3uokbtw7je5vo2lpe/93.html", seed: "artifacts", url: "https://opensea.io/item/ethereum/0xb1cdf2bfab043ea1d81d0a73b3b849efaac1d31a/93" },
   ];
   const chainChip = (c) => c === "Polygon" ? '<span class="chip poly">◆ Polygon</span>' : c === "Bitcoin / Ethereum" ? '<span class="chip nft">₿ BTC / Ξ ETH</span>' : '<span class="chip eth">Ξ Ethereum</span>';
   const kindChip = (k) => k === "ERC-721" ? '<span class="chip erc721">ERC-721</span>' : k === "ERC-20" ? '<span class="chip erc20">ERC-20</span>' : '<span class="chip nft">NFT</span>';
@@ -28,6 +28,7 @@
       let ic;
       if (a.art === "coin") ic = `<div class="ic coin"><span class="coin-fallback">$PIXL</span><img class="coin-logo" src="${PIXL_LOGO}" alt="$PIXL" referrerpolicy="no-referrer" onload="this.classList.add('show')" onerror="this.remove()"></div>`;
       else if (a.art === "image") ic = `<div class="ic art-image"><img src="${a.image}" alt="${a.name} preview" loading="eager" decoding="async"></div>`;
+      else if (a.art === "html") ic = `<div class="ic art-html"><iframe src="${a.html}" title="${a.name} HTML NFT" loading="lazy" sandbox="allow-scripts allow-pointer-lock allow-popups allow-popups-to-escape-sandbox"></iframe><a href="${a.url}" target="_blank" rel="noopener">HTML NFT ↗</a></div>`;
       else if (a.art === "ordinal") ic = '<div class="ic ordinal"><span class="b">\u20bf</span><span class="t">ORDINAL</span></div>';
       else if (a.art === "seal") ic = `<div class="ic sealframe" data-pin="1" data-kind="seal" data-id="${a.id}" data-seed="${a.seed}" data-px="200"></div>`;
       else ic = `<div class="ic sealframe" data-kind="${a.art}" data-contract="${a.addr}"${a.id !== undefined ? ` data-id="${a.id}"` : ""} data-seed="${a.seed}" data-px="200"></div>`;

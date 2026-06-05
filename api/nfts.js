@@ -28,6 +28,8 @@ const PIXL_CONTRACT = '0x427a03fb96d9a94a6727fbcfbba143444090dd64';
 const SAPPY_KEY_CONTRACT = '0x3d3ad7b00e885d3d969e03bfcbaed80fb3df6667';
 const SAPPY_KEY_IMAGE = 'https://gold-ready-vicuna-5.mypinata.cloud/ipfs/QmUYJi27E6p9f4BpvqEijtEe2kKyztqrtcEwr7iM3RAqLi/KeyGIF.gif';
 const OMNIA_ITEM_IMAGE_BASE = 'https://dweb.link/ipfs/QmZbN8LpJe6aRdey277wx5SvsyVTom8AS9FzKMmJYFDtdh';
+const DIGITAL_ARTIFACT_93_IMAGE = 'https://i2c.seadn.io/ethereum/0xb1cdf2bfab043ea1d81d0a73b3b849efaac1d31a/8f01708a2265650570c246d98b7f4f21.png';
+const DIGITAL_ARTIFACT_93_HTML = 'https://ipfs2.seadn.io/ipfs/bafybeia3j3pdbydo4ensqryfs6e2fq7oji6tywjto3uokbtw7je5vo2lpe/93.html';
 const OMNIA_PET_IMAGE_OVERRIDES = {
   7262: 'https://dweb.link/ipfs/QmWrbaUmFYMga5uXNo32ff8fEbHEDGvCinGGmEsph4bY2c/Water.gif',
   7263: 'https://storage.googleapis.com/pv-pp-bucket-1/images-v2/19d2d613d9e662c86e1306505316e5d25a66cfb104d4cf6e3454c98310288c96.png',
@@ -59,7 +61,8 @@ const STATIC_PREVIEW_NFTS = [
   {
     name: 'Digital Artifact #93',
     collection: 'Digital Artifact',
-    image: '/sappy/assets/digital-artifact-1.png',
+    image: DIGITAL_ARTIFACT_93_IMAGE,
+    animationUrl: DIGITAL_ARTIFACT_93_HTML,
     href: `https://opensea.io/item/ethereum/${DIGITAL_ARTIFACT_CONTRACT}/93`,
     contract: DIGITAL_ARTIFACT_CONTRACT,
     tokenId: '93',
@@ -234,7 +237,10 @@ function canonicalImageFor(contract, tokenId, image) {
   if (normalizedContract === SAPPY_KEY_CONTRACT) return SAPPY_KEY_IMAGE;
   if (normalizedContract === OMNIA_ITEMS_CONTRACT && id) return `${OMNIA_ITEM_IMAGE_BASE}/${id}.png`;
   if (normalizedContract === OMNIA_PETS_CONTRACT && OMNIA_PET_IMAGE_OVERRIDES[id]) return OMNIA_PET_IMAGE_OVERRIDES[id];
-  if (normalizedContract === DIGITAL_ARTIFACT_CONTRACT) return image || '/sappy/assets/digital-artifact-1.png';
+  if (normalizedContract === DIGITAL_ARTIFACT_CONTRACT) {
+    if (String(image || '').includes('.html')) return id === '93' ? DIGITAL_ARTIFACT_93_IMAGE : '/sappy/assets/digital-artifact-1.png';
+    return image || (id === '93' ? DIGITAL_ARTIFACT_93_IMAGE : '/sappy/assets/digital-artifact-1.png');
+  }
   return image;
 }
 
@@ -295,7 +301,8 @@ function curatedEcosystemNfts(nfts, options = {}) {
         contract: artifact ? DIGITAL_ARTIFACT_CONTRACT : nft.contract,
         collection: artifact ? 'Digital Artifacts' : nft.collection,
         tokenId: artifact ? (artifactId || nft.tokenId) : nft.tokenId,
-        image: artifact && /digital-artifact-93\.jpg/i.test(String(nft.image || '')) ? '/sappy/assets/digital-artifact-1.png' : nft.image,
+        image: artifact && /digital-artifact-93\.jpg/i.test(String(nft.image || '')) ? DIGITAL_ARTIFACT_93_IMAGE : nft.image,
+        animationUrl: artifact && artifactId === '93' ? (nft.animationUrl || DIGITAL_ARTIFACT_93_HTML) : nft.animationUrl,
         name: artifact && !/digital artifact/i.test(nft.name || '') ? `Digital Artifact #${artifactId || nft.tokenId || 'Ordinal'}` : nft.name,
       };
     })
@@ -650,6 +657,7 @@ async function refreshNftMetadata(nft) {
     name: normalizeItemName(openSea?.name || metadata?.name || nft.name, nft.contract),
     collection: normalizeCollectionName(openSea?.collection || nft.collection, nft.contract),
     image: canonicalImageFor(nft.contract, nft.tokenId, openSea?.image || openSea?.animationUrl || metadata?.image || nft.image),
+    animationUrl: openSea?.animationUrl || metadata?.animationUrl || nft.animationUrl,
     href: openSea?.href || nft.href,
   };
 }
@@ -745,7 +753,8 @@ export default async function handler(req, res) {
       ...(requestedWallet ? (KNOWN_DIGITAL_ARTIFACTS_BY_WALLET[requestedWallet.toLowerCase()] || []).map((tokenId) => ({
         name: `Digital Artifact #${tokenId}`,
         collection: 'Digital Artifacts',
-        image: '/sappy/assets/digital-artifact-1.png',
+        image: tokenId === '93' ? DIGITAL_ARTIFACT_93_IMAGE : '/sappy/assets/digital-artifact-1.png',
+        animationUrl: tokenId === '93' ? DIGITAL_ARTIFACT_93_HTML : undefined,
         href: `https://opensea.io/item/ethereum/${DIGITAL_ARTIFACT_CONTRACT}/${tokenId}`,
         contract: DIGITAL_ARTIFACT_CONTRACT,
         tokenId,
@@ -756,7 +765,7 @@ export default async function handler(req, res) {
       ...(requestedWallet ? [] : STATIC_PREVIEW_NFTS),
     ];
 
-    let nfts = curatedEcosystemNfts(allNfts.filter((nft) => nft.image), { fullWallet: Boolean(requestedWallet) });
+    let nfts = curatedEcosystemNfts(allNfts.filter((nft) => nft.image || nft.animationUrl || isDigitalArtifactLike(nft)), { fullWallet: Boolean(requestedWallet) });
 
     if (!nfts.length) {
       nfts = curatedEcosystemNfts(blockscoutResponses
