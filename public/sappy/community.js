@@ -5,7 +5,7 @@
   const VIBES = ["ARF ARF", "Sappy on X", "Diamond Flipper", "Pod Leader", "New Collector", "Staker", "Whale", "Cold Water Club"];
   const state = {
     holders: null,
-    loading: false,
+    loading: true,
     totalHolders: null,
     query: "",
     queryLoading: false,
@@ -87,7 +87,9 @@
   function mapHolder(holder, index, offset = 3200) {
     const seed = offset + index * 97;
     const label = holder.label || holder.xHandle || holder.openseaUsername || holder.address;
-    const countType = holder.countType || (holder.source === "opensea-account" ? "ecosystem" : "seals");
+    const breakdown = normalizeBreakdown(holder);
+    const count = Number.isFinite(Number(holder.count)) ? Number(holder.count) : breakdown.total;
+    const countType = holder.countType || "ecosystem";
     const params = new URLSearchParams({
       u: label || holder.address || `holder-${index + 1}`,
     });
@@ -97,12 +99,14 @@
     return {
       h: label,
       vibe: holder.vibe || (holder.source === "opensea-account" ? "OpenSea profile" : index < 3 ? "Top Holder" : VIBES[seed % VIBES.length]),
-      n: holder.count || 1,
+      n: Number.isFinite(count) ? count : 0,
       countType,
+      breakdown,
+      verifiedHoldings: Boolean(holder.verifiedHoldings || breakdown.total > 0 || Number(holder.count) > 0),
       seed,
       id: (seed * 5) % 10000,
       image: holder.profileImage,
-      claimable: Boolean(holder.claimable || holder.xHandle || holder.openseaUsername),
+      claimable: Boolean((holder.claimable || holder.xHandle || holder.openseaUsername) && (breakdown.total > 0 || Number(holder.count) > 0)),
       address: holder.address,
       xHandle: holder.xHandle,
       openseaUsername: holder.openseaUsername,
@@ -111,11 +115,7 @@
   }
 
   function render() {
-    const members = state.holders || NAMES.map((h, i) => {
-      const seed = 1000 + i * 137;
-      const n = 1 + ((seed * 7) % 40);
-      return { h, vibe: VIBES[seed % VIBES.length], n, countType: "ecosystem", seed, id: (seed * 3) % 10000, href: `sealfolio.html?u=${h}&seed=${seed}` };
-    });
+    const members = state.holders || [];
     const localFiltered = filteredMembers(members);
     const apiResults = Array.isArray(state.queryResults) ? state.queryResults : null;
     const filtered = apiResults?.length ? apiResults : localFiltered;
@@ -147,7 +147,7 @@
         </div>
         ${state.loading ? '<div class="folio-loading">Loading holder list from Sappy Seals and staked Sappy Seals...</div>' : ""}
         ${searchingOpenSea ? '<div class="folio-loading">Checking OpenSea for that holder profile...</div>' : ""}
-        ${!filtered.length && !searchingOpenSea ? `<div class="folio-loading">No holders matched “${esc(state.query)}”. Keep typing a wallet, ENS, OpenSea username or X handle.</div>` : ""}
+        ${!filtered.length && !searchingOpenSea && !state.loading ? `<div class="folio-loading">${state.query ? `No holders matched “${esc(state.query)}”. Keep typing a wallet, ENS, OpenSea username or X handle.` : "Holder profiles are syncing from the covered Sappy ecosystem contracts. Try again in a moment."}</div>` : ""}
         <div class="pod-grid">${filtered.map((m) => `
           <a class="pod-card ${m.claimable ? "verified-holder" : ""}" href="${m.href}">
             ${m.image ? `<img class="pod-pfp" src="${m.image}" alt="${m.h} profile picture" referrerpolicy="no-referrer" loading="lazy">` : `<div class="sealframe" data-pin="1" data-kind="seal" data-id="${m.id}" data-px="320"></div>`}
@@ -155,6 +155,7 @@
               <div class="n">${m.h}</div>
               <div class="t">${m.vibe}</div>
               <div class="cnt">${countLabel(m)}${m.claimable ? " · CLAIM READY" : ""}</div>
+              ${breakdownLabel(m) ? `<div class="holder-breakdown">${breakdownLabel(m)}</div>` : ""}
               ${m.address ? `<div class="holder-wallet">${m.address.slice(0, 6)}...${m.address.slice(-4)}</div>` : ""}
             </div>
           </a>`).join("")}</div>
@@ -164,8 +165,29 @@
 
   function countLabel(member) {
     const n = Number(member.n || 0) || 0;
+    if (!n && !member.verifiedHoldings) return "HOLDINGS SYNCING";
     if (member.countType === "seals") return `${n} ${n === 1 ? "SEAL" : "SEALS"}`;
     return `${n} ECO ASSET${n === 1 ? "" : "S"}`;
+  }
+
+  function normalizeBreakdown(holder) {
+    const raw = holder?.breakdown && typeof holder.breakdown === "object" ? holder.breakdown : {};
+    const seals = Number(raw.seals || raw.sappySeals || raw.sealCount || 0) || 0;
+    const ecosystem = Number(raw.ecosystem || raw.other || raw.ecosystemAssets || 0) || 0;
+    const artifacts = Number(raw.artifacts || raw.digitalArtifacts || 0) || 0;
+    const pixl = Number(holder?.pixlBalance || raw.pixl || 0) || 0;
+    const total = Number(raw.total || holder?.count || seals + ecosystem) || 0;
+    return { seals, ecosystem, artifacts, pixl, total };
+  }
+
+  function breakdownLabel(member) {
+    const b = member.breakdown || {};
+    const parts = [];
+    if (b.seals) parts.push(`${fmt(b.seals)} seals`);
+    if (b.ecosystem && b.ecosystem !== b.seals) parts.push(`${fmt(b.ecosystem)} other`);
+    if (b.artifacts) parts.push(`${fmt(b.artifacts)} artifact${b.artifacts === 1 ? "" : "s"}`);
+    if (b.pixl) parts.push(`${fmt(Math.round(b.pixl))} PIXL`);
+    return parts.slice(0, 3).join(" · ");
   }
 
   function wireSearch() {

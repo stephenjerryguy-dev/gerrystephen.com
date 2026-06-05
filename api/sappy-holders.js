@@ -46,7 +46,6 @@ const SAMPLE = [
   { address: '0xc3ce1eb539c1cc031ecd7b95e8c00768bf324403', count: 8 },
 ];
 const KNOWN_DIGITAL_ARTIFACTS_BY_WALLET = {
-  '0x741047ae552e58e89f1ff51d9a06e5d9dfba3feb': 1,
   '0xcf3b8981abaa56a8e41117b0c721c05f608400a7': 1,
 };
 const KNOWN_HOLDER_OVERRIDES = {
@@ -301,6 +300,33 @@ function holderCount(owner) {
   return Number(owner?.tokenCount || owner?.count || owner?.tokensCount || owner?.token_count || ownership.tokenCount || ownership.token_count || ownership.totalCount || 0) || 0;
 }
 
+function holderBreakdown(address, sealAggregate, ecosystemAggregate) {
+  const key = String(address || '').toLowerCase();
+  const seals = Number(sealAggregate.get(key)?.count || 0) || 0;
+  const ecosystem = Number(ecosystemAggregate.get(key)?.count || 0) || 0;
+  const artifacts = Number(KNOWN_DIGITAL_ARTIFACTS_BY_WALLET[key] || 0) || 0;
+  return {
+    seals,
+    ecosystem,
+    artifacts,
+    total: seals + ecosystem,
+  };
+}
+
+function holderRecord(address, sealAggregate, ecosystemAggregate, index = 0) {
+  const breakdown = holderBreakdown(address, sealAggregate, ecosystemAggregate);
+  return {
+    address,
+    label: shortAddress(address),
+    count: breakdown.total,
+    countType: 'ecosystem',
+    breakdown,
+    rank: index + 1,
+    verifiedHoldings: breakdown.total > 0,
+    profile: `/sappy/sealfolio.html?wallet=${address}&u=${shortAddress(address)}`,
+  };
+}
+
 async function fetchTopOwners() {
   const params = new URLSearchParams({ limit: '50' });
   [SAPPY_SEALS_CONTRACT, STAKED_SEALS_CONTRACT].forEach((contract) => params.append('collections', contract));
@@ -523,31 +549,29 @@ export default async function handler(req, res) {
       ecosystemAggregate.set(address, current);
     });
 
+    const allCandidateAddresses = [...new Set([
+      ...[...aggregate.values()].map((holder) => holder.address),
+      ...[...ecosystemAggregate.values()].map((holder) => holder.address),
+    ].filter((address) => /^0x[a-fA-F0-9]{40}$/.test(address)))];
+
+    const combinedCandidates = allCandidateAddresses
+      .map((address, index) => holderRecord(address, aggregate, ecosystemAggregate, index))
+      .filter((holder) => holder.count > 0 && holder.breakdown.seals <= 64)
+      .sort((a, b) => b.count - a.count || b.breakdown.seals - a.breakdown.seals)
+      .slice(0, 48)
+      .map((holder, index) => ({ ...holder, rank: index + 1 }));
+
     const sealCandidates = [...aggregate.values()]
       .sort((a, b) => b.count - a.count)
       .filter((holder) => holder.count <= 64)
       .slice(0, 36)
-      .map((holder, index) => ({
-        address: holder.address,
-        label: shortAddress(holder.address),
-        count: holder.count,
-        countType: 'seals',
-        rank: index + 1,
-        profile: `/sappy/sealfolio.html?wallet=${holder.address}&u=${shortAddress(holder.address)}`,
-      }));
+      .map((holder, index) => holderRecord(holder.address, aggregate, ecosystemAggregate, index));
     const ecosystemCandidates = [...ecosystemAggregate.values()]
       .sort((a, b) => b.count - a.count)
       .slice(0, 36)
-      .map((holder, index) => ({
-        address: holder.address,
-        label: shortAddress(holder.address),
-        count: holder.count,
-        countType: 'ecosystem',
-        rank: index + 1,
-        profile: `/sappy/sealfolio.html?wallet=${holder.address}&u=${shortAddress(holder.address)}`,
-      }));
+      .map((holder, index) => holderRecord(holder.address, aggregate, ecosystemAggregate, index));
 
-    const enriched = await enrichHolders(interleaveGroups([sealCandidates, ecosystemCandidates], 48));
+    const enriched = await enrichHolders(combinedCandidates.length ? combinedCandidates : interleaveGroups([sealCandidates, ecosystemCandidates], 48));
     const xLinked = enriched.filter((holder) => holder.xHandle);
     let holders = (xLinked.length ? [...xLinked, ...enriched.filter((holder) => !holder.xHandle)] : enriched).map(applyHolderOverride).slice(0, 32);
     if (query) {

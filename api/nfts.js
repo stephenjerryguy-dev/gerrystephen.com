@@ -106,7 +106,6 @@ const STATIC_PREVIEW_NFTS = [
   },
 ];
 const KNOWN_DIGITAL_ARTIFACTS_BY_WALLET = {
-  '0x741047ae552e58e89f1ff51d9a06e5d9dfba3feb': ['93'],
   '0xcf3b8981abaa56a8e41117b0c721c05f608400a7': ['93'],
 };
 const ECOSYSTEMS = [
@@ -284,7 +283,11 @@ function curatedEcosystemNfts(nfts, options = {}) {
     const contract = nft.contract?.toLowerCase?.() || nft.contract || 'unknown';
     const tokenId = String(nft.tokenId || '').toLowerCase();
     if ((contract === SAPPY_SEALS_CONTRACT || contract === STAKED_SAPPY_SEALS_CONTRACT) && tokenId) return `sappy-seal:${tokenId}`;
-    if (isDigitalArtifactLike(nft)) return `digital-artifact:${artifactTokenId(nft) || tokenId || nft.name || nft.collection || 'artifact'}`;
+    if (isDigitalArtifactLike(nft)) {
+      const artifactId = artifactTokenId(nft) || tokenId;
+      if (artifactId) return `digital-artifact:${contract}:${artifactId}`;
+      return `digital-artifact:${contract}:${nft.href || nft.animationUrl || nft.image || nft.name || 'unknown'}`;
+    }
     return `${contract}:${tokenId}`;
   };
   return nfts

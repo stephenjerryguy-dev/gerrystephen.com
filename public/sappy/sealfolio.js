@@ -80,6 +80,7 @@
     error: "",
     profile: loadLocalProfile(),
   };
+  const isLocal = /^(127\.0\.0\.1|localhost)$/.test(location.hostname);
   const vibe = VIBES[pick(VIBES.length)];
   let walletShort = "Connect wallet";
 
@@ -128,6 +129,7 @@
       localStorage.setItem("sappy_profiles_v1", JSON.stringify(profiles));
       localStorage.setItem("sappy_profile", JSON.stringify(state.profile));
     } catch (_) {}
+    return state.profile;
   }
 
   function localProfileKey(value) {
@@ -137,6 +139,50 @@
 
   function reloadLocalProfileFor(wallet) {
     state.profile = loadLocalProfile(wallet || state.profileWallet || state.connectedAddress || state.address || handle);
+  }
+
+  async function fetchProfileApi(path, options = {}) {
+    const endpoints = [path];
+    if (isLocal) endpoints.push(`https://www.gerrystephen.com${path}`);
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(endpoint, {
+          ...options,
+          headers: { accept: "application/json", ...(options.headers || {}) },
+        });
+        const type = response.headers.get("content-type") || "";
+        if (!response.ok || !type.includes("application/json")) continue;
+        return await response.json();
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  async function loadRemoteProfile(wallet) {
+    if (!/^0x[a-fA-F0-9]{40}$/.test(wallet || "")) return;
+    const data = await fetchProfileApi(`/api/sappy-profile?wallet=${encodeURIComponent(wallet)}`);
+    if (!data?.profile) return;
+    state.profile = { ...state.profile, ...data.profile };
+    try {
+      const key = localProfileKey(wallet);
+      const profiles = JSON.parse(localStorage.getItem("sappy_profiles_v1") || "{}");
+      profiles[key] = state.profile;
+      localStorage.setItem("sappy_profiles_v1", JSON.stringify(profiles));
+      localStorage.setItem("sappy_profile", JSON.stringify(state.profile));
+    } catch (_) {}
+    render();
+  }
+
+  async function persistRemoteProfile(profile) {
+    const wallet = profile?.claimedWallet || state.profileWallet || state.connectedAddress || state.address;
+    if (!/^0x[a-fA-F0-9]{40}$/.test(wallet || "")) return;
+    const payload = { ...profile, wallet, claimedWallet: wallet };
+    const data = await fetchProfileApi("/api/sappy-profile", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (data?.profile) state.profile = { ...state.profile, ...data.profile };
   }
 
   function markProfileClaimed(owned) {
@@ -151,6 +197,7 @@
       xHandle: cleanXHandle(state.profile.xHandle || urlXHandle),
       pfp: state.profile.pfp || urlPfp || firstProfileImage(owned),
     });
+    persistRemoteProfile(state.profile);
   }
 
   const COLLECTION_CACHE_MS = 10 * 60 * 1000;
@@ -280,7 +327,7 @@
       };
     }).filter((nft) => {
       const key = isDigitalArtifactAsset(nft)
-        ? `digital-artifact:${artifactTokenId(nft) || nft.name || nft.collection || "artifact"}`
+        ? `digital-artifact:${nft.contract}:${artifactTokenId(nft) || nft.id || nft.href || nft.animation || nft.image || nft.name || "unknown"}`
         : (nft.contract === CONTRACTS.seals || nft.contract === CONTRACTS.staked)
         ? `sappy-seal:${nft.id}`
         : `${nft.contract}:${nft.id}`;
@@ -350,14 +397,14 @@
       }
       if (image) {
         return `<a class="token-art token-art-static token-art-artifact" data-skip-hydrate="1" href="${o.href || "#"}" target="_blank" rel="noopener">
-          <img class="nft-photo show" src="${image}" alt="${esc(o.name || `Digital Artifact #${id}`)}" loading="lazy" referrerpolicy="no-referrer">
+          <img class="nft-photo show" src="${image}" alt="${esc(o.name || `Digital Artifact #${id}`)}" loading="lazy" decoding="async" referrerpolicy="no-referrer">
           <span class="artifact-open">HTML NFT ↗</span>
         </a>`;
       }
     }
     if (image || o.animation) {
       return `<a class="token-art token-art-static token-art-${type}" data-skip-hydrate="1" href="${o.href || "#"}" target="_blank" rel="noopener">
-        <img class="nft-photo show" src="${image || o.animation}" alt="${esc(o.name || `Sappy asset #${o.id}`)}" loading="lazy" referrerpolicy="no-referrer">
+        <img class="nft-photo show" src="${image || o.animation}" alt="${esc(o.name || `Sappy asset #${o.id}`)}" loading="lazy" decoding="async" referrerpolicy="no-referrer">
       </a>`;
     }
     if (isSealAsset(o) && id) return `<div class="sealframe" data-pin="1" data-kind="seal" data-id="${id}" data-px="320"></div>`;
@@ -396,6 +443,7 @@
     const badges = badgesFor(owned, staked);
     const profileAsset = firstProfileAsset(owned);
     const profileImage = normalizeImage(state.profile.pfp || urlPfp || profileAsset?.image || "");
+    if (profileImage) preloadProfileImage(profileImage);
     const isReal = Array.isArray(state.nfts);
     const hasProfile = isReal && owned.length > 0;
     const targetWallet = state.profileWallet || state.connectedAddress || state.address;
@@ -418,7 +466,7 @@
         ? [
           canClaim ? (isClaimed ? "Sealfolio claimed." : "Sealfolio ready to claim.") : "Viewing a holder Sealfolio.",
           canClaim
-            ? (state.delegatedWallets.length ? `Wallet verified. Includes ${state.delegatedWallets.length} Delegate.xyz vault${state.delegatedWallets.length === 1 ? "" : "s"}. Your claimed profile, bio and PFP stay saved on this browser.` : "Wallet verified. Your claimed profile, bio and PFP stay saved on this browser.")
+            ? (state.delegatedWallets.length ? `Wallet verified. Includes ${state.delegatedWallets.length} Delegate.xyz vault${state.delegatedWallets.length === 1 ? "" : "s"}. Your claimed profile, bio and PFP sync through Vercel storage.` : "Wallet verified. Your claimed profile, bio and PFP sync through Vercel storage.")
             : state.profileWallet ? "Connect and sign with the matching wallet to claim or edit this profile." : `${owned.length} ecosystem asset${owned.length === 1 ? "" : "s"} found.`
         ]
         : ["Create your Sealfolio.", "Connect and sign with Dynamic to build your real Sappy identity from wallet holdings, Delegate.xyz vaults and linked socials."];
@@ -426,8 +474,8 @@
       <a class="folio-back" href="/sappy/community">← Back to the Pod</a>
       <div class="folio-hero">
         <div class="folio-pfp sealframe ${profileImage || profileAsset ? "" : "folio-pfp-empty"} ${isVerifiedProfile ? "verified-pfp" : ""}" data-pin="${!profileImage && profileAsset ? "1" : "0"}" data-kind="${!profileImage && profileAsset ? "seal" : "none"}" data-id="${profileAsset ? profileAsset.id : ""}" data-px="300">
-          ${profileImage ? `<img class="seal-photo show" src="${profileImage}" alt="${esc(displayName)} profile picture" referrerpolicy="no-referrer">` : ""}
-          ${!profileImage && !profileAsset ? `<img class="seal-photo show" src="/sappy/assets/sappy-seal-emoji.webp" alt="Sappy Sealfolio">` : ""}
+          ${profileImage ? `<img class="seal-photo show" src="${profileImage}" alt="${esc(displayName)} profile picture" loading="eager" decoding="async" fetchpriority="high" referrerpolicy="no-referrer">` : ""}
+          ${!profileImage && !profileAsset ? `<img class="seal-photo show" src="/sappy/assets/sappy-seal-emoji.webp" alt="Sappy Sealfolio" loading="eager" decoding="async" fetchpriority="high">` : ""}
         </div>
         <div class="folio-id">
           <div class="name">${esc(displayName)}</div>
@@ -439,6 +487,18 @@
             ${xHandle ? `<a class="chip xh" href="https://x.com/${xHandle}" target="_blank" rel="noopener">𝕏 @${xHandle}</a>` : ""}
             ${canClaim ? `<span class="chip verified">${isClaimed ? "Claimed" : "Wallet verified"}</span>` : ""}
           </div>
+          ${canClaim ? `<details class="folio-edit folio-profile-edit" ${isClaimed ? "" : "open"}>
+            <summary>Edit profile</summary>
+            <div class="profile-edit-grid">
+              <label>Display name<input class="input" id="profile-name" value="${esc(displayName)}" maxlength="40"></label>
+              <label>Bio<textarea class="input" id="profile-bio" maxlength="180" placeholder="Add a short Sappy bio...">${esc(bio)}</textarea></label>
+              <label class="pfp-upload">Profile picture
+                <input class="input file-input" id="profile-pfp-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
+                <span class="pfp-upload-copy">Upload from your device. Leaving it empty keeps the current PFP.</span>
+              </label>
+            </div>
+            <button class="btn btn-ghost" data-save-profile>Save Profile</button>
+          </details>` : ""}
         </div>
         <div class="score-card">
           <div class="s">${score}</div>
@@ -462,15 +522,6 @@
           `}
         </div>
       </div>
-
-      ${canClaim ? `<div class="folio-edit">
-        <div>
-          <label>Display name<input class="input" id="profile-name" value="${esc(displayName)}" maxlength="40"></label>
-          <label>Bio<textarea class="input" id="profile-bio" maxlength="180" placeholder="Add a short Sappy bio...">${esc(bio)}</textarea></label>
-          <label>PFP URL<input class="input" id="profile-pfp" value="${esc(profileImage)}" maxlength="500" placeholder="Paste an image URL or leave your verified PFP"></label>
-        </div>
-        <button class="btn btn-ghost" data-save-profile>Save Profile</button>
-      </div>` : ""}
 
       <div class="folio-statrow">
         <div class="fstat"><div class="v">${owned.length}</div><div class="k">Assets found</div></div>
@@ -581,6 +632,7 @@
       localStorage.setItem("sappy_wallet_label", label);
     } catch (_) {}
     const loadAddress = state.profileWallet || detail.address;
+    loadRemoteProfile(loadAddress);
     loadWalletCollection(loadAddress);
   }
 
@@ -658,20 +710,69 @@
     document.querySelectorAll("[data-save-profile]").forEach((button) => {
       if (button.dataset.wired) return;
       button.dataset.wired = "1";
-      button.addEventListener("click", (event) => {
+      button.addEventListener("click", async (event) => {
         event.preventDefault();
-        saveLocalProfile({
+        const uploadedPfp = await readPfpUpload(document.getElementById("profile-pfp-file"));
+        const saved = saveLocalProfile({
           displayName: document.getElementById("profile-name")?.value?.trim() || handle,
           bio: document.getElementById("profile-bio")?.value?.trim() || "",
-          pfp: normalizeImage(document.getElementById("profile-pfp")?.value?.trim()) || firstProfileImage(),
+          pfp: uploadedPfp || state.profile.pfp || urlPfp || firstProfileImage(),
+          pfpSource: uploadedPfp ? "upload" : (state.profile.pfpSource || "verified"),
           claimed: true,
           verified: Boolean(state.profile.verified || state.profile.claimed || urlPfp),
           claimedWallet: state.profileWallet || state.connectedAddress || state.address,
           claimedAt: state.profile.claimedAt || Date.now(),
         });
+        persistRemoteProfile(saved);
         S.toast("Sealfolio profile saved.");
         render();
       });
+    });
+  }
+
+  function readPfpUpload(input) {
+    const file = input?.files?.[0];
+    if (!file) return Promise.resolve("");
+    if (!/^image\/(png|jpe?g|webp|gif)$/i.test(file.type || "")) {
+      S.toast("Use a PNG, JPG, WebP or GIF for your PFP.");
+      return Promise.resolve("");
+    }
+    if (file.size > 1_500_000) {
+      S.toast("PFP upload is too large. Try an image under 1.5 MB.");
+      return Promise.resolve("");
+    }
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resizeProfileImage(typeof reader.result === "string" ? reader.result : "").then(resolve);
+      reader.onerror = () => {
+        S.toast("Could not read that image.");
+        resolve("");
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function resizeProfileImage(dataUrl) {
+    if (!dataUrl) return Promise.resolve("");
+    return new Promise((resolve) => {
+      const image = new Image();
+      image.onload = () => {
+        const size = 420;
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return resolve(dataUrl.slice(0, 320000));
+        const scale = Math.max(size / image.width, size / image.height);
+        const width = image.width * scale;
+        const height = image.height * scale;
+        ctx.fillStyle = "#fffaf0";
+        ctx.fillRect(0, 0, size, size);
+        ctx.drawImage(image, (size - width) / 2, (size - height) / 2, width, height);
+        resolve(canvas.toDataURL("image/webp", 0.84).slice(0, 320000));
+      };
+      image.onerror = () => resolve(dataUrl.slice(0, 320000));
+      image.src = dataUrl;
     });
   }
 
@@ -686,12 +787,26 @@
       || null;
   }
 
+  function preloadProfileImage(src) {
+    if (!src || document.querySelector(`link[data-sappy-pfp="${CSS.escape(src)}"]`)) return;
+    const link = document.createElement("link");
+    link.rel = "preload";
+    link.as = "image";
+    link.href = src;
+    link.fetchPriority = "high";
+    link.dataset.sappyPfp = src;
+    document.head.appendChild(link);
+  }
+
   S.ready(function () {
     window.SappyLayout.mount("community");
     render();
     S.init();
     animateBits();
     window.addEventListener("sappy-wallet-connected", (event) => syncWalletLabel(event.detail));
-    if (state.profileWallet) loadWalletCollection(state.profileWallet);
+    if (state.profileWallet) {
+      loadRemoteProfile(state.profileWallet);
+      loadWalletCollection(state.profileWallet);
+    }
   });
 })();
