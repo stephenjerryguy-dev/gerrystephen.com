@@ -89,18 +89,19 @@ header{
 .brand .word{font-family:var(--font-display);font-weight:900;font-size:30px;letter-spacing:-.04em;}
 .brand .word b{color:var(--accent);}
 .brand .sub{font-family:var(--font-pixel);font-size:7.5px;letter-spacing:.22em;color:var(--ink-soft);margin-top:5px;}
-.nav-links{display:flex;gap:6px;margin-left:6px;}
+.nav-links{display:flex;align-items:center;gap:6px;margin-left:6px;}
 .nav-links a{
-  padding:8px 14px;border-radius:999px;font-weight:700;font-size:14.5px;color:var(--ink-soft);
+  display:inline-flex;align-items:center;justify-content:center;height:38px;
+  padding:0 14px;border-radius:999px;font-weight:700;font-size:14.5px;color:var(--ink-soft);line-height:1;
 }
 .nav-links a:hover{color:var(--ink);background:var(--cream-2);}
 .nav-links a.active{color:var(--ink);background:var(--paper);box-shadow:var(--shadow);}
-.nav-links a.nav-studio{position:relative;display:inline-flex;align-items:flex-end;justify-content:center;min-width:78px;min-height:38px;padding:17px 12px 6px;}
+.nav-links a.nav-studio{position:relative;min-width:78px;overflow:visible;}
 .nav-studio-signature{
-  position:absolute;left:5px;right:5px;top:3px;text-align:center;white-space:nowrap;
-  font-family:"Snell Roundhand","Brush Script MT","Segoe Script",cursive;font-size:13px;font-weight:700;line-height:1;
+  position:absolute;left:50%;top:-13px;text-align:center;white-space:nowrap;
+  font-family:"Snell Roundhand","Brush Script MT","Segoe Script",cursive;font-size:12px;font-weight:700;line-height:1;
   background:linear-gradient(105deg,#15689B,#1E93D6 58%,#62C9FF);-webkit-background-clip:text;background-clip:text;color:transparent;
-  transform:rotate(-2deg);pointer-events:none;
+  transform:translateX(-50%) rotate(-2deg);pointer-events:none;
 }
 .nav-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
 .mobile-menu-btn{
