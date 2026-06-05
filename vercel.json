@@ -11,6 +11,66 @@
       "permanent": true
     },
     {
+      "source": "/sappy/studio",
+      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
+      "destination": "https://sappy.gerrystephen.com/studio",
+      "permanent": true
+    },
+    {
+      "source": "/sappy/studio.html",
+      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
+      "destination": "https://sappy.gerrystephen.com/studio",
+      "permanent": true
+    },
+    {
+      "source": "/sappy/sealfolio",
+      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
+      "destination": "https://sappy.gerrystephen.com/sealfolio",
+      "permanent": true
+    },
+    {
+      "source": "/sappy/sealfolio.html",
+      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
+      "destination": "https://sappy.gerrystephen.com/sealfolio",
+      "permanent": true
+    },
+    {
+      "source": "/sappy/community",
+      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
+      "destination": "https://sappy.gerrystephen.com/community",
+      "permanent": true
+    },
+    {
+      "source": "/sappy/community.html",
+      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
+      "destination": "https://sappy.gerrystephen.com/community",
+      "permanent": true
+    },
+    {
+      "source": "/sappy/ecosystem",
+      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
+      "destination": "https://sappy.gerrystephen.com/ecosystem",
+      "permanent": true
+    },
+    {
+      "source": "/sappy/ecosystem.html",
+      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
+      "destination": "https://sappy.gerrystephen.com/ecosystem",
+      "permanent": true
+    },
+    {
+      "source": "/sappy/memes",
+      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
+      "destination": "https://sappy.gerrystephen.com/memes",
+      "permanent": true
+    },
+    {
+      "source": "/sappy/memes.html",
+      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
+      "destination": "https://sappy.gerrystephen.com/memes",
+      "permanent": true
+    },
+    {
       "source": "/sappy",
       "has": [{ "type": "host", "value": "gerrystephen.com" }],
       "destination": "https://sappy.gerrystephen.com/",
