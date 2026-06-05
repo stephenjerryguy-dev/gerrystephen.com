@@ -774,8 +774,8 @@ function Chapter({ num, kicker, title }) {
 // ---------- Timeline ----------
 const TIMELINE = [
 { year: '2021', tag: 'First NFT purchase · Sappy Seals', body: 'The rabbit hole opened through community, identity, and the feeling that ownership could become culture.' },
-{ year: '2021', tag: 'Inkfinity Canvas · family craft', body: 'ericgoodguy signed the work by hand. Inkfinity Canvas put that signature somewhere permanent.' },
-{ year: '2022', tag: 'The Guy standard', body: 'My dad ran construction for decades. I spent fifteen years beside him learning how real work gets scoped, built, and carried forward. His legacy now lives on forever.' },
+{ year: '2021', tag: 'Permanent work', body: 'ericgoodguy signed canvases, and gerrydoteth curated. Now the Inkfinity Canvas craft lives on-chain.' },
+{ year: '2022', tag: 'The Guy standard', body: 'Fifteen years beside my dad taught me how real work gets scoped, built, and carried forward. After his passing, his legacy now lives on forever.' },
 { year: '2022', tag: 'Lil Pudgy chapter', body: 'I had a Lil Pudgy early, sold it, and kept circling the ecosystem from the outside.' },
 { year: '2023', tag: 'Community & tools', body: 'I kept showing up for Sappy Seals with constant memes across X, Instagram, TikTok, and YouTube Shorts while supporting the whole ecosystem. I still do.' },
 { year: '2024', tag: 'IRL bridge', body: 'Fifteen years building beside my dad turned into a new chapter: hospitality, food, local operations, and community.' },
