@@ -3,23 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <script>
-if (window.location.hostname === 'sappy.gerrystephen.com') {
-  if (window.location.pathname.startsWith('/sappy')) {
-    const path = window.location.pathname.replace(/^\/sappy\/?/, '/');
-    window.location.replace(`${path}${window.location.search}${window.location.hash}`);
-  } else if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
-    document.documentElement.style.visibility = 'hidden';
-    fetch(`/sappy.html${window.location.search}`, { cache: 'no-store' })
-      .then((response) => response.ok ? response.text() : Promise.reject(new Error('Sappy shell unavailable')))
-      .then((html) => {
-        document.open();
-        document.write(html);
-        document.close();
-      })
-      .catch(() => {
-        document.documentElement.style.visibility = '';
-      });
-  }
+if (window.location.hostname === 'sappy.gerrystephen.com' && (window.location.pathname === '/' || window.location.pathname === '/index.html')) {
+  window.location.replace(`/sappy${window.location.search}${window.location.hash}`);
 }
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />

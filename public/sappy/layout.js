@@ -2,7 +2,7 @@
 (function () {
   const L = window.Sappy.LINKS;
   const sealEmoji = '<video class="sappy-emoji" autoplay muted loop playsinline poster="/sappy/assets/sappy-seal-emoji.webp" aria-hidden="true"><source src="/sappy/assets/sappy-seal-emoji.webm" type="video/webm"></video>';
-  const canonicalRoot = location.hostname === "sappy.gerrystephen.com" ? "/" : "/sappy/";
+  const canonicalRoot = "/sappy/";
   const cleanPath = (path) => {
     if (path === "index.html" || path === "") return canonicalRoot;
     return `${canonicalRoot}${path.replace(/\.html$/, "")}`.replace(/\/$/, "") || "/";

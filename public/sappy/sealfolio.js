@@ -423,7 +423,7 @@
         ]
         : ["Create your Sealfolio.", "Connect and sign with Dynamic to build your real Sappy identity from wallet holdings, Delegate.xyz vaults and linked socials."];
     document.getElementById("folio").innerHTML = `
-      <a class="folio-back" href="community.html">← Back to the Pod</a>
+      <a class="folio-back" href="/sappy/community">← Back to the Pod</a>
       <div class="folio-hero">
         <div class="folio-pfp sealframe ${profileImage || profileAsset ? "" : "folio-pfp-empty"} ${isVerifiedProfile ? "verified-pfp" : ""}" data-pin="${!profileImage && profileAsset ? "1" : "0"}" data-kind="${!profileImage && profileAsset ? "seal" : "none"}" data-id="${profileAsset ? profileAsset.id : ""}" data-px="300">
           ${profileImage ? `<img class="seal-photo show" src="${profileImage}" alt="${esc(displayName)} profile picture" referrerpolicy="no-referrer">` : ""}
