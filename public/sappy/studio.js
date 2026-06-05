@@ -367,10 +367,6 @@
 
   function render() {
     $("studio").innerHTML = `
-      <section class="studio-brand-ribbon" aria-label="Gerry Stephen's Studio">
-        <span>Gerry Stephen</span>
-        <strong>Studio</strong>
-      </section>
       <section class="studio-hero">
         <div>
           <span class="eyebrow">▪ GERRY'S AI STUDIO</span>

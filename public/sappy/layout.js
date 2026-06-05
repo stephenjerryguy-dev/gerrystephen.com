@@ -5,8 +5,13 @@
 
   function header(active) {
     const root = "/sappy/";
-    const link = (href, label, id) =>
-      `<a href="${root}${href}"${id === active ? ' class="active"' : ""}>${label}</a>`;
+    const link = (href, label, id) => {
+      const className = [id === active ? "active" : "", id === "studio" ? "nav-studio" : ""].filter(Boolean).join(" ");
+      const labelHtml = id === "studio"
+        ? '<span class="nav-studio-signature">Gerry Stephen</span><span>Studio</span>'
+        : label;
+      return `<a href="${root}${href}"${className ? ` class="${className}"` : ""}>${labelHtml}</a>`;
+    };
     const links = `
       ${link("index.html", "Home", "home")}
       ${link("ecosystem.html", "Ecosystem", "eco")}
