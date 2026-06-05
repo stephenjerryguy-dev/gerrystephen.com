@@ -4,6 +4,7 @@ import {
   DynamicContextProvider,
   DynamicWidget,
   dynamicEvents,
+  getAuthToken,
   useDynamicContext,
   useDynamicModals,
   useRefreshUser,
@@ -27,6 +28,21 @@ const wagmiConfig = createConfig({
   },
 });
 const queryClient = new QueryClient();
+
+function publishDynamicAuthToken() {
+  let token = '';
+  try {
+    token = getAuthToken?.() || '';
+    window.sappyDynamicAuthToken = token;
+    window.sappyGetDynamicAuthToken = () => getAuthToken?.() || window.sappyDynamicAuthToken || '';
+  } catch (_) {
+    window.sappyGetDynamicAuthToken = () => window.sappyDynamicAuthToken || '';
+  }
+  window.dispatchEvent(new CustomEvent('sappy-dynamic-auth-token', { detail: { token } }));
+  return token;
+}
+window.sappyDynamicAuthToken = '';
+window.sappyGetDynamicAuthToken = () => '';
 
 function fallbackOpenDynamic() {
   const widgetButton = document.querySelector('#dynamic-widget')?.shadowRoot?.querySelector('button, [role="button"]')
@@ -98,6 +114,7 @@ const settings = {
     },
     onAuthInit: () => window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: 'Connecting with Dynamic' } })),
     onAuthSuccess: () => {
+      window.setTimeout(publishDynamicAuthToken, 0);
       window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: 'Dynamic wallet connected' } }));
     },
     onAuthFailure: () => {
@@ -300,6 +317,7 @@ function SappyDynamicBridge() {
       } catch (_) {}
       const existing = getLinkedAccountInformation?.(provider) || getLinkedAccounts?.(provider)?.[0];
       if (existing) {
+        publishDynamicAuthToken();
         window.dispatchEvent(new CustomEvent('sappy-social-connected', { detail: socialDetail(provider, existing) }));
         return true;
       }
@@ -319,6 +337,7 @@ function SappyDynamicBridge() {
         const detail = refreshed || socialDetail(provider, account);
         if (detail.connected) {
           connected = true;
+          publishDynamicAuthToken();
           window.dispatchEvent(new CustomEvent('sappy-social-connected', { detail }));
           break;
         }
@@ -357,6 +376,7 @@ function SappyDynamicBridge() {
     [ProviderEnum.Twitter, ProviderEnum.Discord].forEach((provider) => {
       const account = getLinkedAccountInformation?.(provider) || getLinkedAccounts?.(provider)?.[0];
       if (account) {
+        publishDynamicAuthToken();
         window.dispatchEvent(new CustomEvent('sappy-social-connected', { detail: socialDetail(provider, account) }));
       }
     });
@@ -374,6 +394,7 @@ function SappyDynamicBridge() {
     window.dispatchEvent(new CustomEvent('sappy-wallet-connected', {
       detail: { address: wallet.address, label: short(wallet.address), source: 'dynamic' },
     }));
+    publishDynamicAuthToken();
     if (next && next !== window.location.href && next.startsWith(window.location.origin)) {
       window.location.href = next;
     }
@@ -387,6 +408,7 @@ function SappyDynamicBridge() {
         window.dispatchEvent(new CustomEvent('sappy-wallet-connected', {
           detail: { address: wallet.address, label: short(wallet.address), source: 'dynamic' },
         }));
+        publishDynamicAuthToken();
       }
     };
     try { dynamicEvents.on('userWalletsChanged', syncFromDynamic); } catch (_) {}

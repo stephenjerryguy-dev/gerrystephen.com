@@ -151,11 +151,21 @@
           headers: { accept: "application/json", ...(options.headers || {}) },
         });
         const type = response.headers.get("content-type") || "";
-        if (!response.ok || !type.includes("application/json")) continue;
-        return await response.json();
+        if (!type.includes("application/json")) continue;
+        const json = await response.json();
+        if (!response.ok) return { ...json, status: response.status };
+        return json;
       } catch (_) {}
     }
     return null;
+  }
+
+  function dynamicAuthToken() {
+    try {
+      return window.sappyGetDynamicAuthToken?.() || window.sappyDynamicAuthToken || "";
+    } catch (_) {
+      return "";
+    }
   }
 
   async function loadRemoteProfile(wallet) {
@@ -177,12 +187,21 @@
     const wallet = profile?.claimedWallet || state.profileWallet || state.connectedAddress || state.address;
     if (!/^0x[a-fA-F0-9]{40}$/.test(wallet || "")) return;
     const payload = { ...profile, wallet, claimedWallet: wallet };
+    const token = dynamicAuthToken();
+    const headers = { "content-type": "application/json" };
+    if (token) headers.authorization = `Bearer ${token}`;
     const data = await fetchProfileApi("/api/sappy-profile", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers,
       body: JSON.stringify(payload),
     });
-    if (data?.profile) state.profile = { ...state.profile, ...data.profile };
+    if (data?.profile) {
+      state.profile = { ...state.profile, ...data.profile };
+      return true;
+    }
+    if (data?.error === "wallet_mismatch") S.toast("Connect and sign with the matching wallet before saving this Sealfolio.");
+    else if (data?.error) S.toast("Sign with Dynamic before saving your Sealfolio.");
+    return false;
   }
 
   function markProfileClaimed(owned) {
@@ -383,6 +402,63 @@
     }
   }
 
+  function xConnection(xHandle = "") {
+    if (xHandle) return { connected: true, label: `@${xHandle}` };
+    try {
+      const raw = localStorage.getItem("sappy_x") || "";
+      const handle = cleanXHandle(raw);
+      return handle ? { connected: true, label: `@${handle}` } : { connected: false, label: "Not linked" };
+    } catch (_) {
+      return { connected: false, label: "Not linked" };
+    }
+  }
+
+  function discordConnection() {
+    try {
+      const connected = JSON.parse(localStorage.getItem("sappy_discord") || "{}");
+      const username = connected?.user?.username || connected?.user?.global_name || "";
+      const roles = Array.isArray(connected?.roles) ? connected.roles : [];
+      if (username || connected?.user?.id) {
+        return {
+          connected: true,
+          rolesSynced: roles.length > 0,
+          label: roles.length ? `${roles.length} holder role${roles.length === 1 ? "" : "s"} synced` : `Connected · ${username || "Discord"}`,
+          note: roles.length ? "" : "Discord linked. Holder roles are based on wallet holdings.",
+        };
+      }
+    } catch (_) {}
+    return { connected: false, rolesSynced: false, label: "Not linked", note: "" };
+  }
+
+  function renderConnectPanel({ canClaim, canLinkSocials, statusCopy, xStatus, discordStatus }) {
+    const walletConnected = Boolean(state.connectedAddress);
+    const walletMatchesProfile = Boolean(state.connectedAddress && (!state.profileWallet || state.connectedAddress.toLowerCase() === state.profileWallet.toLowerCase()));
+    return `<div class="folio-claim folio-claim-inline" id="claim">
+      <div class="ct">
+        <h3>${statusCopy[0]}</h3>
+        <p>${statusCopy[1]}</p>
+      </div>
+      <div class="connection-status-grid">
+        <div class="connection-status ${walletMatchesProfile ? "connected" : "pending"}">
+          <span>Wallet</span><strong>${walletMatchesProfile ? `Connected · ${state.connectedAddress.slice(0, 6)}...${state.connectedAddress.slice(-4)}` : walletConnected ? "Connected wallet does not match" : "Connect matching wallet"}</strong>
+        </div>
+        <div class="connection-status ${xStatus.connected ? "connected" : "pending"}">
+          <span>X</span><strong>${xStatus.connected ? `Connected · ${esc(xStatus.label)}` : "Not linked"}</strong>
+        </div>
+        <div class="connection-status ${discordStatus.connected ? "connected" : "pending"}">
+          <span>Discord</span><strong>${esc(discordStatus.label)}</strong>${discordStatus.note ? `<em>${esc(discordStatus.note)}</em>` : ""}
+        </div>
+      </div>
+      <div class="folio-connect-actions">
+        ${walletMatchesProfile ? `<button class="btn btn-ghost connected-btn" disabled>✓ Wallet connected</button>` : `<button class="btn btn-accent" data-connect>${state.profileWallet ? "Connect Matching Wallet" : "Connect Wallet"} →</button>`}
+        ${canLinkSocials ? `
+          ${xStatus.connected ? `<button class="btn btn-x connected-btn" disabled>✓ X connected</button>` : `<button class="btn btn-x" data-x-login>𝕏&nbsp; Link X</button>`}
+          ${discordStatus.connected ? `<button class="btn btn-ghost connected-btn" data-discord-login><img class="btn-logo" src="https://cdn.simpleicons.org/discord/5865F2" alt="" aria-hidden="true"> Discord connected</button>` : `<button class="btn btn-ghost" data-discord-login><img class="btn-logo" src="https://cdn.simpleicons.org/discord/5865F2" alt="" aria-hidden="true"> Link Discord</button>`}
+        ` : ""}
+      </div>
+    </div>`;
+  }
+
   function renderTokenArt(o) {
     const type = contractType(o.contract);
     const id = String(o.id || "").replace(/\D/g, "") || o.id || "";
@@ -458,6 +534,8 @@
     const breakdown = scoreBreakdown(owned, staked);
     const displayName = state.profile.displayName || handle;
     const xHandle = cleanXHandle(state.profile.xHandle || urlXHandle);
+    const xStatus = xConnection(xHandle);
+    const discordStatus = discordConnection();
     const bio = state.profile.bio || "";
     const rank = hasProfile ? rankFor(score) : "Unclaimed";
     const statusCopy = state.loading
@@ -487,8 +565,10 @@
             ${xHandle ? `<a class="chip xh" href="https://x.com/${xHandle}" target="_blank" rel="noopener">𝕏 @${xHandle}</a>` : ""}
             ${canClaim ? `<span class="chip verified">${isClaimed ? "Claimed" : "Wallet verified"}</span>` : ""}
           </div>
-          ${canClaim ? `<details class="folio-edit folio-profile-edit" ${isClaimed ? "" : "open"}>
-            <summary>Edit profile</summary>
+          <details class="folio-edit folio-profile-edit" ${canClaim ? (isClaimed ? "" : "open") : "open"}>
+            <summary>${canClaim ? "Edit profile" : "Claim or connect"}</summary>
+            ${renderConnectPanel({ canClaim, canLinkSocials, statusCopy, xStatus, discordStatus })}
+            ${canClaim ? `
             <div class="profile-edit-grid">
               <label>Display name<input class="input" id="profile-name" value="${esc(displayName)}" maxlength="40"></label>
               <label>Bio<textarea class="input" id="profile-bio" maxlength="180" placeholder="Add a short Sappy bio...">${esc(bio)}</textarea></label>
@@ -498,28 +578,13 @@
               </label>
             </div>
             <button class="btn btn-ghost" data-save-profile>Save Profile</button>
-          </details>` : ""}
+            ` : ""}
+          </details>
         </div>
         <div class="score-card">
           <div class="s">${score}</div>
           <div class="l">COLLECTOR SCORE</div>
           <div class="r">${rank}</div>
-        </div>
-      </div>
-
-      <div class="folio-claim" id="claim">
-        <div class="ct">
-          <h3>${statusCopy[0]}</h3>
-          <p>${statusCopy[1]}</p>
-        </div>
-        <div class="folio-connect-actions">
-          ${canLinkSocials ? `
-            <button class="btn btn-accent" data-connect>Connect Wallet</button>
-            <button class="btn btn-x" data-x-login>𝕏&nbsp; Link X</button>
-            <button class="btn btn-ghost" data-discord-login><img class="btn-logo" src="https://cdn.simpleicons.org/discord/5865F2" alt="" aria-hidden="true"> Link Discord</button>
-          ` : `
-            <button class="btn btn-accent" data-connect>${state.profileWallet ? "Connect Matching Wallet" : "Connect Wallet"} →</button>
-          `}
         </div>
       </div>
 
@@ -723,8 +788,8 @@
           claimedWallet: state.profileWallet || state.connectedAddress || state.address,
           claimedAt: state.profile.claimedAt || Date.now(),
         });
-        persistRemoteProfile(saved);
-        S.toast("Sealfolio profile saved.");
+        const remoteSaved = await persistRemoteProfile(saved);
+        S.toast(remoteSaved ? "Sealfolio profile saved." : "Profile saved locally. Sign with the matching wallet to sync it.");
         render();
       });
     });

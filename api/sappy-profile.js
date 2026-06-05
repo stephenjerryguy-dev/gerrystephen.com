@@ -1,7 +1,14 @@
 import { neon } from '@neondatabase/serverless';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { rateLimit } from './_rate-limit.js';
 
 const PROFILE_PREFIX = 'sappy:profile:v1:';
+const DYNAMIC_ENV_ID = process.env.SAPPY_DYNAMIC_ENV_ID
+  || process.env.VITE_SAPPY_DYNAMIC_ENV_ID
+  || '7f5ed078-ee9f-49aa-b9d6-8a90434aaf40';
+const DYNAMIC_JWKS = createRemoteJWKSet(
+  new URL(`https://app.dynamicauth.com/api/v0/sdk/${DYNAMIC_ENV_ID}/.well-known/jwks`)
+);
 
 globalThis.__sappyProfiles = globalThis.__sappyProfiles || new Map();
 globalThis.__sappyProfilesTableReady = globalThis.__sappyProfilesTableReady || false;
@@ -9,7 +16,7 @@ globalThis.__sappyProfilesTableReady = globalThis.__sappyProfilesTableReady || f
 function setCors(response) {
   response.setHeader('access-control-allow-origin', '*');
   response.setHeader('access-control-allow-methods', 'GET,POST,OPTIONS');
-  response.setHeader('access-control-allow-headers', 'content-type');
+  response.setHeader('access-control-allow-headers', 'authorization,content-type,x-dynamic-auth-token');
   response.setHeader('cache-control', 'no-store');
 }
 
@@ -105,6 +112,54 @@ function sanitizeProfile(input = {}) {
     claimedAt: Number(input.claimedAt || Date.now()) || Date.now(),
     updatedAt: Date.now(),
   };
+}
+
+function authTokenFromRequest(request) {
+  const authorization = String(request.headers?.authorization || request.headers?.Authorization || '').trim();
+  if (/^Bearer\s+/i.test(authorization)) return authorization.replace(/^Bearer\s+/i, '').trim();
+  return String(request.headers?.['x-dynamic-auth-token'] || request.headers?.['X-Dynamic-Auth-Token'] || '').trim();
+}
+
+function collectWalletsFromPayload(value, wallets = new Set(), seen = new Set()) {
+  if (!value || seen.has(value)) return wallets;
+  if (typeof value === 'string') {
+    const matches = value.match(/0x[a-fA-F0-9]{40}/g) || [];
+    matches.forEach((wallet) => wallets.add(wallet.toLowerCase()));
+    return wallets;
+  }
+  if (typeof value !== 'object') return wallets;
+  seen.add(value);
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectWalletsFromPayload(item, wallets, seen));
+    return wallets;
+  }
+  Object.entries(value).forEach(([key, item]) => {
+    if (/address|wallet|publicIdentifier|identifier|chain/i.test(key)) {
+      collectWalletsFromPayload(item, wallets, seen);
+    } else if (item && typeof item === 'object') {
+      collectWalletsFromPayload(item, wallets, seen);
+    }
+  });
+  return wallets;
+}
+
+async function verifyDynamicWallet(request, wallet) {
+  const expected = String(wallet || '').trim().toLowerCase();
+  if (!/^0x[a-f0-9]{40}$/.test(expected)) {
+    return { ok: false, status: 400, error: 'valid wallet required' };
+  }
+  const token = authTokenFromRequest(request);
+  if (!token) {
+    return { ok: false, status: 401, error: 'dynamic_auth_required' };
+  }
+  try {
+    const { payload } = await jwtVerify(token, DYNAMIC_JWKS);
+    const wallets = collectWalletsFromPayload(payload);
+    if (wallets.has(expected)) return { ok: true, wallet: expected, payload };
+    return { ok: false, status: 403, error: 'wallet_mismatch' };
+  } catch (_) {
+    return { ok: false, status: 401, error: 'dynamic_auth_invalid' };
+  }
 }
 
 async function readBody(request) {
@@ -222,6 +277,11 @@ export default async function handler(request, response) {
     if (rateLimit(request, response, { name: 'sappy-profile-write', limit: 12, windowMs: 60_000 })) return;
     const profile = sanitizeProfile(await readBody(request));
     if (!profile) return response.status(400).json({ error: 'valid wallet required' });
+    const auth = await verifyDynamicWallet(request, profile.wallet);
+    if (!auth.ok) return response.status(auth.status || 401).json({ error: auth.error || 'dynamic_auth_required' });
+    profile.claimed = true;
+    profile.verified = true;
+    profile.claimedWallet = auth.wallet;
     const saved = await writeProfile(profile);
     return response.status(200).json({ profile: saved, storage: storageName() });
   }
