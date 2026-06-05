@@ -11,12 +11,6 @@
       "permanent": true
     },
     {
-      "source": "/sappy/:path*",
-      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
-      "destination": "https://sappy.gerrystephen.com/:path*",
-      "permanent": true
-    },
-    {
       "source": "/sappy",
       "has": [{ "type": "host", "value": "gerrystephen.com" }],
       "destination": "https://sappy.gerrystephen.com/",
