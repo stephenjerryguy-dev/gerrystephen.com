@@ -1678,7 +1678,40 @@ a { color: inherit; text-decoration: none; }
   margin-top: 14px;
 }
 .desktop-game-details {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+.biome-story-stack {
+  border: 1px solid rgba(238,246,251,0.14);
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.095), rgba(255,255,255,0.035)),
+    radial-gradient(280px 140px at 100% 0%, rgba(140,247,240,0.12), transparent 70%);
+  border-radius: 8px;
+  padding: 16px 18px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
+}
+.biome-story-stack span {
   display: block;
+  margin-bottom: 8px;
+  color: #8CF7F0;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.biome-story-stack strong {
+  display: block;
+  color: #EEF6FB;
+  font-size: 18px;
+  line-height: 1.12;
+  margin-bottom: 7px;
+}
+.biome-story-stack p {
+  margin: 0;
+  color: rgba(220,238,247,0.72);
+  font-size: 13px;
+  line-height: 1.42;
 }
 .desktop-game-details .monerge-profile.compact {
   margin-top: 16px;

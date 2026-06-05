@@ -733,7 +733,7 @@ function Hero({ y, mouse, intensity, lite = false }) {
           <div className="bt-title">THE IGLU</div>
           <div className="bt-sub">a small home on the internet · gerrystephen.eth</div>
           <a className="abstract-veteran-card" href="https://abscan.org/address/0x382556A543aAd855C07678E7F8e820d0d90429BB" target="_blank" rel="noopener" aria-label="Abstract Gold II veteran wallet">
-            <img src="assets/abstract-gold-tier-card.png?v=gold-tier-ii-clean-card" alt="Abstract wallet Gold Tier II" />
+            <img src="assets/abstract-gold-tier-card.png?v=gold-tier-ii-chevron-match" alt="Abstract wallet Gold Tier II" />
           </a>
         </div>
 
@@ -2881,11 +2881,11 @@ function MonadGame() {
   return (
     <section className={`monad-game ${isGameApp ? 'app-mode' : ''} ${isGameApp && !gameStarted ? 'start-mode' : ''}`} id="monerge">
       <div className="game-copy">
-        <Chapter num="04" kicker={isGameApp ? 'Built on Monad' : 'Biome network'} title={<span className="monerge-logo">{isGameApp ? 'Monerge.' : 'Biome.'}</span>} />
+        <Chapter num="04" kicker="Built on Monad" title={<span className="monerge-logo">{isGameApp ? 'Monerge.' : 'Biome.'}</span>} />
         <p className="lede">
           {isGameApp
             ? 'A wallet-backed focus game for BuildAnything. Merge Monad-coded tiles, choose your difficulty, remember the hidden points, then reveal your run. Connect once; profile signing is remembered so scores can upload without another signature.'
-            : 'Biome is the next home base for the builder ecosystem: games, creature culture, wallet identity, and proof-of-play experiments connected back to the iglu.'}
+            : 'Biome is my Monad-native game network: the home for Moncade, Monerge, and future creature games. The story is proof-of-play: connect a wallet, play, build a profile, and let each run become part of the larger Biome.'}
         </p>
         <div className="monanimal-strip" aria-label="Monad character inspirations">
           {MONAD_CHARACTERS.map((character) =>
@@ -2899,25 +2899,26 @@ function MonadGame() {
           {isGameApp
             ? <MonergeWalletButton account={account} label="Connect wallet" onClick={connectMonad} onSignOut={disconnectWallet} onSign={() => signProfile(account)} signed={profileSigned} />
             : <a className="btn primary" href="https://biome.gerrystephen.com" target="_blank" rel="noopener">Open Biome →</a>}
-          <button type="button" className="btn ghost" onClick={newGame}>New run</button>
+          {isGameApp
+            ? <button type="button" className="btn ghost" onClick={newGame}>New run</button>
+            : <a className="btn ghost" href="/monerge">Play Monerge →</a>}
         </div>
         {!isGameApp && <div className="desktop-game-details">
-          <MonergeProfileEditor
-            profile={profile}
-            account={account}
-            onProfileChange={updateProfile}
-            onPfpUpload={handlePfpUpload}
-            compact
-          />
-          <div className="difficulty-select embed-difficulty" aria-label="Embed difficulty">
-            {DIFFICULTY_ORDER.map((key) =>
-              <button key={key} type="button" className={difficulty === key ? 'active' : ''} onClick={() => setDifficulty(key)}>
-                <strong>{GAME_DIFFICULTIES[key].label}</strong>
-                <span>{GAME_DIFFICULTIES[key].tag}</span>
-              </button>
-            )}
+          <div className="biome-story-stack">
+            <span>01 · Monad network</span>
+            <strong>One wallet, many play loops.</strong>
+            <p>Biome is where the games, profiles, and proof-of-play records can start to connect instead of living as separate experiments.</p>
           </div>
-          <Leaderboard entries={leaderboard} compact />
+          <div className="biome-story-stack">
+            <span>02 · Moncade</span>
+            <strong>The game hub.</strong>
+            <p>A creature-game arcade layer for what gets built next across the Monad ecosystem.</p>
+          </div>
+          <div className="biome-story-stack">
+            <span>03 · Monerge</span>
+            <strong>The first playable signal.</strong>
+            <p>A wallet-connected focus game where runs, profiles, and leaderboards start to prove the loop.</p>
+          </div>
         </div>}
       </div>
       <div className="game-shell" role="application" aria-label={`${GAME_NAME} game`}>
@@ -3233,7 +3234,7 @@ const NOW = [
 { title: 'AI Agents', note: 'Autonomous workers for hospitality ops, content systems, and the useful glue between them.', logo: 'assets/pudgy-penguin-cutout.png', alt: 'Gerry Stephen Pudgy Penguin', className: 'pudgy-agent-logo', href: 'https://x.com/gerrydoteth' },
 { title: 'Blue Star Web3', note: 'Live now: ecosystem-holder benefits for vacation, worcation, and nomadic stays.', logo: 'assets/bluestar-logo.png', alt: 'Blue Star Apartments & Hotel logo', className: 'blue-star-logo', href: 'https://x.com/bluestarstay' },
 { title: 'Seal Stay', note: 'Where Web3 meets hospitality. Stay tuned for the next stay layer.', logo: 'assets/seal-stay-logo.png', alt: 'Seal Stay logo', href: 'https://x.com/sappylifestyle' },
-{ title: 'Great Terriers', note: 'Coming soon: the AI-native collection that started as a 2022 idea and keeps moving forward.', logo: 'assets/great-terriers-coming-soon.png', alt: 'Great Terriers coming soon artwork', className: 'great-terriers-logo', href: 'https://x.com/greatterriers' }];
+{ title: 'Great Terriers', note: 'Coming soon: the AI-native collection featuring my dog, Reo. It started as a 2022 idea and keeps moving forward.', logo: 'assets/great-terriers-coming-soon.png', alt: 'Great Terriers coming soon artwork', className: 'great-terriers-logo', href: 'https://x.com/greatterriers' }];
 
 function NowBuilding() {
   return (
@@ -3396,7 +3397,7 @@ function Contact() {
   { name: 'Telegram', href: 'https://t.me/gerrydoteth' },
   { name: 'Twitch', href: 'https://www.twitch.tv/gerrydoteth' }];
   const cards = [
-  { kind: '◈ biome', handle: 'biome.gerrystephen.com', note: 'The creature-game ecosystem for wallet identity, proof-of-play, and what comes next.', href: 'https://biome.gerrystephen.com', label: 'Open' },
+  { kind: '◈ biome', handle: 'biome.gerrystephen.com', note: 'The creature-game ecosystem on Monad. A proof-of-play game coming soon.', href: 'https://biome.gerrystephen.com', label: 'Open' },
   { kind: '◆ sappy', handle: 'sappy.gerrystephen.com', note: 'The Sappy-side home base for the ecosystem, memes, and collector trail.', href: 'https://sappy.gerrystephen.com', label: 'Open' },
   { kind: '★ bluestar', handle: '@bluestarstay', note: 'Family-built hospitality in Grenada.', href: 'https://www.instagram.com/bluestarstay/', label: 'Open', warm: true },
   { kind: '● zeppole', handle: '@zeppoledolci', note: 'Cafe, eatery, bakery, and the daily coffee ritual.', href: 'https://www.instagram.com/zeppoledolci/', label: 'Open', warm: true }];
