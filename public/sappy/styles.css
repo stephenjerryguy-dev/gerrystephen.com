@@ -96,12 +96,18 @@ header{
 }
 .nav-links a:hover{color:var(--ink);background:var(--cream-2);}
 .nav-links a.active{color:var(--ink);background:var(--paper);box-shadow:var(--shadow);}
-.nav-links a.nav-studio{position:relative;min-width:78px;overflow:visible;}
+.nav-links a.nav-studio{position:relative;min-width:94px;overflow:visible;padding-inline:16px;}
 .nav-studio-signature{
-  position:absolute;left:50%;top:-13px;text-align:center;white-space:nowrap;
-  font-family:"Snell Roundhand","Brush Script MT","Segoe Script",cursive;font-size:12px;font-weight:700;line-height:1;
-  background:linear-gradient(105deg,#15689B,#1E93D6 58%,#62C9FF);-webkit-background-clip:text;background-clip:text;color:transparent;
-  transform:translateX(-50%) rotate(-2deg);pointer-events:none;
+  position:absolute;left:50%;top:-7px;text-align:center;white-space:nowrap;
+  font-family:"Snell Roundhand","Brush Script MT","Segoe Script",cursive;font-size:14px;font-weight:700;line-height:1;
+  background:linear-gradient(112deg,#0C5F93 0%,#1E93D6 48%,#76D7FF 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
+  transform:translateX(-49%) rotate(-8deg);pointer-events:none;
+  filter:drop-shadow(0 1px 0 rgba(255,255,255,.95)) drop-shadow(0 4px 6px rgba(30,147,214,.22));
+}
+.nav-studio-signature::after{
+  content:"";position:absolute;left:11%;right:8%;bottom:-3px;height:2px;border-radius:999px;
+  background:linear-gradient(90deg,transparent,#1E93D6 24%,#62C9FF 75%,transparent);
+  transform:rotate(-1deg);opacity:.78;
 }
 .nav-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
 .mobile-menu-btn{

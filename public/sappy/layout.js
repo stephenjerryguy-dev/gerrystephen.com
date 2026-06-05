@@ -8,7 +8,7 @@
     const link = (href, label, id) => {
       const className = [id === active ? "active" : "", id === "studio" ? "nav-studio" : ""].filter(Boolean).join(" ");
       const labelHtml = id === "studio"
-        ? '<span class="nav-studio-signature">Gerry Stephen</span><span>Studio</span>'
+        ? '<span class="nav-studio-signature">Gerry Stephen’s</span><span>Studio</span>'
         : label;
       return `<a href="${root}${href}"${className ? ` class="${className}"` : ""}>${labelHtml}</a>`;
     };
