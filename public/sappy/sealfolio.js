@@ -544,10 +544,10 @@
         ? [
           canClaim ? (isClaimed ? "Sealfolio claimed." : "Sealfolio ready to claim.") : "Viewing a holder Sealfolio.",
           canClaim
-            ? (state.delegatedWallets.length ? `Wallet verified. Includes ${state.delegatedWallets.length} Delegate.xyz vault${state.delegatedWallets.length === 1 ? "" : "s"}. Your claimed profile, bio and PFP sync through Vercel storage.` : "Wallet verified. Your claimed profile, bio and PFP sync through Vercel storage.")
+            ? "Your Sappy identity is verified and ready to personalize."
             : state.profileWallet ? "Connect and sign with the matching wallet to claim or edit this profile." : `${owned.length} ecosystem asset${owned.length === 1 ? "" : "s"} found.`
         ]
-        : ["Create your Sealfolio.", "Connect and sign with Dynamic to build your real Sappy identity from wallet holdings, Delegate.xyz vaults and linked socials."];
+        : ["Create your Sealfolio.", "Connect your wallet to build your Sappy identity from your ecosystem holdings and linked socials."];
     document.getElementById("folio").innerHTML = `
       <a class="folio-back" href="/sappy/community">← Back to the Pod</a>
       <div class="folio-hero">
