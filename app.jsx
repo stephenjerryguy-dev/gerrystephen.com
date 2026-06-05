@@ -1341,7 +1341,7 @@ const DIFFICULTY_CHAIN_CODES = {
   Hazard: 2,
   Hardest: 3
 };
-const DYNAMIC_ENV_ID = 'b62527ee-ec89-4502-86b3-37987b5720d4';
+const DYNAMIC_ENV_ID = '794ab3a5-8cf5-43fb-963a-9a81e4a3dae7';
 const queryClient = new QueryClient();
 const wagmiConfig = createConfig({
   chains: [monadMainnet],
@@ -1351,7 +1351,8 @@ const MONERGE_APP_PATH = '/monerge';
 const METAMASK_APP_LINK = `https://metamask.app.link/dapp/${window.location.host}${MONERGE_APP_PATH}`;
 
 function monergeWalletsFilter(options = []) {
-  return options.filter((opt) => {
+  const list = Array.isArray(options) ? options : [];
+  return list.filter((opt) => {
     const supported = opt?.walletConnector?.supportedChains;
     if (Array.isArray(supported) && supported.includes('EVM')) return true;
     const key = String(opt?.key ?? opt?.walletKey ?? '').toLowerCase();
@@ -1445,6 +1446,14 @@ const DYNAMIC_AUTH_OPTIONS = {
   performMultiWalletChecks: false
 };
 
+function showMonergeAuthFlow(setShowAuthFlow) {
+  try {
+    setShowAuthFlow?.(true, DYNAMIC_AUTH_OPTIONS);
+  } catch (_) {
+    setShowAuthFlow?.(true);
+  }
+}
+
 function purgeDynamicWalletCache() {
   try {
     storageKeys().forEach((key) => {
@@ -1471,7 +1480,7 @@ function MonergeDynamicBridge() {
             return;
           } catch (_) {}
         }
-        setShowAuthFlow?.(true, DYNAMIC_AUTH_OPTIONS);
+        showMonergeAuthFlow(setShowAuthFlow);
       },
       logout: async () => {
         await handleLogOut?.();
@@ -1486,18 +1495,29 @@ function MonergeDynamicBridge() {
 
   useEffect(() => {
     const syncFromDynamic = (params) => {
-      const wallet = params?.userWallets?.find?.((item) => /^EVM|ETH$/i.test(String(item?.chain || ''))) || params?.userWallets?.[0];
+      const userWallets = Array.isArray(params?.userWallets) ? params.userWallets : Array.isArray(params) ? params : [];
+      const wallet = userWallets?.find?.((item) => /^EVM|ETH$/i.test(String(item?.chain || ''))) || userWallets?.[0] || params?.wallet || params?.primaryWallet;
       if (wallet?.address) window.dispatchEvent(new CustomEvent('monerge-wallet', { detail: { address: wallet.address } }));
     };
     const onLogout = () => window.dispatchEvent(new CustomEvent('monerge-wallet', { detail: { address: '' } }));
+    const syncPrimaryWallet = (wallet) => syncFromDynamic({ wallet });
+    const syncWalletFailure = () => {
+      window.dispatchEvent(new CustomEvent('monerge-wallet-status', { detail: { status: 'Dynamic wallet connect did not finish. Please try again.' } }));
+    };
     try { dynamicEvents.on('userWalletsChanged', syncFromDynamic); } catch (_) {}
+    try { dynamicEvents.on('userWalletsPopulated', syncFromDynamic); } catch (_) {}
+    try { dynamicEvents.on('primaryWalletChanged', syncPrimaryWallet); } catch (_) {}
     try { dynamicEvents.on('walletAdded', (_wallet, userWallets) => syncFromDynamic({ userWallets })); } catch (_) {}
     try { dynamicEvents.on('walletRemoved', (_wallet, userWallets) => syncFromDynamic({ userWallets })); } catch (_) {}
+    try { dynamicEvents.on('walletConnectionFailed', syncWalletFailure); } catch (_) {}
     try { dynamicEvents.on('logout', onLogout); } catch (_) {}
     return () => {
       try { dynamicEvents.off('userWalletsChanged', syncFromDynamic); } catch (_) {}
+      try { dynamicEvents.off('userWalletsPopulated', syncFromDynamic); } catch (_) {}
+      try { dynamicEvents.off('primaryWalletChanged', syncPrimaryWallet); } catch (_) {}
       try { dynamicEvents.off('walletAdded', syncFromDynamic); } catch (_) {}
       try { dynamicEvents.off('walletRemoved', syncFromDynamic); } catch (_) {}
+      try { dynamicEvents.off('walletConnectionFailed', syncWalletFailure); } catch (_) {}
       try { dynamicEvents.off('logout', onLogout); } catch (_) {}
     };
   }, []);
@@ -1879,7 +1899,7 @@ function shareMonergeRunUrl(entry = {}) {
   const text = [
     `I just revealed a ${Number(entry.score || 0).toLocaleString()} Monerge run on Monad.`,
     `${entry.difficulty || 'Classic'} · max tile ${entry.maxTile || 2} · ${entry.moves || 0} moves`,
-    'Play: https://gerrystephen.com/monerge'
+    'Play: https://biome.gerrystephen.com/monerge'
   ].join('\n');
   return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
 }
@@ -1965,7 +1985,7 @@ function drawMonergeWinnerCard(context, entry = {}) {
 
   context.fillStyle = 'rgba(238, 246, 251, 0.62)';
   context.font = '600 22px Inter, system-ui, sans-serif';
-  context.fillText('Play: gerrystephen.com/monerge', 118, 520);
+  context.fillText('Play: biome.gerrystephen.com/monerge', 118, 520);
 }
 
 function downloadMonergeWinnerCard(entry = {}) {
@@ -2520,7 +2540,7 @@ function MonadGame() {
     }
     setWalletState(sdkHasLoaded ? message : 'Loading wallet connector...');
     if (dynamicBridgeRef.current) dynamicBridgeRef.current.open();
-    else setShowAuthFlow?.(true, DYNAMIC_AUTH_OPTIONS);
+    else showMonergeAuthFlow(setShowAuthFlow);
     window.setTimeout(() => {
       setWalletState((current) => (
         current === message || current === 'Loading wallet connector...'
@@ -2560,7 +2580,7 @@ function MonadGame() {
         }
       } catch (error) {
         setWalletState(error?.message || 'Open Dynamic to finish wallet setup.');
-        setShowAuthFlow?.(true, DYNAMIC_AUTH_OPTIONS);
+        showMonergeAuthFlow(setShowAuthFlow);
       }
       return;
     }
@@ -2861,8 +2881,12 @@ function MonadGame() {
   return (
     <section className={`monad-game ${isGameApp ? 'app-mode' : ''} ${isGameApp && !gameStarted ? 'start-mode' : ''}`} id="monerge">
       <div className="game-copy">
-        <Chapter num="04" kicker="Built on Monad" title={<span className="monerge-logo">{isGameApp ? 'Monerge.' : 'Biome.'}</span>} />
-        <p className="lede">A wallet-backed focus game for BuildAnything. Merge Monad-coded tiles, choose your difficulty, remember the hidden points, then reveal your run. Connect once; profile signing is remembered so scores can upload without another signature.</p>
+        <Chapter num="04" kicker={isGameApp ? 'Built on Monad' : 'Biome network'} title={<span className="monerge-logo">{isGameApp ? 'Monerge.' : 'Biome.'}</span>} />
+        <p className="lede">
+          {isGameApp
+            ? 'A wallet-backed focus game for BuildAnything. Merge Monad-coded tiles, choose your difficulty, remember the hidden points, then reveal your run. Connect once; profile signing is remembered so scores can upload without another signature.'
+            : 'Biome is the next home base for the builder ecosystem: games, creature culture, wallet identity, and proof-of-play experiments connected back to the iglu.'}
+        </p>
         <div className="monanimal-strip" aria-label="Monad character inspirations">
           {MONAD_CHARACTERS.map((character) =>
           <span key={character.name} className={`monanimal-chip tile-${character.value}`}>
@@ -2872,7 +2896,9 @@ function MonadGame() {
           )}
         </div>
         <div className="game-actions">
-          <MonergeWalletButton account={account} label="Connect wallet" onClick={connectMonad} onSignOut={disconnectWallet} onSign={() => signProfile(account)} signed={profileSigned} />
+          {isGameApp
+            ? <MonergeWalletButton account={account} label="Connect wallet" onClick={connectMonad} onSignOut={disconnectWallet} onSign={() => signProfile(account)} signed={profileSigned} />
+            : <a className="btn primary" href="https://biome.gerrystephen.com" target="_blank" rel="noopener">Open Biome →</a>}
           <button type="button" className="btn ghost" onClick={newGame}>New run</button>
         </div>
         {!isGameApp && <div className="desktop-game-details">
@@ -3370,8 +3396,7 @@ function Contact() {
   { name: 'Telegram', href: 'https://t.me/gerrydoteth' },
   { name: 'Twitch', href: 'https://www.twitch.tv/gerrydoteth' }];
   const cards = [
-  { kind: '@ x', handle: 'gerrydoteth', note: 'Builder notes, collector signal, and the occasional market thought.', href: 'https://x.com/gerrydoteth', label: 'Follow' },
-  { kind: '◈ opensea', handle: 'gerrystephen', note: 'Penguins, seals, Inkfinity, and the public collector trail.', href: 'https://opensea.io/profile/gerrystephen', label: 'Browse' },
+  { kind: '◈ biome', handle: 'biome.gerrystephen.com', note: 'The creature-game ecosystem for wallet identity, proof-of-play, and what comes next.', href: 'https://biome.gerrystephen.com', label: 'Open' },
   { kind: '◆ sappy', handle: 'sappy.gerrystephen.com', note: 'The Sappy-side home base for the ecosystem, memes, and collector trail.', href: 'https://sappy.gerrystephen.com', label: 'Open' },
   { kind: '★ bluestar', handle: '@bluestarstay', note: 'Family-built hospitality in Grenada.', href: 'https://www.instagram.com/bluestarstay/', label: 'Open', warm: true },
   { kind: '● zeppole', handle: '@zeppoledolci', note: 'Cafe, eatery, bakery, and the daily coffee ritual.', href: 'https://www.instagram.com/zeppoledolci/', label: 'Open', warm: true }];
