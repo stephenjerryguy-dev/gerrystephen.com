@@ -187,8 +187,7 @@ function SappyDynamicBridge() {
   useEffect(() => {
     const initTimer = window.setTimeout(() => {
       const widgetHost = document.querySelector('#dynamic-widget, #sappy-dynamic-widget .dynamic-shadow-dom');
-      const visibleHost = widgetHost && widgetHost.getBoundingClientRect?.().width > 20 && widgetHost.getBoundingClientRect?.().height > 20;
-      if (!visibleHost) {
+      if (!widgetHost) {
         reportDynamicInitIssue('Dynamic widget did not render. Check Dynamic allowed domains and enabled wallet providers.');
       }
     }, 4000);

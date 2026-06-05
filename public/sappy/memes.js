@@ -31,7 +31,6 @@
             </div>
           </div>
         </div>
-        <p class="section-sub" style="margin-top:16px;">Want a quick caption-style meme instead? Build one in the <a href="studio.html" style="color:var(--accent-deep);font-weight:700;">Seal Studio →</a></p>
       </div>`;
     // reveal fallback if the frame can't be reached (cross-origin block)
     const fr = document.getElementById("mm"), fb = document.getElementById("mmfall");
