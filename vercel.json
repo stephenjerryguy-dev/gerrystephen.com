@@ -97,6 +97,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api/sappy-profile",
+      "destination": "/api/sappy-profile"
+    },
+    {
       "source": "/api/:path*",
       "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
       "destination": "/api/:path*"
