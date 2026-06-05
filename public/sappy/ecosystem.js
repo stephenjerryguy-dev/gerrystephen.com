@@ -3,13 +3,13 @@
   const PIXL_LOGO = "https://coin-images.coingecko.com/coins/images/33045/large/20220531_190522.jpg?1700450022";
   const ASSETS = [
     { name: "Sappy Seals", chain: "Ethereum", kind: "ERC-721", desc: "Sappy Seals",
-      addr: "0x364c828ee171616a39897688a831c2499ad972ec", art: "image", image: "/sappy/assets/ecosystem/sappy-seal-1.avif", seed: "sappyseals", id: 1, url: "https://opensea.io/assets/ethereum/0x364c828ee171616a39897688a831c2499ad972ec/1" },
+      addr: "0x364c828ee171616a39897688a831c2499ad972ec", art: "image", image: "/assets/sappy-seals/1.png", seed: "sappyseals", id: 1, url: "https://opensea.io/assets/ethereum/0x364c828ee171616a39897688a831c2499ad972ec/1" },
     { name: "Staked Sappy Seals", chain: "Ethereum", kind: "ERC-721", desc: "Staking wrapper — earns BITS daily.",
-      addr: "0x1c70d0a86475cc707b48aa79f112857e7957274f", art: "image", image: "/sappy/assets/ecosystem/staked-sappy-seal-1.avif", seed: "stakedseal", id: 1, url: "https://opensea.io/assets/ethereum/0x1c70d0a86475cc707b48aa79f112857e7957274f/1" },
+      addr: "0x1c70d0a86475cc707b48aa79f112857e7957274f", art: "image", image: "/assets/sappy-seals/777.png", seed: "stakedseal", id: 777, url: "https://opensea.io/assets/ethereum/0x1c70d0a86475cc707b48aa79f112857e7957274f/777" },
     { name: "$PIXL", chain: "Ethereum", kind: "ERC-20", desc: "The memecoin that powers Omnia.",
       addr: "0x427A03fb96D9A94a6727fBCfbBA143444090dD64", art: "coin", seed: "pixltoken" },
     { name: "Omnia Pets", chain: "Ethereum", kind: "NFT", desc: "Genesis Pixl Pets — your Omnia companion.",
-      addr: "0x4e76c23fe2a4e37b5e07b5625e17098baab86c18", art: "image", image: "/sappy/assets/omnia/omnia-genesis-incubator.png", seed: "omniapets", url: "https://opensea.io/collection/omnia-pets" },
+      addr: "0x4e76c23fe2a4e37b5e07b5625e17098baab86c18", art: "image", image: "/sappy/assets/ecosystem/omnia-pet-1483.png", seed: "omniapets", url: "https://opensea.io/item/ethereum/0x4e76c23fe2a4e37b5e07b5625e17098baab86c18/1483" },
     { name: "Omnia Items", chain: "Ethereum", kind: "NFT", desc: "Gear, wearables & consumables.",
       addr: "0xf0ea56402b2e2b27556d7abf4236c7327722fe41", art: "image", image: "/sappy/assets/omnia/omnia-founders-pass.png", seed: "omniaitems", id: 1, url: "https://opensea.io/assets/ethereum/0xf0ea56402b2e2b27556d7abf4236c7327722fe41/1" },
     { name: "Sappy Key Coverage", chain: "Ethereum", kind: "NFT", desc: "Access keys for holder perks.",

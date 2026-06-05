@@ -166,7 +166,6 @@ window.Sappy = (function () {
   const LINKS = {
     x: "https://x.com/sappyseals",
     opensea: "https://opensea.io/collection/sappy-seals",
-    meme: "https://mememachine.sappyseals.io/",
     omnia: "https://omnia.lol",
     omniaWorld: "https://www.sappy.lol/~/omnia",
     omniaX: "https://x.com/ExploreOmnia",
