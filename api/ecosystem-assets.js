@@ -2,7 +2,11 @@ import { rateLimit } from './_rate-limit.js';
 
 const ABSTRACT_WALLET = '0x382556A543aAd855C07678E7F8e820d0d90429BB';
 const ETH_WALLET = '0xc3ce1Eb539c1Cc031eCd7B95e8C00768BF324403';
-const ETH_RPC = 'https://eth.llamarpc.com';
+const ETH_RPCS = [
+  'https://ethereum.publicnode.com',
+  'https://eth.llamarpc.com',
+  'https://cloudflare-eth.com',
+];
 const ABSTRACT_RPC = 'https://api.mainnet.abs.xyz';
 const DEXSCREENER_API = 'https://api.dexscreener.com/latest/dex/tokens';
 const BALANCE_OF = '0x70a08231';
@@ -29,12 +33,11 @@ const ASSETS = [
     collection: 'Omnia ecosystem',
     symbol: '$PIXL',
     chain: 'Ethereum',
-    rpc: ETH_RPC,
+    rpc: ETH_RPCS,
     contract: '0x427A03fb96D9A94a6727fBCfbBA143444090dD64',
     wallet: ETH_WALLET,
     href: `https://etherscan.io/token/0x427A03fb96D9A94a6727fBCfbBA143444090dD64?a=${ETH_WALLET}`,
     image: 'https://cdn.dexscreener.com/cms/images/df894589157dc6cba4da1b969b44944defa2c7ac291457d5fccabef0af32e017?width=800&height=800&quality=95&format=auto',
-    fallbackAmount: '103,278.52',
   },
 ];
 
@@ -101,28 +104,38 @@ function encodeAddress(address) {
 }
 
 async function rpcCall(rpc, to, data) {
-  const response = await fetch(rpc, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'eth_call',
-      params: [{ to, data }, 'latest'],
-    }),
+  const rpcs = Array.isArray(rpc) ? rpc : [rpc];
+  const body = JSON.stringify({
+    jsonrpc: '2.0',
+    id: 1,
+    method: 'eth_call',
+    params: [{ to, data }, 'latest'],
   });
-  if (!response.ok) throw new Error('rpc unavailable');
-  const json = await response.json();
-  if (!json.result || json.result === '0x') throw new Error('empty rpc result');
-  return json.result;
+  let lastError;
+  for (const endpoint of rpcs) {
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body,
+      });
+      if (!response.ok) throw new Error('rpc unavailable');
+      const json = await response.json();
+      if (!json.result || json.result === '0x') throw new Error('empty rpc result');
+      return json.result;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError || new Error('rpc unavailable');
 }
 
-function formatUnits(hex, decimals) {
+function formatUnits(hex, decimals, displayDecimals = 2) {
   const raw = BigInt(hex);
   const scale = 10n ** BigInt(decimals);
   const whole = raw / scale;
   const frac = raw % scale;
-  const fracText = frac.toString().padStart(decimals, '0').slice(0, 4).replace(/0+$/, '');
+  const fracText = frac.toString().padStart(decimals, '0').slice(0, displayDecimals).replace(/0+$/, '');
   const wholeText = whole.toLocaleString('en-US');
   return fracText ? `${wholeText}.${fracText}` : wholeText;
 }
@@ -144,7 +157,7 @@ async function withBalance(asset) {
     const balanceHex = await rpcCall(asset.rpc, asset.contract, `${BALANCE_OF}${encodeAddress(asset.wallet)}`);
     return {
       ...asset,
-      amount: formatUnits(balanceHex, decimals),
+      amount: formatUnits(balanceHex, decimals, asset.displayDecimals || 2),
       tokenId: 'asset',
       image: tokenImage || asset.image || null,
       glyph: asset.symbol,

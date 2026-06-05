@@ -535,9 +535,10 @@ function Topbar() {
         <a href="#journey">Journey</a>
         <a href="#nfts">Communities</a>
         <a href="#inkfinity">Inkfinity</a>
-        <a href="#monerge">Monerge</a>
+        <a href="#monerge">Biome</a>
         <a href="#now">Now</a>
         <a href="#bluestar">Hospitality</a>
+        <a href="https://sappy.gerrystephen.com" target="_blank" rel="noopener">Sappy</a>
         <a href="#contact">Contact</a>
       </nav>
       <div className="top-actions">
@@ -945,7 +946,7 @@ const NFT_ECOSYSTEMS = [
     keywords: ['sappy', 'pixl', 'omnia', 'pets', 'pixseals', 'sappy key', 'pixlverse items'],
     fallback: [
   { name: 'Sappy Seals ecosystem', collection: 'Owned-token images only', glyph: 'SS', tokenId: 'pending', contract: 'pending' },
-  { name: '$PIXL', collection: 'Omnia ecosystem', glyph: '$PIXL', tokenId: 'asset', amount: '103,278.52', chain: 'Ethereum' },
+  { name: '$PIXL', collection: 'Omnia ecosystem', glyph: '$PIXL', tokenId: 'asset', amount: 'syncing', chain: 'Ethereum' },
   { name: 'Pixseal #525', collection: 'Pixseals by Sappy Seals', image: 'https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/525.png', href: 'https://opensea.io/item/polygon/0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b/525', tokenId: '525', contract: '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b' },
   { name: 'Pixseal #3600', collection: 'Pixseals by Sappy Seals', image: 'https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/3600.png', href: 'https://opensea.io/item/polygon/0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b/3600', tokenId: '3600', contract: '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b' },
   { name: 'Pixseal #9690', collection: 'Pixseals by Sappy Seals', image: 'https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/9690.png', href: 'https://opensea.io/item/polygon/0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b/9690', tokenId: '9690', contract: '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b' },
@@ -2860,7 +2861,7 @@ function MonadGame() {
   return (
     <section className={`monad-game ${isGameApp ? 'app-mode' : ''} ${isGameApp && !gameStarted ? 'start-mode' : ''}`} id="monerge">
       <div className="game-copy">
-        <Chapter num="04" kicker="Built on Monad" title={<span className="monerge-logo">Monerge.</span>} />
+        <Chapter num="04" kicker="Built on Monad" title={<span className="monerge-logo">{isGameApp ? 'Monerge.' : 'Biome.'}</span>} />
         <p className="lede">A wallet-backed focus game for BuildAnything. Merge Monad-coded tiles, choose your difficulty, remember the hidden points, then reveal your run. Connect once; profile signing is remembered so scores can upload without another signature.</p>
         <div className="monanimal-strip" aria-label="Monad character inspirations">
           {MONAD_CHARACTERS.map((character) =>
@@ -3371,6 +3372,7 @@ function Contact() {
   const cards = [
   { kind: '@ x', handle: 'gerrydoteth', note: 'Builder notes, collector signal, and the occasional market thought.', href: 'https://x.com/gerrydoteth', label: 'Follow' },
   { kind: '◈ opensea', handle: 'gerrystephen', note: 'Penguins, seals, Inkfinity, and the public collector trail.', href: 'https://opensea.io/profile/gerrystephen', label: 'Browse' },
+  { kind: '◆ sappy', handle: 'sappy.gerrystephen.com', note: 'The Sappy-side home base for the ecosystem, memes, and collector trail.', href: 'https://sappy.gerrystephen.com', label: 'Open' },
   { kind: '★ bluestar', handle: '@bluestarstay', note: 'Family-built hospitality in Grenada.', href: 'https://www.instagram.com/bluestarstay/', label: 'Open', warm: true },
   { kind: '● zeppole', handle: '@zeppoledolci', note: 'Cafe, eatery, bakery, and the daily coffee ritual.', href: 'https://www.instagram.com/zeppoledolci/', label: 'Open', warm: true }];
 

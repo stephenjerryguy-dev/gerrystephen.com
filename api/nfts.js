@@ -268,8 +268,10 @@ function curatedEcosystemNfts(nfts, options = {}) {
     return 6;
   };
   const itemCap = (nft) => {
+    const haystack = `${nft.collection || ''} ${nft.name || ''}`.toLowerCase();
     if (nft.ecosystem === 'sappy' && isSeal(nft)) return 40;
-    if (nft.ecosystem === 'sappy') return 12;
+    if (nft.ecosystem === 'sappy' && (haystack.includes('omnia item') || haystack.includes('pixlverse'))) return 40;
+    if (nft.ecosystem === 'sappy') return 24;
     return 8;
   };
   const identityKey = (nft) => {
@@ -467,7 +469,11 @@ async function fetchPixlBalance(wallet) {
   if (!ADDRESS_RE.test(wallet || '')) return 0;
   const result = await ethCall(PIXL_CONTRACT, balanceOfData(wallet)).catch(() => undefined);
   if (!result || result === '0x') return 0;
-  return Number(BigInt(result) / 10n ** 18n);
+  const raw = BigInt(result);
+  const scale = 10n ** 18n;
+  const whole = raw / scale;
+  const frac = (raw % scale).toString().padStart(18, '0').slice(0, 6);
+  return Number(`${whole}.${frac}`);
 }
 
 async function fetchTokenMetadata(contract, tokenId) {
@@ -588,7 +594,7 @@ async function fetchBlockscoutContractInstances(contract) {
 async function fetchReservoirNfts(wallet, contract, options = {}) {
   const api = options.api || RESERVOIR_API;
   const chain = options.chain || 'ethereum';
-  const limit = options.fullWallet ? '200' : contract ? '20' : '48';
+  const limit = options.fullWallet ? '200' : contract ? '100' : '48';
   const normalized = [];
   let continuation = undefined;
   for (let page = 0; page < (options.fullWallet ? 8 : 1); page += 1) {
