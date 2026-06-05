@@ -5,51 +5,69 @@
   "outputDirectory": "dist",
   "redirects": [
     {
-      "source": "/",
+      "source": "/sappy",
       "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
-      "destination": "https://sappy.gerrystephen.com/sappy",
-      "permanent": false
+      "destination": "https://sappy.gerrystephen.com/",
+      "permanent": true
     },
     {
-      "source": "/studio",
+      "source": "/sappy/:path*",
       "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
-      "destination": "https://sappy.gerrystephen.com/sappy/studio",
-      "permanent": false
-    },
-    {
-      "source": "/sealfolio",
-      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
-      "destination": "https://sappy.gerrystephen.com/sappy/sealfolio",
-      "permanent": false
-    },
-    {
-      "source": "/community",
-      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
-      "destination": "https://sappy.gerrystephen.com/sappy/community",
-      "permanent": false
-    },
-    {
-      "source": "/ecosystem",
-      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
-      "destination": "https://sappy.gerrystephen.com/sappy/ecosystem",
-      "permanent": false
-    },
-    {
-      "source": "/memes",
-      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
-      "destination": "https://sappy.gerrystephen.com/sappy/memes",
-      "permanent": false
+      "destination": "https://sappy.gerrystephen.com/:path*",
+      "permanent": true
     },
     {
       "source": "/sappy",
       "has": [{ "type": "host", "value": "gerrystephen.com" }],
-      "destination": "https://www.gerrystephen.com/sappy",
+      "destination": "https://sappy.gerrystephen.com/",
       "permanent": true
     },
     {
       "source": "/sappy/:path*",
       "has": [{ "type": "host", "value": "gerrystephen.com" }],
-      "destination": "https://www.gerrystephen.com/sappy/:path*",
+      "destination": "https://sappy.gerrystephen.com/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/sappy",
+      "has": [{ "type": "host", "value": "www.gerrystephen.com" }],
+      "destination": "https://sappy.gerrystephen.com/",
+      "permanent": true
+    },
+    {
+      "source": "/sappy/:path*",
+      "has": [{ "type": "host", "value": "www.gerrystephen.com" }],
+      "destination": "https://sappy.gerrystephen.com/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/monerge",
+      "destination": "https://biome.gerrystephen.com/monerge",
+      "permanent": true
+    },
+    {
+      "source": "/monerge/:path*",
+      "destination": "https://biome.gerrystephen.com/monerge",
+      "permanent": true
+    },
+    {
+      "source": "/moncade",
+      "destination": "https://biome.gerrystephen.com/moncade",
+      "permanent": true
+    },
+    {
+      "source": "/moncade/:path*",
+      "destination": "https://biome.gerrystephen.com/moncade",
+      "permanent": true
+    },
+    {
+      "source": "/moncade-game",
+      "destination": "https://biome.gerrystephen.com/moncade",
+      "permanent": true
+    },
+    {
+      "source": "/moncade-game/:path*",
+      "destination": "https://biome.gerrystephen.com/moncade",
       "permanent": true
     }
   ],
@@ -70,9 +88,34 @@
       "destination": "/src/:path*"
     },
     {
-      "source": "/sappy/:path*",
+      "source": "/studio",
       "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
-      "destination": "/sappy/:path*"
+      "destination": "/sappy/studio.html"
+    },
+    {
+      "source": "/studio/",
+      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
+      "destination": "/sappy/studio.html"
+    },
+    {
+      "source": "/sealfolio",
+      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
+      "destination": "/sappy/sealfolio.html"
+    },
+    {
+      "source": "/community",
+      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
+      "destination": "/sappy/community.html"
+    },
+    {
+      "source": "/ecosystem",
+      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
+      "destination": "/sappy/ecosystem.html"
+    },
+    {
+      "source": "/memes",
+      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
+      "destination": "/sappy/memes.html"
     },
     {
       "source": "/",
@@ -94,6 +137,8 @@
     { "source": "/moncade-game", "destination": "/moncade-game.html" },
     { "source": "/moncade-game/:path*", "destination": "/moncade-game.html" },
     { "source": "/sappy", "destination": "/sappy.html" },
+    { "source": "/sappy/studio", "destination": "/sappy/studio.html" },
+    { "source": "/sappy/studio/", "destination": "/sappy/studio.html" },
     { "source": "/:path*", "destination": "/" }
   ],
   "headers": [

@@ -2,15 +2,19 @@
 (function () {
   const L = window.Sappy.LINKS;
   const sealEmoji = '<video class="sappy-emoji" autoplay muted loop playsinline poster="/sappy/assets/sappy-seal-emoji.webp" aria-hidden="true"><source src="/sappy/assets/sappy-seal-emoji.webm" type="video/webm"></video>';
+  const canonicalRoot = location.hostname === "sappy.gerrystephen.com" ? "/" : "/sappy/";
+  const cleanPath = (path) => {
+    if (path === "index.html" || path === "") return canonicalRoot;
+    return `${canonicalRoot}${path.replace(/\.html$/, "")}`.replace(/\/$/, "") || "/";
+  };
 
   function header(active) {
-    const root = "/sappy/";
     const link = (href, label, id) => {
       const className = [id === active ? "active" : "", id === "studio" ? "nav-studio" : ""].filter(Boolean).join(" ");
       const labelHtml = id === "studio"
         ? '<span class="nav-studio-signature">Gerry Stephen’s</span><span>Studio</span>'
         : label;
-      return `<a href="${root}${href}"${className ? ` class="${className}"` : ""}>${labelHtml}</a>`;
+      return `<a href="${cleanPath(href)}"${className ? ` class="${className}"` : ""}>${labelHtml}</a>`;
     };
     const aboutLink = '<a href="https://sappy.lol/seals" target="_blank" rel="noopener">About</a>';
     const links = `
@@ -23,7 +27,7 @@
     return `
     <header>
       <div class="wrap nav">
-        <a class="brand" href="/sappy" aria-label="sappy. ecosystem hub">
+        <a class="brand" href="${canonicalRoot}" aria-label="sappy. ecosystem hub">
           <span class="word">sappy<b>.</b></span>
           <span class="sub">ECOSYSTEM HUB</span>
         </a>
@@ -34,7 +38,7 @@
           <button class="mobile-menu-btn" type="button" aria-expanded="false" aria-controls="sappy-mobile-menu" aria-label="Open menu">
             <span></span><span></span><span></span>
           </button>
-          <a class="btn btn-ghost btn-sm hide-sm" href="${root}sealfolio.html">${sealEmoji}<span>Sealfolio</span></a>
+          <a class="btn btn-ghost btn-sm hide-sm" href="${cleanPath("sealfolio.html")}">${sealEmoji}<span>Sealfolio</span></a>
           <button class="btn btn-dark btn-sm" data-connect>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:1px;"><path d="M3 8a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2"/><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M16 13.5h.01"/></svg>
             Connect Wallet
@@ -44,7 +48,7 @@
       <nav class="mobile-menu" id="sappy-mobile-menu" hidden>
         <div class="wrap mobile-menu-inner">
           ${links}
-          <a href="${root}sealfolio.html">${sealEmoji}<span>Sealfolio</span></a>
+          <a href="${cleanPath("sealfolio.html")}">${sealEmoji}<span>Sealfolio</span></a>
         </div>
       </nav>
     </header>`;
