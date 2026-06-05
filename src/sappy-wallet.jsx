@@ -172,10 +172,12 @@ function SappyDynamicBridge() {
     getLinkedAccountInformation,
     getLinkedAccounts,
     linkSocialAccount,
-    signInWithSocialAccount,
   } = useSocialAccounts({
     onError: (error) => {
-      const message = error?.message || error?.code || 'Dynamic social connect needs another try.';
+      const rawMessage = error?.message || error?.code || 'Dynamic social connect needs another try.';
+      const message = /Social linking is not enabled|PROVIDER_NOT_ENABLED|provider is not enabled/i.test(rawMessage)
+        ? 'Dynamic social linking is not enabled for that provider yet. Enable X/Discord under Dynamic Information Capture, then try again.'
+        : rawMessage;
       window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: message } }));
     },
   });
@@ -244,6 +246,17 @@ function SappyDynamicBridge() {
   }, [user, primaryWallet, wallets, handleLogOut]);
 
   useEffect(() => {
+    const onAuthFailure = (data, reason) => {
+      const provider = data?.provider || data?.option || '';
+      const label = provider === ProviderEnum.Twitter ? 'X' : provider === ProviderEnum.Discord ? 'Discord' : 'Dynamic';
+      const message = reason || data?.message || `${label} connect did not finish. Check Dynamic provider setup and try again.`;
+      window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: message } }));
+    };
+    dynamicEvents.on?.('authFailure', onAuthFailure);
+    return () => dynamicEvents.off?.('authFailure', onAuthFailure);
+  }, []);
+
+  useEffect(() => {
     const openWallet = () => {
       delete window.__sappyPendingDynamicWallet;
       try {
@@ -278,7 +291,7 @@ function SappyDynamicBridge() {
       }
       const authenticated = Boolean(user || primaryWallet?.address || wallets?.length);
       if (!authenticated) {
-        window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: 'Create your Sealfolio with your wallet first. Then link X or Discord for next-time login.' } }));
+        window.dispatchEvent(new CustomEvent('sappy-wallet-status', { detail: { status: 'Connect and sign with your wallet first. Then link X or Discord to that same Sealfolio.' } }));
         openWallet();
         return true;
       }
@@ -339,7 +352,7 @@ function SappyDynamicBridge() {
       window.sappyOpenDynamicSocial = fallbackOpenDynamicSocial;
       delete window.sappyLogoutDynamic;
     };
-  }, [setShowAuthFlow, setShowLinkNewWalletModal, handleLogOut, user, primaryWallet, wallets, getLinkedAccountInformation, getLinkedAccounts, linkSocialAccount, signInWithSocialAccount, refreshUser]);
+  }, [setShowAuthFlow, setShowLinkNewWalletModal, handleLogOut, user, primaryWallet, wallets, getLinkedAccountInformation, getLinkedAccounts, linkSocialAccount, refreshUser]);
 
   useEffect(() => {
     [ProviderEnum.Twitter, ProviderEnum.Discord].forEach((provider) => {
