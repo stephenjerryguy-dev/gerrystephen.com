@@ -12,11 +12,12 @@
         : label;
       return `<a href="${root}${href}"${className ? ` class="${className}"` : ""}>${labelHtml}</a>`;
     };
+    const aboutLink = '<a href="https://sappy.lol/seals" target="_blank" rel="noopener">About</a>';
     const links = `
       ${link("index.html", "Home", "home")}
       ${link("ecosystem.html", "Ecosystem", "eco")}
       ${link("studio.html", "Studio", "studio")}
-      ${link("memes.html", "Memes", "memes")}
+      ${aboutLink}
       ${link("community.html", "Community", "community")}
     `;
     return `
