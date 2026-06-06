@@ -163,6 +163,75 @@ function parseOpenSeaStats(data) {
   };
 }
 
+function eventTimestampMs(event) {
+  const raw = event?.event_timestamp || event?.created_date || event?.created_at || event?.timestamp || event?.eventTime;
+  if (!raw) return 0;
+  const parsed = typeof raw === 'number' ? raw : Date.parse(raw);
+  if (!Number.isFinite(parsed)) return 0;
+  return parsed < 10_000_000_000 ? parsed * 1000 : parsed;
+}
+
+function paymentEth(event) {
+  const payment = event?.payment || event?.event?.payment || event?.transaction?.payment || {};
+  const token = payment?.payment_token || payment?.token || {};
+  const decimals = numberFrom(token?.decimals, payment?.decimals) ?? 18;
+  const direct = numberFrom(
+    event?.total_price_eth,
+    event?.price?.quantity?.decimal,
+    event?.payment?.quantity?.decimal,
+    payment?.amount?.decimal,
+    payment?.value?.decimal
+  );
+  if (Number.isFinite(direct)) return direct;
+  const raw = payment?.quantity || payment?.amount || event?.total_price || event?.price?.quantity;
+  if (raw === undefined || raw === null || raw === '') return undefined;
+  const asNumber = Number(raw);
+  if (!Number.isFinite(asNumber)) return undefined;
+  return asNumber / (10 ** decimals);
+}
+
+function parseOpenSeaSalesEvents(data, afterMs) {
+  const events = data?.asset_events || data?.events || data?.nft_events || [];
+  if (!Array.isArray(events)) return { sales24h: undefined, volume24h: undefined };
+  let sales24h = 0;
+  let volume24h = 0;
+  let hasVolume = false;
+  for (const event of events) {
+    const type = String(event?.event_type || event?.eventType || event?.type || '').toLowerCase();
+    if (type && type !== 'sale' && type !== 'successful') continue;
+    const timestamp = eventTimestampMs(event);
+    if (timestamp && timestamp < afterMs) continue;
+    sales24h += 1;
+    const eth = paymentEth(event);
+    if (Number.isFinite(eth) && eth > 0) {
+      volume24h += eth;
+      hasVolume = true;
+    }
+  }
+  return {
+    sales24h: sales24h || undefined,
+    volume24h: hasVolume ? volume24h : undefined,
+  };
+}
+
+async function fetchOpenSeaSales24h() {
+  const afterMs = Date.now() - 24 * 60 * 60 * 1000;
+  const after = Math.floor(afterMs / 1000);
+  const params = new URLSearchParams({
+    event_type: 'sale',
+    after: String(after),
+    limit: '200',
+  });
+  const response = await fetch(`https://api.opensea.io/api/v2/events/collection/sappy-seals?${params.toString()}`, {
+    headers: openseaHeaders(),
+  });
+  if (!response.ok) throw new Error(`opensea_events_${response.status}`);
+  const data = await response.json();
+  const parsed = parseOpenSeaSalesEvents(data, afterMs);
+  if (!Number.isFinite(parsed.sales24h)) throw new Error('opensea_events_empty');
+  return parsed;
+}
+
 async function fetchEthUsd() {
   const response = await fetch('https://api.coinbase.com/v2/prices/ETH-USD/spot', {
     headers: { accept: 'application/json' },
@@ -278,11 +347,34 @@ async function fetchOpenSeaStats() {
   });
   if (!response.ok) throw new Error(`opensea_${response.status}`);
   const data = await response.json();
-  return parseOpenSeaStats(data);
+  const stats = parseOpenSeaStats(data);
+  try {
+    const events = await fetchOpenSeaSales24h();
+    if (Number.isFinite(events.sales24h) && events.sales24h > 0) {
+      return {
+        ...stats,
+        sales24h: events.sales24h,
+        volume24h: Number.isFinite(events.volume24h) ? events.volume24h : stats.volume24h,
+        source: 'opensea-events',
+      };
+    }
+  } catch (error) {}
+  return stats;
+}
+
+async function fetchOpenSeaEventStats() {
+  const events = await fetchOpenSeaSales24h();
+  return {
+    ...FALLBACK,
+    sales24h: events.sales24h,
+    volume24h: Number.isFinite(events.volume24h) ? events.volume24h : FALLBACK.volume24h,
+    updatedAt: new Date().toISOString(),
+    source: 'opensea-events',
+  };
 }
 
 async function fetchStats() {
-  const attempts = [fetchOpenSeaStats, fetchCollectionStats, fetchAggregateStats, fetchTokenFloorStats];
+  const attempts = [fetchOpenSeaStats, fetchOpenSeaEventStats, fetchCollectionStats, fetchAggregateStats, fetchTokenFloorStats];
   let lastError;
   const errors = [];
   for (const attempt of attempts) {
