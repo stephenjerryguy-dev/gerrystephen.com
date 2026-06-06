@@ -65,6 +65,10 @@
             <div class="foot-socials">
               <a href="${L.x}" target="_blank" rel="noopener">𝕏 @sappyseals</a>
               <a href="${L.discord}" target="_blank" rel="noopener"><img src="https://cdn.simpleicons.org/discord/ffffff" alt="" loading="lazy">Discord</a>
+              <a href="${L.telegram}" target="_blank" rel="noopener"><img src="https://cdn.simpleicons.org/telegram/ffffff" alt="" loading="lazy">Telegram</a>
+              <a href="${L.instagram}" target="_blank" rel="noopener"><img src="https://cdn.simpleicons.org/instagram/ffffff" alt="" loading="lazy">Instagram</a>
+              <a href="${L.tiktok}" target="_blank" rel="noopener"><img src="https://cdn.simpleicons.org/tiktok/ffffff" alt="" loading="lazy">TikTok</a>
+              <a href="${L.youtube}" target="_blank" rel="noopener"><img src="https://cdn.simpleicons.org/youtube/ffffff" alt="" loading="lazy">YouTube</a>
               <a href="${L.opensea}" target="_blank" rel="noopener"><img src="https://cdn.simpleicons.org/opensea/ffffff" alt="" loading="lazy">OpenSea</a>
               <a href="${L.omnia}" target="_blank" rel="noopener"><img src="https://www.google.com/s2/favicons?sz=64&domain=omnia.lol" alt="" loading="lazy">Omnia</a>
             </div>

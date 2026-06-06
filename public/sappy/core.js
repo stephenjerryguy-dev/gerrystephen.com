@@ -165,6 +165,10 @@ window.Sappy = (function () {
   // ---- brand links + assets (from sappy.lol / omnia.lol) ----
   const LINKS = {
     x: "https://x.com/sappyseals",
+    telegram: "https://t.me/sappysealstg",
+    instagram: "https://www.instagram.com/sappyseals/",
+    tiktok: "https://www.tiktok.com/@sappyseals",
+    youtube: "https://www.youtube.com/@sappyseals",
     opensea: "https://opensea.io/collection/sappy-seals",
     omnia: "https://omnia.lol",
     omniaWorld: "https://www.sappy.lol/~/omnia",
