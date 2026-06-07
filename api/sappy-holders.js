@@ -305,11 +305,12 @@ function holderBreakdown(address, sealAggregate, ecosystemAggregate) {
   const seals = Number(sealAggregate.get(key)?.count || 0) || 0;
   const ecosystem = Number(ecosystemAggregate.get(key)?.count || 0) || 0;
   const artifacts = Number(KNOWN_DIGITAL_ARTIFACTS_BY_WALLET[key] || 0) || 0;
+  const knownTotal = ecosystem + artifacts;
   return {
     seals,
     ecosystem,
     artifacts,
-    total: seals + ecosystem,
+    total: Math.max(seals, knownTotal),
   };
 }
 
@@ -501,6 +502,47 @@ function interleaveGroups(groups, limit = 32) {
   return out;
 }
 
+async function verifyHolderCounts(holders, limit = 16) {
+  const targets = holders.slice(0, limit);
+  const verified = await Promise.allSettled(targets.map(async (holder) => {
+    if (!ADDRESS_RE.test(holder?.address || '')) return holder;
+    const delegatedWallets = await fetchDelegateWallets(holder.address).catch(() => []);
+    const wallets = [holder.address, ...delegatedWallets];
+    const counts = await Promise.all(wallets.map((wallet) => countWalletEcosystemNfts(wallet).catch(() => 0)));
+    const count = counts.reduce((sum, value) => sum + (Number(value) || 0), 0);
+    if (!count) return holder;
+    return {
+      ...holder,
+      count,
+      countType: 'ecosystem',
+      countVerified: true,
+      delegatedWallets,
+      verifiedHoldings: true,
+      breakdown: {
+        ...(holder.breakdown || {}),
+        verifiedTotal: count,
+        total: count,
+      },
+    };
+  }));
+  return holders.map((holder, index) => {
+    if (index >= limit) return holder;
+    const entry = verified[index];
+    return entry?.status === 'fulfilled' ? entry.value : holder;
+  });
+}
+
+function publicHolderSort(a, b) {
+  const socialA = a.xHandle || a.openseaUsername ? 1 : 0;
+  const socialB = b.xHandle || b.openseaUsername ? 1 : 0;
+  const verifiedA = a.countVerified ? 1 : 0;
+  const verifiedB = b.countVerified ? 1 : 0;
+  return socialB - socialA
+    || verifiedB - verifiedA
+    || (Number(b.count || 0) - Number(a.count || 0))
+    || (Number(b.breakdown?.seals || 0) - Number(a.breakdown?.seals || 0));
+}
+
 export default async function handler(req, res) {
   setCors(res);
   if (req.method === 'OPTIONS') return res.status(204).end();
@@ -574,6 +616,7 @@ export default async function handler(req, res) {
     const enriched = await enrichHolders(combinedCandidates.length ? combinedCandidates : interleaveGroups([sealCandidates, ecosystemCandidates], 48));
     const xLinked = enriched.filter((holder) => holder.xHandle);
     let holders = (xLinked.length ? [...xLinked, ...enriched.filter((holder) => !holder.xHandle)] : enriched).map(applyHolderOverride).slice(0, 32);
+    holders = (await verifyHolderCounts(holders, 16)).sort(publicHolderSort).slice(0, 32);
     if (query) {
       const q = query.toLowerCase();
       const matches = holders.filter((holder) => [
@@ -587,6 +630,7 @@ export default async function handler(req, res) {
         ...(direct ? [direct] : []),
         ...matches.filter((holder) => !direct || holder.address.toLowerCase() !== direct.address.toLowerCase()),
       ].map(applyHolderOverride).slice(0, 32);
+      holders = await verifyHolderCounts(holders, 12);
     }
 
     res.setHeader('Cache-Control', 's-maxage=900, stale-while-revalidate=3600');
