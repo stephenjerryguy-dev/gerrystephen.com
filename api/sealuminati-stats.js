@@ -4,8 +4,7 @@ const OPENSEA_API = 'https://api.opensea.io/api/v2';
 const SLUG = 'sealuminati';
 const FALLBACK = {
   floorMon: 695,
-  topOfferMon: 570.01,
-  volumeMon: 252700,
+  totalSales: 513,
   owners: 1300,
   sales24h: null,
   updatedAt: null,
@@ -39,24 +38,17 @@ function parseStats(data) {
     data?.floor_price,
     data?.floorPrice
   );
-  const topOfferMon = numberFrom(
-    total?.top_offer,
-    total?.topOffer,
-    total?.best_offer,
-    total?.bestOffer,
-    data?.top_offer
-  );
-  const volumeMon = numberFrom(
-    total?.volume,
-    total?.total_volume,
-    total?.totalVolume,
-    data?.total_volume
-  );
   const owners = numberFrom(
     total?.num_owners,
     total?.owner_count,
     total?.owners,
     data?.num_owners
+  );
+  const totalSales = numberFrom(
+    total?.sales,
+    total?.total_sales,
+    total?.totalSales,
+    data?.total_sales
   );
   const sales24h = numberFrom(
     oneDay?.sales,
@@ -65,15 +57,14 @@ function parseStats(data) {
     data?.one_day_sales
   );
 
-  if (!Number.isFinite(floorMon) && !Number.isFinite(volumeMon) && !Number.isFinite(owners)) {
+  if (!Number.isFinite(floorMon) && !Number.isFinite(owners) && !Number.isFinite(totalSales)) {
     throw new Error('opensea_empty');
   }
 
   return {
     floorMon: floorMon ?? FALLBACK.floorMon,
-    topOfferMon: topOfferMon ?? FALLBACK.topOfferMon,
-    volumeMon: volumeMon ?? FALLBACK.volumeMon,
     owners: owners ?? FALLBACK.owners,
+    totalSales: totalSales ?? FALLBACK.totalSales,
     sales24h: sales24h ?? FALLBACK.sales24h,
     updatedAt: new Date().toISOString(),
     source: 'opensea',

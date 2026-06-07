@@ -194,7 +194,7 @@ function normalizeCollectionName(name, contract) {
   if (normalizedContract === OMNIA_ITEMS_CONTRACT) return 'Omnia items';
   if (normalizedContract === INKFINITY_CONTRACT) return 'Inkfinity Canvas';
   if (normalizedContract === PIXSEALS_CONTRACT) return 'Pixseals by Sappy Seals';
-  if (normalizedContract === SAPPY_KEY_CONTRACT) return 'Sappy Key Coverage';
+  if (normalizedContract === SAPPY_KEY_CONTRACT) return 'Faithful Key';
   if (normalizedContract === DIGITAL_ARTIFACT_CONTRACT) return 'Digital Artifacts';
   return name;
 }

@@ -46,13 +46,13 @@
     fetchJsonWithProdFallback("/api/sealuminati-stats").then((stats) => {
       if (!stats) return;
       const floor = Number(stats.floorMon);
-      const offer = Number(stats.topOfferMon);
-      const volume = Number(stats.volumeMon);
+      const owners = Number(stats.owners);
       const sales = Number(stats.sales24h);
+      const totalSales = Number(stats.totalSales);
       setSealuminatiStat("floor", Number.isFinite(floor) ? `${compactNumber(floor)} MON` : "Pending");
-      setSealuminatiStat("offer", Number.isFinite(offer) ? `${compactNumber(offer)} MON` : "Pending");
-      setSealuminatiStat("volume", Number.isFinite(volume) ? `${compactNumber(volume)} MON` : "Pending");
       setSealuminatiStat("sales", Number.isFinite(sales) ? formatNumber(Math.round(sales)) : "Pending");
+      setSealuminatiStat("owners", Number.isFinite(owners) ? compactNumber(Math.round(owners), { maximumFractionDigits: 0 }) : "Pending");
+      setSealuminatiStat("total", Number.isFinite(totalSales) ? compactNumber(Math.round(totalSales), { maximumFractionDigits: 0 }) : "Pending");
       const badge = document.querySelector(".sealuminati-live-badge");
       if (badge) badge.textContent = stats.source === "fallback" ? "OpenSea fallback" : "Live on OpenSea";
     });

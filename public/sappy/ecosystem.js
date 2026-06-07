@@ -9,15 +9,15 @@
     { name: "$PIXL", chain: "Ethereum", kind: "ERC-20", desc: "The memecoin that powers Omnia.",
       addr: "0x427A03fb96D9A94a6727fBCfbBA143444090dD64", art: "coin", seed: "pixltoken", url: "https://app.uniswap.org/swap?chain=ethereum&outputCurrency=0x427A03fb96D9A94a6727fBCfbBA143444090dD64", action: "Trade" },
     { name: "Omnia Pets", chain: "Ethereum", kind: "ERC-721", desc: "Genesis Pixl Pets — your Omnia companion.",
-      addr: "0x4e76c23fe2a4e37b5e07b5625e17098baab86c18", art: "image", image: "/sappy/assets/omnia/omnia-genesis-incubator.png", seed: "omniapets", url: "https://opensea.io/collection/omnia-pets-genesis", action: "Buy/View" },
+      addr: "0x4e76c23fe2a4e37b5e07b5625e17098baab86c18", art: "image", image: "/sappy/assets/ecosystem/omnia-pet-1483.png", seed: "omniapets", url: "https://opensea.io/collection/omnia-pets-genesis", action: "Buy/View" },
     { name: "Omnia Items", chain: "Ethereum", kind: "ERC-1155", desc: "Gear, wearables & consumables.",
       addr: "0xf0ea56402b2e2b27556d7abf4236c7327722fe41", art: "image", image: "/sappy/assets/omnia/omnia-founders-pass.png", seed: "omniaitems", id: 1, url: "https://opensea.io/collection/omnia-items", action: "Buy/View" },
     { name: "Faithful Key", chain: "Ethereum", kind: "ERC-1155", desc: "A celebratory gift to every awesome HODLer still along for the ride to see where this adventure takes us. Don't ask Gordon where we found it though...",
       addr: "0x3d3ad7b00e885d3d969e03bfcbaed80fb3df6667", art: "image", image: "/sappy/assets/ecosystem/faithful-key.webp", seed: "sappykey", url: "https://etherscan.io/token/0x3d3ad7b00e885d3d969e03bfcbaed80fb3df6667", action: "View" },
     { name: "Pixseals", chain: "Polygon", kind: "ERC-721", desc: "Gas-free pixel airdrop, 1:1 mapped.",
-      addr: "0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b", art: "image", image: "/sappy/assets/ecosystem/pixseal-1.avif", seed: "pixseals", id: 1, url: "https://opensea.io/assets/polygon/0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b/1" },
+      addr: "0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b", art: "image", image: "/sappy/assets/ecosystem/pixseal-1.avif", seed: "pixseals", id: 1, url: "https://opensea.io/assets/polygon/0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b/1", action: "Buy/View" },
     { name: "Digital Artifacts", chain: "Bitcoin / Ethereum", kind: "ERC-721", desc: "Bitcoin Ordinal artifacts mirrored on Ethereum.",
-      addr: "0xb1cdf2bfab043ea1d81d0a73b3b849efaac1d31a", art: "html", image: "https://i2c.seadn.io/ethereum/0xb1cdf2bfab043ea1d81d0a73b3b849efaac1d31a/8f01708a2265650570c246d98b7f4f21.png", html: "https://ipfs2.seadn.io/ipfs/bafybeia3j3pdbydo4ensqryfs6e2fq7oji6tywjto3uokbtw7je5vo2lpe/93.html", seed: "artifacts", url: "https://opensea.io/item/ethereum/0xb1cdf2bfab043ea1d81d0a73b3b849efaac1d31a/93" },
+      addr: "0xb1cdf2bfab043ea1d81d0a73b3b849efaac1d31a", art: "html", image: "https://i2c.seadn.io/ethereum/0xb1cdf2bfab043ea1d81d0a73b3b849efaac1d31a/8f01708a2265650570c246d98b7f4f21.png", html: "https://ipfs2.seadn.io/ipfs/bafybeia3j3pdbydo4ensqryfs6e2fq7oji6tywjto3uokbtw7je5vo2lpe/93.html", seed: "artifacts", url: "https://opensea.io/item/ethereum/0xb1cdf2bfab043ea1d81d0a73b3b849efaac1d31a/93", action: "Buy/View" },
   ];
   const chainChip = (c) => c === "Polygon" ? '<span class="chip poly">◆ Polygon</span>' : c === "Bitcoin / Ethereum" ? '<span class="chip nft">₿ BTC / Ξ ETH</span>' : '<span class="chip eth">Ξ Ethereum</span>';
   const kindChip = (k) => k === "ERC-721" ? '<span class="chip erc721">ERC-721</span>' : k === "ERC-1155" ? '<span class="chip erc721">ERC-1155</span>' : k === "ERC-20" ? '<span class="chip erc20">ERC-20</span>' : '<span class="chip nft">NFT</span>';
