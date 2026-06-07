@@ -92,6 +92,29 @@
       .replace(/"/g, "&quot;");
   }
 
+  function normalizedAddress(value) {
+    const address = String(value || "").trim().toLowerCase();
+    return /^0x[a-f0-9]{40}$/.test(address) ? address : "";
+  }
+
+  function walletMatchesTargetProfile() {
+    const connected = normalizedAddress(state.connectedAddress);
+    const target = normalizedAddress(state.profileWallet);
+    return Boolean(connected && (!target || connected === target));
+  }
+
+  function currentProfileIsClaimed() {
+    const claimedWallet = normalizedAddress(state.profile.claimedWallet);
+    const target = normalizedAddress(state.profileWallet);
+    return Boolean(state.profile.claimed && (!claimedWallet || !target || claimedWallet === target));
+  }
+
+  function canLinkSocialsForCurrentProfile() {
+    const connected = normalizedAddress(state.connectedAddress);
+    const claimedWallet = normalizedAddress(state.profile.claimedWallet || state.profileWallet);
+    return Boolean(connected && walletMatchesTargetProfile() && state.profile.claimed && (!claimedWallet || claimedWallet === connected));
+  }
+
   function formatPixl(value) {
     const n = Number(value || 0);
     if (!Number.isFinite(n) || n <= 0) return "0";
@@ -206,8 +229,8 @@
 
   function markProfileClaimed(owned) {
     const wallet = state.profileWallet || state.connectedAddress || state.address;
-    const walletMatchesProfile = Boolean(state.connectedAddress && (!state.profileWallet || state.connectedAddress.toLowerCase() === state.profileWallet.toLowerCase()));
-    if (!walletMatchesProfile || !owned?.length) return;
+    if (!walletMatchesTargetProfile() || !owned?.length) return;
+    if (!state.profileWallet && normalizedAddress(wallet)) state.profileWallet = wallet;
     saveLocalProfile({
       claimed: true,
       verified: Boolean(state.profile.verified || urlPfp),
@@ -432,7 +455,7 @@
 
   function renderConnectPanel({ canClaim, canLinkSocials, statusCopy, xStatus, discordStatus }) {
     const walletConnected = Boolean(state.connectedAddress);
-    const walletMatchesProfile = Boolean(state.connectedAddress && (!state.profileWallet || state.connectedAddress.toLowerCase() === state.profileWallet.toLowerCase()));
+    const walletMatchesProfile = walletMatchesTargetProfile();
     return `<div class="folio-claim folio-claim-inline" id="claim">
       <div class="ct">
         <h3>${statusCopy[0]}</h3>
@@ -454,7 +477,7 @@
         ${canLinkSocials ? `
           ${xStatus.connected ? `<button class="btn btn-x connected-btn" disabled>✓ X connected</button>` : `<button class="btn btn-x" data-x-login>𝕏&nbsp; Link X</button>`}
           ${discordStatus.connected ? `<button class="btn btn-ghost connected-btn" data-discord-login><img class="btn-logo" src="https://cdn.simpleicons.org/discord/5865F2" alt="" aria-hidden="true"> Discord connected</button>` : `<button class="btn btn-ghost" data-discord-login><img class="btn-logo" src="https://cdn.simpleicons.org/discord/5865F2" alt="" aria-hidden="true"> Link Discord</button>`}
-        ` : ""}
+        ` : canClaim ? `<span class="social-lock">Claim this Sealfolio with the matching wallet first.</span>` : ""}
       </div>
     </div>`;
   }
@@ -523,13 +546,11 @@
     const isReal = Array.isArray(state.nfts);
     const hasProfile = isReal && owned.length > 0;
     const targetWallet = state.profileWallet || state.connectedAddress || state.address;
-    const walletMatchesProfile = Boolean(state.connectedAddress && (!state.profileWallet || state.connectedAddress.toLowerCase() === state.profileWallet.toLowerCase()));
+    const walletMatchesProfile = walletMatchesTargetProfile();
     const canClaim = hasProfile && walletMatchesProfile;
-    const claimedWallet = String(state.profile.claimedWallet || "").toLowerCase();
-    const targetWalletLower = String(targetWallet || "").toLowerCase();
-    const isClaimed = Boolean(state.profile.claimed && (!claimedWallet || !targetWalletLower || claimedWallet === targetWalletLower));
+    const isClaimed = currentProfileIsClaimed();
     const isVerifiedProfile = Boolean(state.profile.verified || state.profile.claimed || urlPfp);
-    const canLinkSocials = Boolean(canClaim);
+    const canLinkSocials = canLinkSocialsForCurrentProfile();
     const score = hasProfile ? scoreFor(owned) : 0;
     const breakdown = scoreBreakdown(owned, staked);
     const displayName = state.profile.displayName || handle;
@@ -753,6 +774,11 @@
       button.dataset.wired = "1";
       button.addEventListener("click", (event) => {
         event.preventDefault();
+        if (!canLinkSocialsForCurrentProfile()) {
+          S.toast("Claim this Sealfolio with the matching wallet before linking X.");
+          render();
+          return;
+        }
         S.xModal();
       });
     });
@@ -761,6 +787,11 @@
       button.dataset.wired = "1";
       button.addEventListener("click", (event) => {
         event.preventDefault();
+        if (!canLinkSocialsForCurrentProfile()) {
+          S.toast("Claim this Sealfolio with the matching wallet before linking Discord.");
+          render();
+          return;
+        }
         S.discordLogin();
       });
     });

@@ -166,7 +166,6 @@
   function countLabel(member) {
     const n = Number(member.n || 0) || 0;
     if (!n && !member.verifiedHoldings) return "HOLDINGS SYNCING";
-    if (member.countType === "seals") return `${n} ${n === 1 ? "SEAL" : "SEALS"}`;
     return `${n} ECO ASSET${n === 1 ? "" : "S"}`;
   }
 
@@ -183,7 +182,6 @@
   function breakdownLabel(member) {
     const b = member.breakdown || {};
     const parts = [];
-    if (b.seals) parts.push(`${fmt(b.seals)} seals`);
     if (b.ecosystem && b.ecosystem !== b.seals) parts.push(`${fmt(b.ecosystem)} other`);
     if (b.artifacts) parts.push(`${fmt(b.artifacts)} artifact${b.artifacts === 1 ? "" : "s"}`);
     if (b.pixl) parts.push(`${fmt(Math.round(b.pixl))} PIXL`);
