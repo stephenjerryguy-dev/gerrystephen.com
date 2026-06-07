@@ -105,6 +105,13 @@ function pickTwitter(account) {
   return username ? username.replace(/^@/, '') : undefined;
 }
 
+function pickEns(account) {
+  const raw = account?.ens || account?.ens_name || account?.ensName || account?.primaryEns || account?.primary_ens
+    || (/\.eth$/i.test(account?.username || '') ? account.username : '');
+  const ens = String(raw || '').trim().toLowerCase();
+  return /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(ens) ? ens : undefined;
+}
+
 async function fetchOpenSeaProfile(address) {
   if (!process.env.OPENSEA_API_KEY) return null;
   const response = await fetch(`${OPENSEA_API}/accounts/${address}`, { headers: openseaHeaders() }).catch(() => undefined);
@@ -112,9 +119,11 @@ async function fetchOpenSeaProfile(address) {
   const account = await response.json().catch(() => null);
   if (!account) return null;
   const xHandle = pickTwitter(account);
+  const ensName = pickEns(account);
   return {
     label: xHandle ? `@${xHandle}` : (account.username || account.name || undefined),
     xHandle,
+    ensName,
     openseaUsername: account.username,
     profileImage: account.profile_image_url || account.profileImageUrl,
     profileUrl: account.address ? `https://opensea.io/${account.address}` : undefined,
@@ -254,6 +263,7 @@ async function holderFromOpenSeaQuery(query) {
   const count = walletCounts.reduce((sum, value) => sum + (Number(value) || 0), 0);
   const pixlBalance = pixlBalances.reduce((sum, value) => sum + (Number(value) || 0), 0);
   const xHandle = profile?.xHandle || pickTwitter(account);
+  const ensName = profile?.ensName || pickEns(account);
   const label = xHandle ? `@${xHandle}` : (account.username || account.name || profile?.label || shortAddress(address));
   const cleanUser = String(xHandle || account.username || label || shortAddress(address)).replace(/^@/, '');
   return applyHolderOverride({
@@ -264,6 +274,7 @@ async function holderFromOpenSeaQuery(query) {
     rank: null,
     source: 'opensea-account',
     xHandle,
+    ensName,
     openseaUsername: account.username || profile?.openseaUsername,
     profileImage: account.profile_image_url || account.profileImageUrl || profile?.profileImage,
     profileUrl: `https://opensea.io/${account.username || address}`,
@@ -285,6 +296,7 @@ async function enrichHolders(holders) {
       ...holder,
       label,
       xHandle: profile.xHandle,
+      ensName: profile.ensName,
       openseaUsername: profile.openseaUsername,
       profileImage: profile.profileImage,
       profileUrl: profile.profileUrl,
@@ -623,6 +635,7 @@ export default async function handler(req, res) {
         holder.address,
         holder.label,
         holder.xHandle,
+        holder.ensName,
         holder.openseaUsername,
       ].filter(Boolean).some((value) => String(value).toLowerCase().includes(q)));
       const direct = await holderFromOpenSeaQuery(query).catch(() => null);

@@ -47,6 +47,7 @@
       holder.vibe,
       holder.address,
       holder.xHandle,
+      holder.ensName,
       holder.openseaUsername,
       holder.n,
     ].filter(Boolean).join(" ").toLowerCase();
@@ -60,6 +61,7 @@
     return [
       member.h,
       member.xHandle,
+      member.ensName,
       member.openseaUsername,
       member.address,
       member.vibe,
@@ -96,6 +98,7 @@
     if (holder.address) params.set("wallet", holder.address);
     if (holder.profileImage) params.set("pfp", holder.profileImage);
     if (holder.xHandle) params.set("x", holder.xHandle.replace(/^@/, ""));
+    if (holder.ensName) params.set("ens", holder.ensName);
     return {
       h: label,
       vibe: holder.vibe || (holder.source === "opensea-account" ? "OpenSea profile" : index < 3 ? "Top Holder" : VIBES[seed % VIBES.length]),
@@ -109,6 +112,7 @@
       claimable: Boolean((holder.claimable || holder.xHandle || holder.openseaUsername) && (breakdown.total > 0 || Number(holder.count) > 0)),
       address: holder.address,
       xHandle: holder.xHandle,
+      ensName: holder.ensName,
       openseaUsername: holder.openseaUsername,
       href: `sealfolio.html?${params.toString()}`,
     };

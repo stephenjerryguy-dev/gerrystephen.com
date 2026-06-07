@@ -6,6 +6,7 @@
   const urlWallet = qs.get("wallet") || "";
   const urlPfp = qs.get("pfp") || "";
   const urlXHandle = cleanXHandle(qs.get("x") || (/^@/.test(handle) ? handle : ""));
+  const urlEns = cleanEns(qs.get("ens") || (/\.eth$/i.test(handle) ? handle : ""));
   const seedNum = parseInt(qs.get("seed") || "0", 10) || hashStr(handle);
 
   function hashStr(s) { let h = 2166136261 >>> 0; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
@@ -128,6 +129,11 @@
     return /^[A-Za-z0-9_]{1,15}$/.test(cleaned) ? cleaned : "";
   }
 
+  function cleanEns(value) {
+    const cleaned = String(value || "").trim().replace(/^@/, "").toLowerCase();
+    return /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(cleaned) ? cleaned : "";
+  }
+
   function loadLocalProfile(target = urlWallet || handle) {
     try {
       const key = localProfileKey(target);
@@ -236,7 +242,8 @@
       verified: Boolean(state.profile.verified || urlPfp),
       claimedWallet: wallet,
       claimedAt: state.profile.claimedAt || Date.now(),
-      xHandle: cleanXHandle(state.profile.xHandle || urlXHandle),
+      suggestedXHandle: cleanXHandle(state.profile.suggestedXHandle || urlXHandle),
+      ensName: cleanEns(state.profile.ensName || urlEns),
       pfp: state.profile.pfp || urlPfp || firstProfileImage(owned),
     });
     persistRemoteProfile(state.profile);
@@ -425,15 +432,12 @@
     }
   }
 
-  function xConnection(xHandle = "") {
-    if (xHandle) return { connected: true, label: `@${xHandle}` };
-    try {
-      const raw = localStorage.getItem("sappy_x") || "";
-      const handle = cleanXHandle(raw);
-      return handle ? { connected: true, label: `@${handle}` } : { connected: false, label: "Not linked" };
-    } catch (_) {
-      return { connected: false, label: "Not linked" };
-    }
+  function xConnection(suggestedHandle = "") {
+    const verifiedHandle = cleanXHandle(state.profile.xHandle || "");
+    if (verifiedHandle) return { connected: true, verified: true, handle: verifiedHandle, label: `@${verifiedHandle}` };
+    const suggested = cleanXHandle(suggestedHandle || state.profile.suggestedXHandle || "");
+    if (suggested) return { connected: false, suggested: true, handle: suggested, label: `@${suggested}` };
+    return { connected: false, suggested: false, handle: "", label: "Not linked" };
   }
 
   function discordConnection() {
@@ -466,7 +470,7 @@
           <span>Wallet</span><strong>${walletMatchesProfile ? `Connected · ${state.connectedAddress.slice(0, 6)}...${state.connectedAddress.slice(-4)}` : walletConnected ? "Connected wallet does not match" : "Connect matching wallet"}</strong>
         </div>
         <div class="connection-status ${xStatus.connected ? "connected" : "pending"}">
-          <span>X</span><strong>${xStatus.connected ? `Connected · ${esc(xStatus.label)}` : "Not linked"}</strong>
+          <span>X</span><strong>${xStatus.connected ? `Verified · ${esc(xStatus.label)}` : xStatus.suggested ? `Profile X · ${esc(xStatus.label)}` : "Not linked"}</strong>${xStatus.suggested ? "<em>Verify this X after claiming.</em>" : ""}
         </div>
         <div class="connection-status ${discordStatus.connected ? "connected" : "pending"}">
           <span>Discord</span><strong>${esc(discordStatus.label)}</strong>${discordStatus.note ? `<em>${esc(discordStatus.note)}</em>` : ""}
@@ -475,7 +479,7 @@
       <div class="folio-connect-actions">
         ${walletMatchesProfile ? `<button class="btn btn-ghost connected-btn" disabled>✓ Wallet connected</button>` : `<button class="btn btn-accent" data-connect>${state.profileWallet ? "Connect Matching Wallet" : "Connect Wallet"} →</button>`}
         ${canLinkSocials ? `
-          ${xStatus.connected ? `<button class="btn btn-x connected-btn" disabled>✓ X connected</button>` : `<button class="btn btn-x" data-x-login>𝕏&nbsp; Link X</button>`}
+          ${xStatus.connected ? `<button class="btn btn-x connected-btn" disabled>✓ X verified</button>` : `<button class="btn btn-x" data-x-login>𝕏&nbsp; ${xStatus.suggested ? "Verify X" : "Link X"}</button>`}
           ${discordStatus.connected ? `<button class="btn btn-ghost connected-btn" data-discord-login><img class="btn-logo" src="https://cdn.simpleicons.org/discord/5865F2" alt="" aria-hidden="true"> Discord connected</button>` : `<button class="btn btn-ghost" data-discord-login><img class="btn-logo" src="https://cdn.simpleicons.org/discord/5865F2" alt="" aria-hidden="true"> Link Discord</button>`}
         ` : canClaim ? `<span class="social-lock">Claim this Sealfolio with the matching wallet first.</span>` : ""}
       </div>
@@ -554,8 +558,9 @@
     const score = hasProfile ? scoreFor(owned) : 0;
     const breakdown = scoreBreakdown(owned, staked);
     const displayName = state.profile.displayName || handle;
-    const xHandle = cleanXHandle(state.profile.xHandle || urlXHandle);
-    const xStatus = xConnection(xHandle);
+    const xStatus = xConnection(urlXHandle);
+    const xHandle = xStatus.handle || cleanXHandle(urlXHandle);
+    const ensName = cleanEns(state.profile.ensName || urlEns);
     const discordStatus = discordConnection();
     const bio = state.profile.bio || "";
     const rank = hasProfile ? rankFor(score) : "Unclaimed";
@@ -579,11 +584,12 @@
         <div class="folio-id">
           <div class="name">${esc(displayName)}</div>
           <div class="wallet" id="folio-wallet">${targetWallet ? `${targetWallet.slice(0, 6)}...${targetWallet.slice(-4)}` : walletShort}</div>
+          ${ensName ? `<div class="folio-ens">ENS · ${esc(ensName)}</div>` : ""}
           ${bio ? `<p class="folio-bio">${esc(bio)}</p>` : ""}
           <div class="folio-chips">
             <span class="chip vibe">Vibe · ${vibe}</span>
             <span class="chip pixl">BITS pending</span>
-            ${xHandle ? `<a class="chip xh" href="https://x.com/${xHandle}" target="_blank" rel="noopener">𝕏 @${xHandle}</a>` : ""}
+            ${xHandle ? `<a class="chip xh ${xStatus.connected ? "verified-x" : "suggested-x"}" href="https://x.com/${xHandle}" target="_blank" rel="noopener">𝕏 @${xHandle}${xStatus.connected ? "" : " · verify"}</a>` : ""}
             ${canClaim ? `<span class="chip verified">${isClaimed ? "Claimed" : "Ready to personalize"}</span>` : ""}
           </div>
           <details class="folio-edit folio-profile-edit" ${canClaim ? (isClaimed ? "" : "open") : "open"}>
@@ -721,6 +727,26 @@
     loadRemoteProfile(loadAddress);
     loadWalletCollection(loadAddress);
   }
+
+  window.__sappyConnectedX = async function (handle) {
+    const xHandle = cleanXHandle(handle);
+    if (!xHandle) return;
+    if (!canLinkSocialsForCurrentProfile()) {
+      S.toast("Claim this Sealfolio with the matching wallet before verifying X.");
+      render();
+      return;
+    }
+    const saved = saveLocalProfile({
+      xHandle,
+      suggestedXHandle: "",
+      claimed: true,
+      claimedWallet: state.profileWallet || state.connectedAddress || state.address,
+      claimedAt: state.profile.claimedAt || Date.now(),
+    });
+    await persistRemoteProfile(saved);
+    S.toast(`X verified — @${xHandle}`);
+    render();
+  };
 
   async function loadWalletCollection(address) {
     if (!address || state.loading) return;

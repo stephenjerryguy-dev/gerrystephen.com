@@ -852,12 +852,14 @@ body.no-photos .sealframe img.seal-photo{opacity:0 !important;}
 }
 .folio-id .name{font-family:var(--font-display);font-weight:900;font-size:clamp(32px,4vw,46px);letter-spacing:-.02em;line-height:1;}
 .folio-id .wallet{font-family:"DM Mono",monospace;color:var(--ink-soft);font-size:14px;margin-top:8px;}
+.folio-ens{display:inline-flex;margin-top:7px;padding:4px 10px;border:1px solid var(--line);border-radius:999px;background:#fff;font-family:"DM Mono",monospace;color:var(--accent-deep);font-size:12px;font-weight:800;}
 .folio-bio{max-width:58ch;margin:10px 0 0;color:var(--ink-soft);font-size:15px;line-height:1.45;}
 .folio-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;}
 .folio-chips .chip{font-size:12.5px;padding:5px 11px;white-space:nowrap;}
 .chip.vibe{background:var(--cream-2);color:var(--ink);}
 .chip.pixl{background:#fff2dc;color:#c98a13;}
 .chip.xh{background:#000;color:#fff;}
+.chip.xh.suggested-x{background:#242b35;color:#fff;border:1px solid rgba(255,255,255,.2);}
 .chip.verified{background:#e9f7ef;color:#16804e;}
 .score-card{background:var(--ink);color:#fff;border-radius:var(--radius);padding:20px 26px;text-align:center;box-shadow:var(--shadow-lg);}
 .score-card .s{font-family:var(--font-display);font-weight:900;font-size:46px;line-height:1;}
