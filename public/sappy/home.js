@@ -29,6 +29,35 @@
     el.dataset.live = "1";
   }
 
+  function compactNumber(value, options) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return "Pending";
+    if (number >= 1_000_000) return `${formatNumber(number / 1_000_000, { maximumFractionDigits: 1 })}M`;
+    if (number >= 1_000) return `${formatNumber(number / 1_000, { maximumFractionDigits: 1 })}K`;
+    return formatNumber(number, options || { maximumFractionDigits: 2 });
+  }
+
+  function setSealuminatiStat(key, text) {
+    const el = document.querySelector(`[data-sealuminati-stat='${key}']`);
+    if (el) el.textContent = text;
+  }
+
+  function mountSealuminatiStats() {
+    fetchJsonWithProdFallback("/api/sealuminati-stats").then((stats) => {
+      if (!stats) return;
+      const floor = Number(stats.floorMon);
+      const offer = Number(stats.topOfferMon);
+      const volume = Number(stats.volumeMon);
+      const sales = Number(stats.sales24h);
+      setSealuminatiStat("floor", Number.isFinite(floor) ? `${compactNumber(floor)} MON` : "Pending");
+      setSealuminatiStat("offer", Number.isFinite(offer) ? `${compactNumber(offer)} MON` : "Pending");
+      setSealuminatiStat("volume", Number.isFinite(volume) ? `${compactNumber(volume)} MON` : "Pending");
+      setSealuminatiStat("sales", Number.isFinite(sales) ? formatNumber(Math.round(sales)) : "Pending");
+      const badge = document.querySelector(".sealuminati-live-badge");
+      if (badge) badge.textContent = stats.source === "fallback" ? "OpenSea fallback" : "Live on OpenSea";
+    });
+  }
+
   function mountLiveStats() {
     fetchJsonWithProdFallback("/api/sappy-stats").then((stats) => {
       if (!stats) return;
@@ -136,6 +165,7 @@
     window.Sappy.init();
     mountHeroSealShuffle();
     mountLiveStats();
+    mountSealuminatiStats();
     mountParallax();
   });
 })();

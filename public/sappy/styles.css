@@ -238,7 +238,33 @@ header{
 .community-chain-art{aspect-ratio:16/10;border-radius:12px;overflow:hidden;background:var(--ocean-mist);border:1px solid var(--line);display:block;}
 .community-chain-art img{width:100%;height:100%;object-fit:cover;display:block;}
 .community-chain-art.sealuminati-crop{background:#0f1834;}
-.community-chain-art.sealuminati-crop img{transform:none;object-position:left bottom;}
+.community-chain-art.sealuminati-crop img{transform:none;object-position:center 24%;}
+.sealuminati-live-card{position:relative;color:#fff;isolation:isolate;}
+.sealuminati-live-card::after{
+  content:"";position:absolute;inset:0;z-index:1;
+  background:linear-gradient(180deg,rgba(8,16,38,.08) 0%,rgba(8,16,38,.22) 34%,rgba(8,16,38,.9) 100%);
+  pointer-events:none;
+}
+.sealuminati-live-card .sealuminati-live-badge{
+  position:absolute;left:14px;top:14px;z-index:2;display:inline-flex;align-items:center;height:25px;
+  border-radius:999px;padding:0 10px;background:rgba(18,27,54,.78);border:1px solid rgba(255,255,255,.24);
+  backdrop-filter:blur(8px);font-family:var(--font-pixel);font-size:7px;letter-spacing:.02em;text-transform:uppercase;
+}
+.sealuminati-market-grid{
+  position:absolute;left:14px;right:14px;bottom:14px;z-index:2;
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;
+}
+.sealuminati-market-grid span{
+  display:flex;flex-direction:column;gap:3px;min-width:0;padding:9px 10px;border-radius:10px;
+  background:rgba(8,16,35,.68);border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(8px);
+}
+.sealuminati-market-grid small{
+  color:rgba(255,255,255,.72);font-family:var(--font-pixel);font-size:7px;text-transform:uppercase;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.sealuminati-market-grid b{
+  color:#fff;font-family:var(--font-pixel);font-size:12px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
 .chain-copy{padding:8px 6px;display:flex;flex-direction:column;justify-content:center;min-width:0;}
 .community-chain-card h3{font-family:var(--font-display);font-weight:900;font-size:clamp(26px,4vw,46px);margin:14px 0 0;letter-spacing:0;line-height:.98;}
 .community-chain-card p{margin:10px 0 0;color:var(--ink-soft);font-weight:700;font-size:16px;line-height:1.45;max-width:42ch;}
@@ -1123,6 +1149,41 @@ body.eco-dark .chip.poly{background:rgba(150,90,255,.2);color:#cbb0ff;}
 .sappy-dynamic-dock:empty{display:none;}
 
 /* ---------- responsive ---------- */
+@media(max-width:1120px) and (min-width:981px){
+  .wrap{padding:0 22px;}
+  .nav{gap:10px;}
+  .nav-links{gap:2px;}
+  .nav-links a{padding:9px 10px;font-size:13px;}
+  .nav-links a.nav-studio{min-width:84px;padding-inline:10px;}
+  .nav-studio-signature{font-size:16px;top:-5px;}
+  .nav-right{gap:8px;}
+  .nav-right .btn{padding:10px 13px;font-size:13px;}
+  .hero-grid{grid-template-columns:minmax(0,1fr) minmax(300px,.82fr);gap:30px;}
+  .hero h1{font-size:clamp(48px,5.7vw,68px);}
+  .hero p.lede{font-size:18px;}
+  .hero-art{min-height:386px;overflow:visible;}
+  .seal-big{width:260px;height:260px;border-radius:34px;}
+  .float{width:98px;height:98px;border-radius:18px;}
+  .float.f1{left:0;top:4px;}
+  .float.f2{right:0;top:32px;width:90px;height:90px;}
+  .float.f3{left:0;bottom:28px;width:92px;height:92px;}
+  .float.f4{right:8%;bottom:2px;width:84px;height:84px;}
+  .stats-grid{grid-template-columns:repeat(4,minmax(0,1fr));}
+  .stat-folio{grid-column:1 / -1;}
+  .identity-pod{grid-template-columns:minmax(0,1fr) minmax(300px,.9fr);}
+  .identity-profile,.identity-pod-map{padding:28px;}
+  .community-chain-card{grid-template-columns:minmax(300px,44%) 1fr;}
+  .team-grid{grid-template-columns:repeat(6,minmax(0,1fr));}
+  .team-relay{grid-template-columns:repeat(6,minmax(0,1fr));}
+  .team-card-featured{grid-row:span 1;min-height:134px;}
+  .team-card-featured .team-avatar{width:58px;height:58px;border-radius:50%;}
+  .team-card-featured strong{font-size:13.5px;}
+  .team-card-featured span{font-size:10px;}
+  .create-grid-solo{grid-template-columns:minmax(0,580px);}
+  .create-grid-solo .create-card{grid-template-columns:150px 1fr;min-height:150px;}
+  .create-grid-solo .cc-art{width:150px;height:150px;min-height:150px;}
+}
+
 @media(max-width:980px){
   .hero-grid{grid-template-columns:1fr;gap:36px;}
   .hero-art{min-height:360px;}
@@ -1222,6 +1283,11 @@ body.eco-dark .chip.poly{background:rgba(150,90,255,.2);color:#cbb0ff;}
   .community-collections{padding-top:36px;}
   .community-chain-card{gap:14px;padding:10px;border-radius:18px;}
   .community-chain-art{aspect-ratio:16/9;}
+  .sealuminati-market-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;left:10px;right:10px;bottom:10px;}
+  .sealuminati-market-grid span{padding:7px 8px;border-radius:8px;}
+  .sealuminati-market-grid small{font-size:6px;}
+  .sealuminati-market-grid b{font-size:10px;}
+  .sealuminati-live-card .sealuminati-live-badge{left:10px;top:10px;height:22px;font-size:6px;}
   .chain-copy{padding:4px 2px 6px;}
   .community-chain-card h3{font-size:31px;margin-top:10px;}
   .community-chain-card p{font-size:14px;margin-top:7px;}
