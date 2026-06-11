@@ -22,7 +22,7 @@ import {
 } from './tweaks-panel.jsx';
 import './styles.css';
 
-const SITE_BUILD_VERSION = 'ecosystems-app-92';
+const SITE_BUILD_VERSION = 'ecosystems-app-93';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 function safeStorage() {
@@ -733,7 +733,7 @@ function Hero({ y, mouse, intensity, lite = false }) {
           <div className="bt-title">THE IGLU</div>
           <div className="bt-sub">a small home on the internet · gerrystephen.eth</div>
           <a className="abstract-veteran-card" href="https://abscan.org/address/0x382556A543aAd855C07678E7F8e820d0d90429BB" target="_blank" rel="noopener" aria-label="Abstract Gold II veteran wallet">
-            <img src="assets/abstract-gold-tier-card.png?v=gold-tier-ii-chevron-match" alt="Abstract wallet Gold Tier II" />
+            <img src="assets/abstract-gold-tier-card.png?v=gold-tier-ii-reference-notch" alt="Abstract wallet Gold Tier II" />
           </a>
         </div>
 
@@ -926,7 +926,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-92`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-93`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
@@ -1032,6 +1032,23 @@ function orderEcosystemItems(ecosystem, items) {
   );
 }
 
+function nftIdentity(nft) {
+  const contract = String(nft?.contract || nft?.collection || 'unknown').toLowerCase();
+  const tokenId = String(nft?.tokenId || nft?.name || '').toLowerCase();
+  if (nft?.tokenId === 'asset') return `asset:${String(nft.name || nft.symbol || nft.glyph || '').toLowerCase()}`;
+  return `${contract}:${tokenId}`;
+}
+
+function mergeEcosystemItems(items) {
+  const seen = new Set();
+  return items.filter((item) => {
+    const key = nftIdentity(item);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function buildEcosystemSlides(items) {
   const slides = NFT_ECOSYSTEMS.map((ecosystem) => {
     const ecosystemItems = items.filter((nft) => ecosystemForNft(nft)?.id === ecosystem.id);
@@ -1084,9 +1101,23 @@ function NftCarousel() {
       try {
         const apiData = await fetchAppJson('/api/nfts', controller.signal);
         if (apiData) {
-          const apiItems = (apiData?.nfts || []).filter((nft) => nft.href?.includes('/assets/'));
+          const apiItems = (apiData?.nfts || []).filter((nft) => nft?.image || nft?.animationUrl || nft?.tokenId === 'asset');
+          const pixlTotal = Number(apiData?.pixlBalance || 0);
+          if (pixlTotal > 0) {
+            apiItems.unshift({
+              ecosystem: 'sappy',
+              name: '$PIXL',
+              collection: 'Omnia ecosystem',
+              glyph: '$PIXL',
+              tokenId: 'asset',
+              amount: pixlTotal.toLocaleString('en-US', { maximumFractionDigits: 2 }),
+              chain: 'Ethereum',
+              contract: '0x427A03fb96D9A94a6727fBCfbBA143444090dD64',
+              href: 'https://etherscan.io/token/0x427A03fb96D9A94a6727fBCfbBA143444090dD64',
+            });
+          }
           if (apiItems.length) {
-            setGroups(buildEcosystemSlides(apiItems));
+            setGroups(buildEcosystemSlides(mergeEcosystemItems(apiItems)));
             setSource('wallet');
             setIndex(0);
             return;
@@ -1102,7 +1133,7 @@ function NftCarousel() {
         );
         const loaded = (await Promise.allSettled(requests))
         .flatMap((result) => result.status === 'fulfilled' ? result.value : [])
-        .filter((nft) => nft.name && nft.image && nft.href?.includes('/assets/'))
+        .filter((nft) => nft.name && nft.image)
         .filter((nft) => ecosystemForNft(nft))
         .slice(0, 24);
         if (loaded.length) {
@@ -1157,7 +1188,7 @@ function NftCarousel() {
   };
   const groupsWithAssets = groups.map((group) => ({
     ...group,
-    items: orderEcosystemItems(group, [...(group.items || []), ...assetData.filter((asset) => asset.ecosystem === group.id)])
+    items: orderEcosystemItems(group, mergeEcosystemItems([...(group.items || []), ...assetData.filter((asset) => asset.ecosystem === group.id)]))
   }));
   const activeGroup = groupsWithAssets[index] || groupsWithAssets[0];
   const visible = activeGroup?.items || [];
@@ -2885,7 +2916,7 @@ function MonadGame() {
         <p className="lede">
           {isGameApp
             ? 'A wallet-backed focus game for BuildAnything. Merge Monad-coded tiles, choose your difficulty, remember the hidden points, then reveal your run. Connect once; profile signing is remembered so scores can upload without another signature.'
-            : 'Biome is my Monad-native game network: the home for Moncade, Monerge, and future creature games. The story is proof-of-play: connect a wallet, play, build a profile, and let each run become part of the larger Biome.'}
+            : 'Biome is currently being built on Monad testnet as my game network: the home for Moncade, Monerge, and future creature games. The story is proof-of-play: connect a wallet, play, build a profile, and let each run become part of the larger Biome.'}
         </p>
         <div className="monanimal-strip" aria-label="Monad character inspirations">
           {MONAD_CHARACTERS.map((character) =>
@@ -2906,8 +2937,8 @@ function MonadGame() {
         {!isGameApp && <div className="desktop-game-details">
           <div className="biome-story-stack">
             <span>01 · Monad network</span>
-            <strong>One wallet, many play loops.</strong>
-            <p>Biome is where the games, profiles, and proof-of-play records can start to connect instead of living as separate experiments.</p>
+            <strong>Testnet now, network next.</strong>
+            <p>Biome is being shaped on Monad testnet so games, profiles, and proof-of-play records can connect before the larger launch.</p>
           </div>
           <div className="biome-story-stack">
             <span>02 · Moncade</span>
@@ -3453,13 +3484,13 @@ function App() {
     const favicon = document.querySelector('link[rel="icon"]');
     if (isGameApp) {
       document.title = 'Monerge · Gerry Stephen';
-      appleIcon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-92');
-      favicon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-92');
+      appleIcon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-93');
+      favicon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-93');
       return;
     }
     document.title = 'Gerry Stephen · Business, Web3, and the Iglu';
-    appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-92');
-    favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-92');
+    appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-93');
+    favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-93');
   }, [isGameApp]);
 
   useEffect(() => {

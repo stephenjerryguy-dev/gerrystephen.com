@@ -605,9 +605,10 @@ async function fetchReservoirNfts(wallet, contract, options = {}) {
   const api = options.api || RESERVOIR_API;
   const chain = options.chain || 'ethereum';
   const limit = options.fullWallet ? '200' : contract ? '100' : '48';
+  const maxPages = options.pages || (options.fullWallet ? 8 : 1);
   const normalized = [];
   let continuation = undefined;
-  for (let page = 0; page < (options.fullWallet ? 8 : 1); page += 1) {
+  for (let page = 0; page < maxPages; page += 1) {
     const params = new URLSearchParams({
       limit,
       sortBy: 'floorAskPrice',
@@ -719,14 +720,14 @@ export default async function handler(req, res) {
     const wallets = requestedWallet
       ? [requestedWallet, ...await fetchDelegateWallets(requestedWallet)]
       : WALLETS;
-    const pixlBalance = requestedWallet
-      ? await Promise.all(wallets.map(fetchPixlBalance)).then((balances) => balances.reduce((sum, value) => sum + (Number(value) || 0), 0)).catch(() => 0)
-      : 0;
+    const pixlBalance = await Promise.all(wallets.map(fetchPixlBalance))
+      .then((balances) => balances.reduce((sum, value) => sum + (Number(value) || 0), 0))
+      .catch(() => 0);
     const reservoirResponses = await Promise.allSettled(
       wallets.flatMap((wallet) => [
         fetchReservoirNfts(wallet, undefined, { fullWallet: Boolean(requestedWallet) }),
-        ...ecosystemContracts.map((contract) => fetchReservoirNfts(wallet, contract, { fullWallet: Boolean(requestedWallet) })),
-        fetchReservoirNfts(wallet, PIXSEALS_CONTRACT, { api: POLYGON_RESERVOIR_API, chain: 'matic', fullWallet: Boolean(requestedWallet) }),
+        ...ecosystemContracts.map((contract) => fetchReservoirNfts(wallet, contract, { fullWallet: true, pages: 2 })),
+        fetchReservoirNfts(wallet, PIXSEALS_CONTRACT, { api: POLYGON_RESERVOIR_API, chain: 'matic', fullWallet: true, pages: 2 }),
       ])
     );
     const openseaResponses = await Promise.allSettled(
