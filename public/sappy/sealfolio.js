@@ -316,10 +316,12 @@
   }
 
   function scoreBreakdown(owned, staked) {
+    const stakedCount = Math.max(0, Number(staked || 0));
     const counts = {
-      seals: owned.filter((o) => isSealAsset(o)).length,
-      staked,
-      omnia: owned.filter((o) => contractType(o.contract).startsWith("omnia")).length,
+      seals: owned.filter((o) => isSealAsset(o) && !o.staked).length,
+      staked: stakedCount,
+      omniaPets: owned.filter((o) => contractType(o.contract) === "omnia-pet").length,
+      omniaItems: owned.filter((o) => contractType(o.contract) === "omnia-item").length,
       pixseals: owned.filter((o) => contractType(o.contract) === "pixseal").length,
       keys: owned.filter((o) => contractType(o.contract) === "sappy-key").length,
       artifacts: owned.filter((o) => isDigitalArtifactAsset(o)).length,
@@ -338,19 +340,20 @@
       });
       return Math.round(total);
     };
-    const sealScore = counts.seals ? 140 + steppedScore(counts.seals, [[10, 30], [40, 15], [Infinity, 6]]) : 0;
-    const stakedScore = counts.staked ? Math.round(Math.sqrt(counts.staked) * 42 + Math.min(counts.staked, 10) * 6) : 0;
-    const keyScore = steppedScore(counts.keys, [[1, 55], [4, 25], [Infinity, 8]]);
-    const artifactScore = steppedScore(counts.artifacts, [[1, 75], [4, 35], [Infinity, 12]]);
-    const omniaScore = Math.round(Math.sqrt(counts.omnia) * 30 + Math.min(counts.omnia, 20) * 4);
-    const pixsealScore = Math.round(Math.sqrt(counts.pixseals) * 24 + Math.min(counts.pixseals, 25) * 2);
-    const pixlScore = counts.pixl > 0 ? Math.round(85 * Math.log10(1 + counts.pixl / 5_000)) : 0;
-    const delegateScore = Math.min(70, counts.delegates * 35);
-    const varietyScore = Math.min(150, counts.collections * 25);
+    const stakedScore = steppedScore(counts.staked, [[5, 115], [10, 82], [25, 42], [Infinity, 18]]);
+    const pixlScore = counts.pixl > 0 ? Math.round(Math.min(520, 150 * Math.log10(1 + counts.pixl / 10_000))) : 0;
+    const sealScore = steppedScore(counts.seals, [[5, 82], [15, 48], [40, 22], [Infinity, 9]]);
+    const artifactScore = steppedScore(counts.artifacts, [[1, 165], [3, 95], [Infinity, 35]]);
+    const omniaPetScore = steppedScore(counts.omniaPets, [[3, 64], [12, 34], [Infinity, 12]]);
+    const omniaItemScore = steppedScore(counts.omniaItems, [[5, 38], [20, 18], [Infinity, 6]]);
+    const keyScore = steppedScore(counts.keys, [[1, 65], [4, 30], [Infinity, 10]]);
+    const pixsealScore = steppedScore(counts.pixseals, [[10, 7], [40, 3], [Infinity, 1]]);
+    const delegateScore = Math.min(45, counts.delegates * 22);
+    const varietyScore = Math.min(90, counts.collections * 15);
     return {
       counts,
-      parts: { sealScore, stakedScore, keyScore, artifactScore, omniaScore, pixsealScore, pixlScore, delegateScore, varietyScore },
-      total: sealScore + stakedScore + keyScore + artifactScore + omniaScore + pixsealScore + pixlScore + delegateScore + varietyScore,
+      parts: { stakedScore, pixlScore, sealScore, artifactScore, omniaPetScore, omniaItemScore, keyScore, pixsealScore, delegateScore, varietyScore },
+      total: stakedScore + pixlScore + sealScore + artifactScore + omniaPetScore + omniaItemScore + keyScore + pixsealScore + delegateScore + varietyScore,
     };
   }
 
@@ -623,7 +626,7 @@
         <div class="fstat"><div class="v">${score}</div><div class="k">Score</div></div>
         <div class="fstat"><div class="v">${formatPixl(state.pixlBalance)}</div><div class="k">$PIXL</div></div>
       </div>
-      ${hasProfile ? `<div class="score-explain">Score curve: seals ${breakdown.parts.sealScore}, staked ${breakdown.parts.stakedScore}, keys ${breakdown.parts.keyScore}, artifacts ${breakdown.parts.artifactScore}, Omnia ${breakdown.parts.omniaScore}, Pixseals ${breakdown.parts.pixsealScore}, $PIXL ${breakdown.parts.pixlScore}, Delegate.xyz ${breakdown.parts.delegateScore}, collection variety ${breakdown.parts.varietyScore}. $PIXL counts toward score, but it is not counted as an NFT asset.</div>` : ""}
+      ${hasProfile ? `<div class="score-explain">Score curve: staked seals ${breakdown.parts.stakedScore}, $PIXL ${breakdown.parts.pixlScore}, seals ${breakdown.parts.sealScore}, artifacts ${breakdown.parts.artifactScore}, Omnia Pets ${breakdown.parts.omniaPetScore}, Omnia Items ${breakdown.parts.omniaItemScore}, keys ${breakdown.parts.keyScore}, Pixseals ${breakdown.parts.pixsealScore}, Delegate.xyz ${breakdown.parts.delegateScore}, collection variety ${breakdown.parts.varietyScore}. Staked seals carry the strongest weight; Pixseals are a light ecosystem bonus.</div>` : ""}
 
       <div class="folio-sec">
         <h2>${hasProfile ? "Claim your Sealfolio" : "Create your Sealfolio"}</h2>

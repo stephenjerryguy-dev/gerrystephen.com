@@ -843,12 +843,14 @@ body.no-photos .sealframe img.seal-photo{opacity:0 !important;}
 .folio-pfp-empty .seal-photo{object-fit:contain;filter:drop-shadow(0 10px 14px rgba(12,35,50,.18));}
 .folio-pfp.verified-pfp{
   clip-path:polygon(25% 4%,75% 4%,100% 50%,75% 96%,25% 96%,0 50%);
-  border:0;border-radius:0;overflow:hidden;padding:5px;
-  background:linear-gradient(145deg,#fff9dc 0%,#e4b941 38%,#9f731b 68%,#fff0a4 100%);
+  border:0;border-radius:0;overflow:hidden;padding:6px;
+  background:linear-gradient(145deg,#fff7c4 0%,#f1c84d 30%,#b88318 60%,#fff0a4 100%);
+  box-shadow:0 18px 42px rgba(126,83,10,.24),0 0 0 1px rgba(255,255,255,.76);
 }
 .folio-pfp.verified-pfp .seal-photo{
-  inset:5px;width:calc(100% - 10px);height:calc(100% - 10px);
+  inset:6px;width:calc(100% - 12px);height:calc(100% - 12px);
   clip-path:polygon(25% 4%,75% 4%,100% 50%,75% 96%,25% 96%,0 50%);
+  opacity:1;transition:none;
 }
 .folio-id .name{font-family:var(--font-display);font-weight:900;font-size:clamp(32px,4vw,46px);letter-spacing:-.02em;line-height:1;}
 .folio-id .wallet{font-family:"DM Mono",monospace;color:var(--ink-soft);font-size:14px;margin-top:8px;}
