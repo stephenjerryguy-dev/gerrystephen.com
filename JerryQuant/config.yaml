@@ -1,0 +1,90 @@
+# JerryQuant configuration
+#
+# Capital preservation comes first. Every default in this file is
+# deliberately conservative. Loosening a limit here does NOT bypass the
+# hard floors enforced in code (risk/ modules) — code wins on conflict.
+
+mode: BACKTEST          # BACKTEST | PAPER | LIVE_REVIEW | LIVE_APPROVED
+
+account:
+  # Owner decision 2026-06-12: the live test runs with $100 in Robinhood's
+  # dedicated agentic account. All sizing/limits are computed from this.
+  starting_equity_usd: 100.0
+  base_currency: USD
+
+watchlist:
+  crypto:               # traded as -USD pairs via the data layer
+    - BTC
+    - ETH
+    - SOL
+  equities:
+    - SPY
+    - QQQ
+
+risk:
+  max_risk_per_trade_pct: 1.0        # max % of account equity risked per trade
+  max_daily_drawdown_pct: 5.0        # trading halts for the day past this
+  max_total_drawdown_pct: 10.0       # kill switch engages permanently past this
+  max_monthly_loss_pct: 3.0          # testing-phase monthly loss kill switch
+  max_single_asset_pct: 20.0         # max portfolio allocation to one asset
+  max_crypto_allocation_pct: 40.0    # max combined crypto allocation
+  max_open_positions: 3
+  min_risk_reward: 2.0               # no trade below 2:1
+  min_confidence: 70                 # no trade below 70/100
+  max_spread_pct: 0.5                # no trade if bid/ask spread exceeds this
+  min_dollar_volume_20d: 1000000     # liquidity floor: avg 20-day dollar volume
+  max_atr_pct: 8.0                   # extreme-volatility cutoff (ATR as % of price)
+  min_atr_pct: 0.2                   # dead-market cutoff
+
+strategy:
+  trend_following:
+    enabled: true
+    fast_ma: 50
+    slow_ma: 200
+    volume_ma: 20
+    atr_period: 14
+    atr_stop_multiple: 2.0
+    pullback_lookback: 10
+  momentum:
+    enabled: false                   # placeholder, not active at launch
+
+signals:
+  sentiment_max_confidence_adjust: 10      # sentiment can only nudge confidence
+  prediction_market_max_confidence_adjust: 10
+
+data:
+  provider: yfinance
+  history_days: 400                  # enough for a 200-day MA plus warmup
+  max_staleness_hours_equity: 30     # data older than this => no trading
+  max_staleness_hours_crypto: 3
+  crypto_quote: USD
+
+backtest:
+  start_date: "2020-01-01"
+  end_date: null                     # null = today
+  fee_pct: 0.10                      # per side
+  slippage_pct: 0.05
+  spread_pct: 0.05
+
+paper:
+  fee_pct: 0.10
+  slippage_pct: 0.05
+  spread_pct: 0.05
+
+execution:
+  require_manual_approval: true      # non-negotiable for live modes
+  live_trading_enabled: false        # LIVE_APPROVED refuses to run while false
+  halt_file: HALT_TRADING.txt
+
+database:
+  path: jerryquant.db
+
+reporting:
+  output_dir: logs/reports
+  email:
+    enabled: true                    # falls back to terminal+file if SMTP unset
+    recipient: stephenjerryguy@gmail.com
+
+logging:
+  level: INFO
+  dir: logs
