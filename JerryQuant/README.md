@@ -65,6 +65,66 @@ It is built to behave like a disciplined quant assistant, not a gambling bot.
 cannot override (e.g. per-trade risk can never exceed 2%, manual approval
 can never be disabled). Code wins over config.
 
+## Running it from your phone (GitHub Actions)
+
+You don't need a computer or server. Two workflows live in
+`.github/workflows/` at the repo root:
+
+- **JerryQuant Backtest** — manual. GitHub → Actions tab → "JerryQuant
+  Backtest" → Run workflow. Runs the full test suite, then the real
+  backtest against live Yahoo Finance data, and prints the performance
+  report in the run summary.
+- **JerryQuant Paper Trading** — runs the daily paper cycle automatically
+  at 21:30 UTC (after US market close) and on demand. It saves the paper
+  account state and trade journal back to the repo so it remembers
+  positions between days, posts the daily report in the run summary, and
+  emails it if email is configured (below). **Note:** the daily schedule
+  only fires on the repo's default branch — merge this branch to `main`
+  to activate it; manual runs work from any branch.
+
+### Email reports (Gmail)
+
+The system never stores your password in code. Two one-time steps, both
+doable from a phone:
+
+1. Create a Gmail **App Password**: go to
+   https://myaccount.google.com/apppasswords (turn on 2-Step Verification
+   first if prompted) and generate one. It's a 16-character code — this is
+   NOT your normal Gmail password, and your normal password will not work.
+2. Add two repository secrets: GitHub → repo → Settings → Secrets and
+   variables → Actions → New repository secret:
+   - `SMTP_USER` = your Gmail address
+   - `SMTP_PASSWORD` = the App Password from step 1
+
+That's it — the paper-trading workflow picks them up automatically and
+emails each daily report to your Gmail. If the secrets aren't set, reports
+still appear in the workflow run summary and in `logs/reports/`.
+
+(If you instead run on your own machine, put the same values in
+`JerryQuant/.env` per `.env.example`.)
+
+## The road to live trading with $100
+
+The order is fixed and the system enforces it:
+
+1. **Backtest** — run the backtest workflow; review the metrics.
+2. **Paper trade** — let the daily workflow run for at least 2–4 weeks.
+   You are looking for: the bot obeys its rules, the journal makes sense,
+   drawdowns stay inside limits. Paper P&L matters less than discipline.
+3. **Live review** — signals render full trade tickets, nothing executes.
+4. **Live approved, $100** — only after the above: implement the
+   Robinhood MCP client (endpoint: `https://agent.robinhood.com/mcp/trading`),
+   set `execution.live_trading_enabled: true`, add credentials to `.env`,
+   and approve each trade by typing `APPROVE`. Robinhood's agentic trading
+   uses a dedicated account separate from the rest of your portfolio,
+   which fits this system's isolation-first design.
+
+Honest math for a $100 account: 1% risk per trade = $1 maximum loss per
+trade, and the 20% single-asset cap = $20 maximum position. That is real
+but tiny — expect spread and slippage to be a meaningful share of P&L at
+this size. That's fine: the $100 stage is for proving discipline, not for
+making money. Scale only after the rules have held for a while.
+
 ## Setup
 
 ```bash
