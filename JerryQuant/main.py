@@ -310,20 +310,34 @@ def run_live_approved_mode(cfg: Config, journal: TradeJournal,
         broker.assert_armed()
     except BrokerDisabled as e:
         print(f"\nRefusing to run live: {e}")
-        print("This is the expected state until backtesting and paper trading "
-              "are validated and you explicitly arm the system.")
+        print("Arming requires: execution.live_trading_enabled: true in "
+              "config.yaml, ROBINHOOD_MCP_URL and ROBINHOOD_MCP_API_KEY in "
+              ".env, and this LIVE_APPROVED mode.")
         return 1
-    # Balance verification is itself a kill-switch condition.
-    balance = broker.get_balance()
-    if balance is None:
-        kill_switch.engage("Account balance cannot be verified via Robinhood MCP")
-        journal.record_risk_event(
-            "balance_unverified", "Robinhood MCP returned no balance"
-        )
-        print("Account balance could not be verified. Kill switch engaged.")
+
+    # Discovery first: enumerate Robinhood's real MCP tools so order
+    # placement is implemented against actual schemas, never guesses.
+    print("\nConnecting to Robinhood MCP for tool discovery...")
+    try:
+        tools = broker.discover()
+    except Exception as e:
+        kill_switch.engage(f"Robinhood MCP connection failed: {e}")
+        journal.record_risk_event("mcp_connection_failed", str(e))
+        print(f"MCP connection failed ({e}). Kill switch engaged — delete "
+              f"{cfg.execution.halt_file} after investigating.")
         return 1
-    print("Live order placement is not implemented yet by design.")
-    return 1
+
+    print(f"Discovered {len(tools)} tool(s):")
+    for t in tools:
+        print(f"  - {t.get('name')}: {t.get('description', '')[:90]}")
+    journal.record_risk_event(
+        "mcp_discovery", json.dumps([t.get("name") for t in tools])
+    )
+    print(
+        "\nDiscovery complete and journaled. Order placement gets wired to "
+        "these tools next; until then no live order can be sent."
+    )
+    return 0
 
 
 def main() -> int:

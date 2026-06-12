@@ -40,9 +40,9 @@ It is built to behave like a disciplined quant assistant, not a gambling bot.
   nudge confidence within a small bounded range, and a positive nudge can
   never rescue a signal that failed on its own merits.
 - It does not place live orders today. The Robinhood MCP broker interface
-  exists but order placement is intentionally unimplemented until
-  backtesting and paper trading are validated and connection details are
-  provided.
+  exists and can discover Robinhood's tools, but order placement stays
+  unimplemented until the connection is made and the real tool schemas
+  are seen — the system never guesses at an API.
 
 ## Risk rules (enforced in code)
 
@@ -103,27 +103,37 @@ still appear in the workflow run summary and in `logs/reports/`.
 (If you instead run on your own machine, put the same values in
 `JerryQuant/.env` per `.env.example`.)
 
-## The road to live trading with $100
+## The live test: $100 in Robinhood's agentic account
 
-The order is fixed and the system enforces it:
+Owner decision (2026-06-12): the live test with $100 **is** the test
+phase — it replaces the multi-week paper-validation gate. Backtesting and
+paper trading still run in parallel (they're free), but they no longer
+block going live. Everything else in the script is unchanged and still
+enforced in code: per-trade manual approval, all risk limits, the kill
+switch, and no trading on missing or stale data.
 
-1. **Backtest** — run the backtest workflow; review the metrics.
-2. **Paper trade** — let the daily workflow run for at least 2–4 weeks.
-   You are looking for: the bot obeys its rules, the journal makes sense,
-   drawdowns stay inside limits. Paper P&L matters less than discipline.
-3. **Live review** — signals render full trade tickets, nothing executes.
-4. **Live approved, $100** — only after the above: implement the
-   Robinhood MCP client (endpoint: `https://agent.robinhood.com/mcp/trading`),
-   set `execution.live_trading_enabled: true`, add credentials to `.env`,
-   and approve each trade by typing `APPROVE`. Robinhood's agentic trading
-   uses a dedicated account separate from the rest of your portfolio,
-   which fits this system's isolation-first design.
+The connection path (all phone-doable):
 
-Honest math for a $100 account: 1% risk per trade = $1 maximum loss per
-trade, and the 20% single-asset cap = $20 maximum position. That is real
-but tiny — expect spread and slippage to be a meaningful share of P&L at
-this size. That's fine: the $100 stage is for proving discipline, not for
-making money. Scale only after the rules have held for a while.
+1. In the Robinhood app: Agentic tab → **Connect your agent** → copy the
+   MCP link (`https://agent.robinhood.com/mcp/trading`).
+2. Connect that MCP server to your Claude Code environment (environment
+   settings → MCP servers) or claude.ai connectors, and sign in to
+   Robinhood when prompted. Claude is the agent; JerryQuant generates the
+   trade ticket; you approve; the order goes through Robinhood's MCP into
+   the **dedicated agentic account, separate from the rest of your
+   portfolio**.
+3. First connected run: `LIVE_APPROVED` mode performs **discovery only** —
+   it lists Robinhood's actual MCP tools and journals them. Order
+   placement is then implemented against those real schemas. Until that
+   step lands, no live order can physically be sent.
+4. Dry run in `LIVE_REVIEW` (full tickets, zero execution), then arm
+   `LIVE_APPROVED` and approve trades one at a time by typing `APPROVE`.
+
+Honest math for the $100 account: 1% risk per trade = $1 maximum loss per
+trade, and the 20% single-asset cap = $20 maximum position. Spread and
+slippage will be a meaningful share of P&L at this size — the $100 stage
+proves discipline, not profits. Add money only after the rules have held:
+the limits scale automatically with account size.
 
 ## Setup
 

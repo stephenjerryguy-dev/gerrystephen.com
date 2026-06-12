@@ -18,7 +18,7 @@ def test_shipped_config_loads_and_is_safe():
     assert cfg.risk.min_risk_reward >= 2.0
     assert cfg.risk.min_confidence >= 70
     assert cfg.risk.max_open_positions <= 3
-    assert cfg.account.starting_equity_usd == 1000.0
+    assert cfg.account.starting_equity_usd == 100.0
     assert set(cfg.watchlist.crypto) == {"BTC", "ETH", "SOL"}
     assert set(cfg.watchlist.equities) == {"SPY", "QQQ"}
 
