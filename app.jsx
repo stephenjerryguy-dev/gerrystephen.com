@@ -22,7 +22,7 @@ import {
 } from './tweaks-panel.jsx';
 import './styles.css';
 
-const SITE_BUILD_VERSION = 'ecosystems-app-93';
+const SITE_BUILD_VERSION = 'ecosystems-app-94';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 function safeStorage() {
@@ -732,8 +732,8 @@ function Hero({ y, mouse, intensity, lite = false }) {
           <div className="bt-kicker">welcome to</div>
           <div className="bt-title">THE IGLU</div>
           <div className="bt-sub">a small home on the internet · gerrystephen.eth</div>
-          <a className="abstract-veteran-card" href="https://abscan.org/address/0x382556A543aAd855C07678E7F8e820d0d90429BB" target="_blank" rel="noopener" aria-label="Abstract Gold II veteran wallet">
-            <img src="assets/abstract-gold-tier-card.png?v=gold-tier-ii-reference-notch" alt="Abstract wallet Gold Tier II" />
+          <a className="abstract-veteran-card" href="https://portal.abs.xyz/profile/0x382556A543aAd855C07678E7F8e820d0d90429BB" target="_blank" rel="noopener" aria-label="Abstract Gold II veteran wallet">
+            <img src="assets/abstract-gold-tier-card.png?v=gold-tier-ii-clean-chevron" alt="Abstract wallet Gold Tier II" />
           </a>
         </div>
 

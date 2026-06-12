@@ -731,13 +731,11 @@ export default async function handler(req, res) {
       ])
     );
     const openseaResponses = await Promise.allSettled(
-      requestedWallet
-        ? wallets.flatMap((wallet) => [
-          fetchOpenSeaAccountNfts(wallet, 'ethereum'),
-          fetchOpenSeaAccountNfts(wallet, 'matic'),
-          fetchOpenSeaAccountNfts(wallet, 'bitcoin'),
-        ])
-        : []
+      wallets.flatMap((wallet) => [
+        fetchOpenSeaAccountNfts(wallet, 'ethereum'),
+        fetchOpenSeaAccountNfts(wallet, 'matic'),
+        ...(requestedWallet ? [fetchOpenSeaAccountNfts(wallet, 'bitcoin')] : []),
+      ])
     );
 
     const blockscoutResponses = await Promise.allSettled(wallets.map(fetchBlockscoutNfts));
