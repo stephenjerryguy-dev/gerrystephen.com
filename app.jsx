@@ -22,7 +22,7 @@ import {
 } from './tweaks-panel.jsx';
 import './styles.css';
 
-const SITE_BUILD_VERSION = 'ecosystems-app-94';
+const SITE_BUILD_VERSION = 'ecosystems-app-95';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 function safeStorage() {
@@ -926,7 +926,7 @@ function shouldUseLiveApiFallback() {
 }
 
 async function fetchAppJson(path, signal) {
-  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=ecosystems-app-93`;
+  const versionedPath = `${path}${path.includes('?') ? '&' : '?'}v=${SITE_BUILD_VERSION}`;
   const localResponse = await fetch(versionedPath, { signal, cache: 'no-store' }).catch(() => undefined);
   if (localResponse?.ok && localResponse.headers.get('content-type')?.includes('application/json')) {
     return localResponse.json();
@@ -943,6 +943,10 @@ const NFT_ECOSYSTEMS = [
   id: 'sappy',
   label: 'Sappy Seals ecosystem',
   note: 'My Sappy-side collection: $PIXL, Sappy Faithful Key, Sappy Seals, Omnia Pets, Omnia items, Pixseals, and a Bitcoin ordinal.',
+    links: [
+      { label: 'Sappy Seals', href: 'https://sappy.lol/seals' },
+      { label: 'Sappy hub', href: 'https://sappy.gerrystephen.com' }
+    ],
     keywords: ['sappy', 'pixl', 'omnia', 'pets', 'pixseals', 'sappy key', 'pixlverse items'],
     fallback: [
   { name: 'Sappy Seals ecosystem', collection: 'Owned-token images only', glyph: 'SS', tokenId: 'pending', contract: 'pending' },
@@ -959,6 +963,9 @@ const NFT_ECOSYSTEMS = [
   id: 'pudgy',
   label: 'Pudgy Penguins ecosystem',
   note: 'Pudgy Penguin, Lil Pudgy, Pudgy Rods, and $PENGU.',
+  links: [
+    { label: 'Pudgy Penguins', href: 'https://pudgypenguins.com' }
+  ],
   keywords: ['pudgy', 'penguin', 'lil pudgy', 'rod', 'pengu'],
   fallback: [
   { name: 'Pudgy Penguin', collection: 'Pudgy Penguins ecosystem', image: 'assets/pudgy-penguin.webp', tokenId: 'pending', contract: 'pending' },
@@ -1245,10 +1252,23 @@ function NftCarousel() {
           )}
         </div>
         <div className="ecosystem-focus">
+          <div className="ecosystem-heading">
             <span>{activeGroup?.label}</span>
+            {activeGroup?.links?.length ?
+            <div className="ecosystem-links" aria-label={`${activeGroup.label} links`}>
+              {activeGroup.links.map((link) =>
+              <a key={link.href} href={link.href} target="_blank" rel="noopener">
+                  {link.label} →
+                </a>
+              )}
+            </div> :
+            null}
+          </div>
           <div className="ecosystem-status">
             <strong>{visible.length} featured items {paused ? '· paused' : ''}</strong>
-            <button type="button" className="mini-link" onClick={() => {
+            <button type="button" className="mini-link" onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
               setExpanded(true);
               setPaused(true);
             }}>View all</button>

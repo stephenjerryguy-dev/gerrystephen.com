@@ -1229,15 +1229,46 @@ a { color: inherit; text-decoration: none; }
   border-top: 1px solid rgba(14,31,44,0.1);
   border-bottom: 1px solid rgba(14,31,44,0.1);
 }
-.ecosystem-focus span {
-  display: block;
+.ecosystem-heading {
+  display: grid;
+  gap: 10px;
   flex: 1 1 auto;
+  min-width: 0;
+}
+.ecosystem-heading span {
+  display: block;
   min-width: 0;
   font-family: var(--display-font), serif;
   font-size: clamp(28px, 4vw, 54px);
   line-height: 1;
   font-weight: 600;
   color: var(--ink);
+}
+.ecosystem-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ecosystem-links a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  border: 1px solid rgba(14,31,44,0.14);
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.58);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+.ecosystem-links a:hover {
+  transform: translateY(-1px);
+  border-color: rgba(14,31,44,0.28);
+  background: rgba(255,255,255,0.9);
 }
 .ecosystem-focus strong {
   font-family: var(--mono);
@@ -1266,6 +1297,7 @@ a { color: inherit; text-decoration: none; }
   letter-spacing: 0.12em;
   padding: 9px 12px;
   text-transform: uppercase;
+  touch-action: manipulation;
   transition: transform 0.18s ease, background 0.18s ease;
 }
 .mini-link:hover {
@@ -1330,10 +1362,11 @@ a { color: inherit; text-decoration: none; }
 .nft-modal {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  z-index: 10000;
   display: grid;
   place-items: center;
   padding: max(22px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(22px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+  isolation: isolate;
 }
 .nft-modal-scrim {
   position: absolute;
@@ -1346,9 +1379,11 @@ a { color: inherit; text-decoration: none; }
 .nft-modal-panel {
   position: relative;
   z-index: 1;
-  width: min(1120px, 100%);
+  width: min(1120px, calc(100vw - 36px));
   max-height: min(760px, calc(100dvh - 36px));
   overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid rgba(255,255,255,0.28);
   border-radius: 8px;
   padding: clamp(18px, 3vw, 34px);
@@ -1513,8 +1548,25 @@ a { color: inherit; text-decoration: none; }
   }
   .ecosystem-stage { padding: 16px; }
   .ecosystem-focus { align-items: flex-start; flex-direction: column; min-height: 154px; }
+  .ecosystem-heading {
+    width: 100%;
+  }
+  .ecosystem-heading span {
+    font-size: clamp(30px, 12vw, 44px);
+  }
+  .ecosystem-links {
+    width: 100%;
+  }
+  .ecosystem-links a {
+    flex: 1 1 auto;
+    min-height: 42px;
+    padding-inline: 10px;
+  }
   .ecosystem-focus strong { white-space: normal; }
-  .ecosystem-status { align-items: flex-start; flex-direction: column; flex-basis: auto; min-width: 0; }
+  .ecosystem-status { align-items: stretch; flex-direction: column; flex-basis: auto; min-width: 0; width: 100%; }
+  .mini-link {
+    min-height: 44px;
+  }
   .nft-track {
     overflow-x: hidden;
     scroll-snap-type: none;
@@ -1529,10 +1581,13 @@ a { color: inherit; text-decoration: none; }
   }
   .smart-track.is-looped::-webkit-scrollbar { display: none; }
   .nft-card { flex-basis: min(78vw, 300px); }
-  .nft-modal { padding: 12px; align-items: end; }
+  .nft-modal {
+    padding: max(12px, env(safe-area-inset-top)) 11px max(12px, env(safe-area-inset-bottom));
+    place-items: center;
+  }
   .nft-modal-panel {
-    width: 100%;
-    max-height: calc(100dvh - 24px);
+    width: calc(100vw - 22px);
+    max-height: calc(100dvh - 28px);
     padding: 16px;
   }
   .nft-modal-head {
