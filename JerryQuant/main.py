@@ -33,6 +33,7 @@ from reports.trade_journal import TradeJournal
 from risk.kill_switch import KillSwitch, TradingHalted
 
 PAPER_STATE_FILE = "paper_state.json"
+LIVE_STATE_FILE = "live_state.json"
 
 
 def setup_logging(cfg: Config) -> None:
@@ -333,10 +334,235 @@ def run_live_approved_mode(cfg: Config, journal: TradeJournal,
     journal.record_risk_event(
         "mcp_discovery", json.dumps([t.get("name") for t in tools])
     )
-    print(
-        "\nDiscovery complete and journaled. Order placement gets wired to "
-        "these tools next; until then no live order can be sent."
+
+    required = {"get_accounts", "get_portfolio", "get_equity_positions",
+                "review_equity_order", "place_equity_order"}
+    missing_tools = required - {t.get("name") for t in tools}
+    if missing_tools:
+        kill_switch.engage(f"Robinhood MCP missing tools: {missing_tools}")
+        journal.record_risk_event("mcp_tools_missing", str(missing_tools))
+        print(f"Robinhood no longer exposes {missing_tools}. Halting.")
+        return 1
+
+    return _run_live_cycle(cfg, journal, kill_switch, broker)
+
+
+def _run_live_cycle(cfg: Config, journal: TradeJournal,
+                    kill_switch: KillSwitch, broker) -> int:
+    """One daily LIVE_APPROVED cycle against the real Robinhood account.
+
+    Same pipeline as paper, with three live-specific rules:
+    - equity comes from Robinhood and an unverifiable balance halts trading;
+    - every order (entry AND exit) needs the word APPROVE typed at the
+      prompt — there is no auto-execution path;
+    - only equities trade live (Robinhood's agentic MCP has no crypto
+      order tools); crypto signals are journaled and reported only.
+    """
+    from data_sources import sentiment_data, prediction_market_data
+    from execution import order_manager
+    from execution.robinhood_mcp_broker import BrokerDisabled, OrderError
+    from reports import daily_report
+    from risk.drawdown_guard import DrawdownGuard
+    from risk.position_sizing import PositionSizeError
+    from strategies import prediction_market_signal, signal_aggregator, trend_following
+
+    # --- account + balance (unverifiable balance = no trading, by rule) ---
+    try:
+        acct = broker.get_account_number()
+    except OrderError as e:
+        kill_switch.engage(f"Cannot resolve agentic account: {e}")
+        journal.record_risk_event("account_resolution_failed", str(e))
+        print(f"Account resolution failed: {e}")
+        return 1
+    print(f"Agentic account: ****{acct[-4:]}")
+
+    equity = broker.get_balance()
+    if equity is None or equity <= 0:
+        kill_switch.engage("Robinhood balance could not be verified")
+        journal.record_risk_event("balance_unverifiable", f"got {equity}")
+        print("Balance unverifiable — kill switch engaged, nothing trades.")
+        return 1
+    buying_power = broker.get_buying_power() or 0.0
+    print(f"Account value: ${equity:,.2f}  Buying power: ${buying_power:,.2f}")
+    journal.record_equity(equity, cfg.mode.value)
+
+    # --- drawdown check against journaled live equity history ---
+    history = journal.db.equity_history(cfg.mode.value)
+    guard = DrawdownGuard(
+        max_daily_pct=cfg.risk.max_daily_drawdown_pct,
+        max_total_pct=cfg.risk.max_total_drawdown_pct,
+        max_monthly_pct=cfg.risk.max_monthly_loss_pct,
+        starting_equity=history[0][1] if history else equity,
     )
+    for ts_str, eq in history:
+        for b in guard.update(eq, datetime.fromisoformat(ts_str).date()):
+            kill_switch.engage(str(b))
+            journal.record_risk_event("drawdown_breach", str(b))
+
+    # --- market data (stale/missing data = asset not traded, by rule) ---
+    data = fetch_all_data(cfg, check_fresh=True)
+    missed: list[str] = []
+    for asset in cfg.watchlist.all_assets:
+        if asset not in data:
+            missed.append(f"{asset}: no fresh data — not traded (by rule)")
+    prices = {a: float(df["close"].iloc[-1]) for a, df in data.items()}
+
+    # --- reconcile live positions with managed state ---
+    state_path = BASE_DIR / LIVE_STATE_FILE
+    state = (json.loads(state_path.read_text())
+             if state_path.exists() else {"positions": {}})
+    try:
+        held = broker.get_live_positions()
+    except OrderError as e:
+        kill_switch.engage(f"Cannot read live positions: {e}")
+        journal.record_risk_event("positions_unreadable", str(e))
+        return 1
+    for sym in list(state["positions"]):
+        if sym not in held:
+            logger.info(f"{sym} no longer held — removing from managed state.")
+            del state["positions"][sym]
+    unmanaged = [s for s in held if s not in state["positions"]]
+    for s in unmanaged:
+        missed.append(f"{s}: held in account but not opened by JerryQuant — "
+                      f"left alone (no stop is being managed for it)")
+
+    # --- manage exits: stop / target / trend break, each needs APPROVE ---
+    open_positions: list[Position] = []
+    for sym, st in list(state["positions"].items()):
+        pos = Position(
+            asset=sym, direction=Direction.LONG, size=held[sym],
+            entry_price=st["entry_price"], stop=st["stop"], target=st["target"],
+            opened_at=datetime.fromisoformat(st["opened_at"]),
+            strategy=st.get("strategy", "trend_following"),
+            dollar_risk=st.get("dollar_risk", 0.0),
+        )
+        price = prices.get(sym)
+        reason = None
+        if price is None:
+            missed.append(f"{sym}: no fresh price — exit checks skipped today")
+        elif pos.stop is not None and price <= pos.stop:
+            reason = f"stop hit (price {price:.2f} <= stop {pos.stop:.2f})"
+        elif pos.target is not None and price >= pos.target:
+            reason = f"target reached (price {price:.2f} >= target {pos.target:.2f})"
+        elif sym in data:
+            ind = trend_following.compute_indicators(data[sym], cfg)
+            reason = trend_following.should_exit(ind, cfg)
+        if not reason:
+            open_positions.append(pos)
+            continue
+
+        print(f"\nEXIT SIGNAL — sell {held[sym]} {sym} @ ~${price:,.2f}: {reason}")
+        print("Type APPROVE to sell. Anything else keeps the position.")
+        try:
+            answer = input("Decision: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            answer = ""
+        if answer != "APPROVE":
+            journal.record_risk_event("live_exit_rejected", f"{sym}: {reason}")
+            missed.append(f"{sym}: exit signaled ({reason}) but not approved")
+            open_positions.append(pos)
+            continue
+        try:
+            result = broker.sell_position(sym, held[sym], manually_approved=True)
+            journal.record_risk_event(
+                "live_exit", json.dumps({"symbol": sym, "reason": reason,
+                                         "result": result}, default=str)[:2000])
+            logger.info(f"LIVE exit: sold {held[sym]} {sym} — {reason}")
+            del state["positions"][sym]
+            state_path.write_text(json.dumps(state, indent=2))
+        except (BrokerDisabled, OrderError) as e:
+            journal.record_risk_event("live_exit_failed", f"{sym}: {e}")
+            missed.append(f"{sym}: exit approved but order failed — {e}")
+            open_positions.append(pos)
+
+    # --- generate signals (same pipeline as paper/backtest) ---
+    signals = []
+    for asset, df in data.items():
+        ind = trend_following.compute_indicators(df, cfg)
+        sig = trend_following.evaluate(ind, asset, cfg)
+        if sig is None:
+            continue
+        sentiment = sentiment_data.fetch_sentiment(asset)
+        s_adj = sentiment_data.confidence_adjustment(
+            sentiment, cfg.signals.sentiment_max_confidence_adjust
+        )
+        pm_view = prediction_market_signal.assess(
+            asset, prediction_market_data.fetch_probabilities(asset), cfg
+        )
+        sig = signal_aggregator.apply_confidence_adjustments(
+            sig, s_adj, pm_view.confidence_adjust, cfg
+        )
+        journal.record_signal(sig)
+        signals.append(sig)
+
+    actionable = signal_aggregator.filter_actionable(signals, cfg)
+    logger.info(f"{len(signals)} signals evaluated, {len(actionable)} actionable.")
+
+    equities = {a.upper() for a in cfg.watchlist.equities}
+    for sig in actionable:
+        if sig.asset.upper().replace("-USD", "") not in equities:
+            missed.append(f"{sig.asset}: signal valid but crypto cannot trade "
+                          f"live (Robinhood agentic MCP has no crypto orders)")
+            continue
+        if not kill_switch.can_trade():
+            missed.append(f"{sig.asset}: signal valid but kill switch engaged")
+            continue
+        try:
+            ticket, size = order_manager.build_ticket(
+                sig, equity, open_positions, prices, cfg
+            )
+        except order_manager.TradeBlocked as e:
+            missed.append(f"{sig.asset}: blocked — {e}")
+            continue
+        except PositionSizeError as e:
+            kill_switch.engage(f"Position sizing failed for {sig.asset}: {e}")
+            journal.record_risk_event("position_sizing_failure", str(e))
+            break
+
+        def execute(t, _sig=sig, _size=size):
+            result = broker.place_order(_sig, _size.units, manually_approved=True)
+            journal.record_risk_event(
+                "live_entry", json.dumps({"symbol": _sig.asset,
+                                          "units": _size.units,
+                                          "result": result}, default=str)[:2000])
+            state["positions"][_sig.asset.upper()] = {
+                "entry_price": _sig.entry, "stop": _sig.stop,
+                "target": _sig.target, "size": _size.units,
+                "opened_at": datetime.now(timezone.utc).isoformat(),
+                "strategy": _sig.strategy, "dollar_risk": _size.dollar_risk,
+            }
+            state_path.write_text(json.dumps(state, indent=2))
+            logger.info(f"LIVE fill submitted: {_sig.asset} {_size.units:.6f}")
+
+        try:
+            outcome = order_manager.handle_live_signal(
+                ticket, cfg, kill_switch, execute_fn=execute
+            )
+        except (BrokerDisabled, OrderError) as e:
+            outcome = f"order failed — {e}"
+            journal.record_risk_event("live_entry_failed", f"{sig.asset}: {e}")
+            missed.append(f"{sig.asset}: approved but order failed — {e}")
+        logger.info(f"{sig.asset}: {outcome}")
+
+    # --- daily report ---
+    equity_after = broker.get_balance() or equity
+    peak = max([eq for _, eq in history] + [equity_after]) if history else equity_after
+    dd = max(0.0, (peak - equity_after) / peak * 100.0) if peak > 0 else 0.0
+    report = daily_report.build_report(
+        daily_report.DailyReportData(
+            portfolio_value=equity_after,
+            cash=buying_power,
+            open_positions=open_positions,
+            position_prices=prices,
+            drawdown_pct=dd,
+            kill_switch_engaged=not kill_switch.can_trade(),
+            kill_switch_reasons=kill_switch.reasons,
+            missed_trades=missed,
+        ),
+        journal,
+        cfg,
+    )
+    daily_report.deliver_report(report, cfg, BASE_DIR)
     return 0
 
 

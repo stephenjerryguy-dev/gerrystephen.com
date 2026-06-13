@@ -12,7 +12,9 @@ REPO_CONFIG = Path(__file__).resolve().parents[1] / "config.yaml"
 def test_shipped_config_loads_and_is_safe():
     cfg = load_config(REPO_CONFIG)
     assert cfg.mode == Mode.BACKTEST                      # default mode
-    assert cfg.execution.live_trading_enabled is False    # live disabled
+    # live_trading_enabled was armed by the owner on 2026-06-12 for the
+    # $100 agentic-account test; manual approval remains non-negotiable.
+    assert cfg.execution.live_trading_enabled is True
     assert cfg.execution.require_manual_approval is True
     assert cfg.risk.max_risk_per_trade_pct <= 1.0
     assert cfg.risk.min_risk_reward >= 2.0

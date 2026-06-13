@@ -73,7 +73,7 @@ paper:
 
 execution:
   require_manual_approval: true      # non-negotiable for live modes
-  live_trading_enabled: false        # LIVE_APPROVED refuses to run while false
+  live_trading_enabled: true         # armed by owner 2026-06-12 ($100 agentic account)
   halt_file: HALT_TRADING.txt
 
 database:

@@ -7,3 +7,5 @@ __pycache__/
 logs/*
 !logs/.gitkeep
 HALT_TRADING.txt
+.venv/
+live_state.json
