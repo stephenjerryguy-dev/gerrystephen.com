@@ -209,6 +209,13 @@ class ExecutionConfig(BaseModel):
     require_manual_approval: bool = True
     live_trading_enabled: bool = False
     halt_file: str = "HALT_TRADING.txt"
+    # Order pricing. Robinhood only accepts MARKET orders for fractional
+    # shares, so a true marketable-limit order can only be used once a
+    # position is a whole share or more; fractional orders fall back to
+    # market protected by a pre-trade price-deviation guard.
+    use_marketable_limit: bool = True
+    limit_buffer_pct: float = Field(default=0.25, ge=0, le=5)
+    max_buy_deviation_pct: float = Field(default=1.5, gt=0, le=20)
 
     @field_validator("require_manual_approval")
     @classmethod

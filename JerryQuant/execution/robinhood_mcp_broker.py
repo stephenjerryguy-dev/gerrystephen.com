@@ -268,6 +268,25 @@ class RobinhoodMCPBroker:
                 }
         return out
 
+    def get_quote(self, symbol: str) -> dict:
+        """Live bid/ask/last for a symbol. After the close the book is shut
+        and bid/ask come back 0 — callers fall back to last_trade_price."""
+        def _f(x) -> float:
+            try:
+                return float(x)
+            except (TypeError, ValueError):
+                return 0.0
+        data = self.call_tool("get_equity_quotes", {"symbols": [symbol]})
+        results = data.get("results") or []
+        if not results:
+            raise OrderError(f"No quote returned for {symbol}")
+        q = results[0].get("quote", results[0])
+        return {
+            "ask": _f(q.get("ask_price")),
+            "bid": _f(q.get("bid_price")),
+            "last": _f(q.get("last_trade_price")),
+        }
+
     # ------------------------------------------------------------------
     # Orders
     # ------------------------------------------------------------------
@@ -299,6 +318,12 @@ class RobinhoodMCPBroker:
             )
         return s
 
+    @staticmethod
+    def _is_whole(quantity: float) -> bool:
+        """A whole number of shares (>=1) — the only case Robinhood lets us
+        price with a limit order; fractional must be market."""
+        return quantity >= 1 and abs(quantity - round(quantity)) < 1e-9
+
     def _order_params(self, symbol: str, side: str, quantity: float) -> dict:
         # Fractional quantities require type=market + regular_hours per
         # Robinhood's schema — and a $100 account trades fractions of SPY.
@@ -311,6 +336,37 @@ class RobinhoodMCPBroker:
             "time_in_force": "gfd",
             "market_hours": "regular_hours",
         }
+
+    def _limit_params(self, symbol: str, side: str, whole_qty: float,
+                      limit_price: float) -> dict:
+        # Limit orders are whole-share only (fractional must be market).
+        return {
+            "account_number": self.get_account_number(),
+            "symbol": symbol,
+            "side": side,
+            "type": "limit",
+            "quantity": str(int(round(whole_qty))),
+            "limit_price": f"{limit_price:.2f}",
+            "time_in_force": "gfd",
+            "market_hours": "regular_hours",
+        }
+
+    def _buy_params(self, symbol: str, quantity: float, basis: float) -> dict:
+        """Marketable-limit buy when the size is a whole share (price
+        protection: limit sits just above the quote so it fills now but
+        caps the worst price); otherwise a fractional market buy."""
+        if self.cfg.execution.use_marketable_limit and self._is_whole(quantity):
+            limit = basis * (1 + self.cfg.execution.limit_buffer_pct / 100.0)
+            return self._limit_params(symbol, "buy", quantity, limit)
+        return self._order_params(symbol, "buy", quantity)
+
+    def _sell_params(self, symbol: str, quantity: float, basis: float) -> dict:
+        """Marketable-limit sell for a whole-share exit; fractional exits go
+        to market so the position fully closes (no stranded remainder)."""
+        if self.cfg.execution.use_marketable_limit and self._is_whole(quantity):
+            limit = basis * (1 - self.cfg.execution.limit_buffer_pct / 100.0)
+            return self._limit_params(symbol, "sell", quantity, limit)
+        return self._order_params(symbol, "sell", quantity)
 
     def review_order(self, symbol: str, side: str, quantity: float) -> dict:
         """Robinhood's native pre-trade simulation: current quote plus
@@ -334,7 +390,12 @@ class RobinhoodMCPBroker:
                     manually_approved: bool) -> dict:
         """review_equity_order, then place_equity_order. Every gate is
         re-checked here; approval must have been collected by the caller
-        (order_manager prompts for the literal word APPROVE)."""
+        (order_manager prompts for the literal word APPROVE).
+
+        Buys get price protection two ways: a hard deviation guard that
+        refuses to chase a gap-up beyond max_buy_deviation_pct of the
+        signal's reference price, and (when the size is a whole share) a
+        marketable-limit order that caps the fill price."""
         self.kill_switch.assert_can_trade()
         self.assert_armed()
         if not manually_approved:
@@ -352,16 +413,33 @@ class RobinhoodMCPBroker:
                 f"Pre-trade review blocked {symbol}: {'; '.join(blocking)}"
             )
 
-        params = self._order_params(symbol, "buy", size_units)
+        # Price-deviation guard: never buy into a spike away from the
+        # reference price the signal was generated at.
+        quote = self.get_quote(symbol)
+        basis = quote["ask"] if quote["ask"] > 0 else quote["last"]
+        if basis <= 0:
+            raise OrderError(f"No usable quote for {symbol}; refusing to buy blind")
+        ref = float(signal.entry)
+        if ref > 0:
+            ceiling = ref * (1 + self.cfg.execution.max_buy_deviation_pct / 100.0)
+            if basis > ceiling:
+                raise OrderError(
+                    f"{symbol} quote ${basis:,.2f} is more than "
+                    f"{self.cfg.execution.max_buy_deviation_pct}% above the "
+                    f"signal reference ${ref:,.2f} — not chasing the move"
+                )
+
+        params = self._buy_params(symbol, size_units, basis)
         params["ref_id"] = str(uuid.uuid4())
         return self.call_tool("place_equity_order", params)
 
     def sell_position(self, symbol: str, quantity: float,
                       manually_approved: bool) -> dict:
-        """Market sell to exit a position (stop / target / trend break).
+        """Sell to exit a position (stop / target / trend break / scale-out).
         Same gates as buys: armed broker + explicit approval. Exits are
-        deliberately NOT blocked by the kill switch — a halted system
-        must still be able to get out of risk with human approval."""
+        deliberately NOT blocked by the kill switch — a halted system must
+        still be able to get out of risk with human approval — and exits
+        carry no deviation guard, since getting out matters more than price."""
         self.assert_armed()
         if not manually_approved:
             raise BrokerDisabled(
@@ -376,6 +454,12 @@ class RobinhoodMCPBroker:
             raise OrderError(
                 f"Pre-trade review blocked {symbol} sell: {'; '.join(blocking)}"
             )
-        params = self._order_params(symbol, "sell", quantity)
+        quote = self.get_quote(symbol)
+        basis = quote["bid"] if quote["bid"] > 0 else quote["last"]
+        if basis <= 0:
+            # No usable quote for a limit; fall back to a plain market exit.
+            params = self._order_params(symbol, "sell", quantity)
+        else:
+            params = self._sell_params(symbol, quantity, basis)
         params["ref_id"] = str(uuid.uuid4())
         return self.call_tool("place_equity_order", params)

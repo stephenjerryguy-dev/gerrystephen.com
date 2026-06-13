@@ -20,6 +20,7 @@ watchlist:
   equities:
     - SPY
     - QQQ
+    - IWM                # Russell 2000 small-caps — broad US equity sleeve
 
 risk:
   max_risk_per_trade_pct: 1.0        # max % of account equity risked per trade
@@ -39,7 +40,7 @@ risk:
     enabled: true
     clusters:                        # correlated names share a combined cap
       crypto: [BTC, ETH, SOL]
-      equity_index: [SPY, QQQ]
+      equity_index: [SPY, QQQ, IWM]
     max_cluster_pct: 50.0            # max combined allocation to one cluster
     haircut_threshold: 0.6           # correlation above this shrinks a new position
     max_haircut: 0.5                 # never shrink a position by more than this
@@ -102,6 +103,9 @@ execution:
   require_manual_approval: true      # non-negotiable for live modes
   live_trading_enabled: true         # armed by owner 2026-06-12 ($100 agentic account)
   halt_file: HALT_TRADING.txt
+  use_marketable_limit: true         # limit orders once a position is >=1 whole share
+  limit_buffer_pct: 0.25             # marketable limit sits this far through the quote
+  max_buy_deviation_pct: 1.5         # abort a buy if the quote is this far above reference
 
 database:
   path: jerryquant.db
