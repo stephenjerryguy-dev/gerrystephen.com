@@ -139,16 +139,24 @@ Approval must go through something that knows it's *you* — never a public web
 page. The supported on-the-go path is a **GitHub Environment gate** you approve
 in the GitHub mobile app:
 
-1. The `JerryQuant Live` workflow (`.github/workflows/jerryquant-live.yml`)
-   runs `--mode live_propose`, which computes the day's exact tickets and posts
-   them to the run summary. It places nothing.
-2. The `execute` job is gated by a GitHub Environment named `live-trading` with
-   you as a **required reviewer**. It pauses and notifies you. You open the
-   GitHub app, read the proposed tickets, and tap **Approve** or **Reject**.
+The `JerryQuant Live` workflow (`.github/workflows/jerryquant-live.yml`) runs
+in two windows a day so a trend recognized at the close is placed at the open:
+
+1. **After the US close** — a `preview` run posts the day's proposed tickets to
+   the run summary (the heads-up that a trend was recognized). Places nothing.
+2. **At the US open** — `propose` recomputes on fresh prices, then the `execute`
+   job is gated by a GitHub Environment named `live-trading` with you as a
+   **required reviewer**. It pauses and notifies you; you open the GitHub app,
+   read the tickets, and tap **Approve** or **Reject**.
 3. On approval, `--mode live_execute` places **exactly** the proposed tickets
    (downloaded as an artifact — not a recomputed set), re-checking the kill
-   switch and the price-deviation guard at execution time. A proposal older
-   than `LIVE_PENDING_MAX_AGE_H` hours is refused as stale.
+   switch and the price-deviation guard at the open. A proposal older than
+   `LIVE_PENDING_MAX_AGE_H` hours is refused as stale.
+
+The live equity universe is SPY/QQQ/IWM plus the spot-crypto ETFs **IBIT**
+(Bitcoin) and **ETHA** (Ethereum) — crypto exposure on the equity rails. Note
+these trade equity hours, not 24/7; Robinhood's agentic MCP has no crypto order
+tools, so direct 24/7 crypto is not available through this account.
 
 One-time setup (only you can do these) is documented at the top of the workflow
 file: create the `live-trading` environment with yourself as required reviewer,

@@ -53,7 +53,8 @@ class CorrelationConfig(BaseModel):
     clusters: dict[str, list[str]] = Field(
         default_factory=lambda: {
             "crypto": ["BTC", "ETH", "SOL"],
-            "equity_index": ["SPY", "QQQ"],
+            "crypto_etf": ["IBIT", "ETHA"],
+            "equity_index": ["SPY", "QQQ", "IWM"],
         }
     )
     max_cluster_pct: float = Field(default=50.0, gt=0, le=100)

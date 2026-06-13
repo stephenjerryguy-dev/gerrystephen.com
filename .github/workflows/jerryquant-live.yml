@@ -1,32 +1,35 @@
 name: JerryQuant Live (approve on mobile)
 
-# Mobile-approved live trading. The "propose" job computes the day's exact
-# tickets and posts them to the run summary; the "execute" job is gated by a
-# GitHub Environment with you as a required reviewer, so it does not run until
-# you approve in the GitHub mobile app. Execute places EXACTLY the proposed
-# tickets (downloaded as an artifact), never a recomputed set.
+# Two windows a day, so a trend recognized at the close is placed at the open:
+#   * After the US close  -> "preview" only: recompute and post the day's
+#     proposed tickets to the run summary. Places nothing, no approval needed.
+#     This is the heads-up that a trend has been recognized.
+#   * At the US open       -> "propose" then a gated "execute": recompute on
+#     fresh prices, you approve in the GitHub mobile app, and it places EXACTLY
+#     the proposed tickets at the open (fresh price-deviation guard applied).
+# Manual runs (workflow_dispatch) do the full propose -> approve -> execute.
 #
 # SETUP (one-time, only you can do these):
 #   1. Repo Settings -> Environments -> New environment "live-trading".
-#      Add yourself under "Required reviewers". (This is the approval gate.)
-#   2. Repo Settings -> Secrets and variables -> Actions -> add secrets:
-#        ROBINHOOD_MCP_URL            = https://agent.robinhood.com/mcp/trading
-#        ROBINHOOD_MCP_API_KEY        = (access token from JerryQuant/.env)
-#        ROBINHOOD_MCP_REFRESH_TOKEN  = (refresh token from JerryQuant/.env)
-#        ROBINHOOD_ACCOUNT_NUMBER     = (the ****1530 agentic account number)
-#   3. Scheduled runs only fire on the default branch — merge to main to arm.
+#      Add yourself under "Required reviewers" (this is the mobile approval gate).
+#   2. Repo Settings -> Secrets and variables -> Actions -> add:
+#        ROBINHOOD_MCP_URL, ROBINHOOD_MCP_API_KEY,
+#        ROBINHOOD_MCP_REFRESH_TOKEN, ROBINHOOD_ACCOUNT_NUMBER
+#   3. Merge to the default branch so the schedules arm.
 #
-# SECURITY NOTE: this runs on GitHub-hosted runners, so the token lives as a
-# GitHub encrypted secret (a bigger surface than laptop-only). For the most
-# tamper-resistant setup, switch `runs-on` to a self-hosted runner on your own
-# machine and keep the token in a local .env referenced by JERRYQUANT_ENV_PATH
-# — then the token never leaves your hardware and GitHub only provides the gate.
+# DST NOTE: cron is UTC and does not shift for daylight saving. The OPEN cron
+# below (13:35 UTC) is 9:35 AM ET during EDT (Mar-Nov). In EST (Nov-Mar) the
+# US open is 14:30 UTC, so change OPEN to "35 14 * * 1-5" for the winter.
+#
+# SECURITY: GitHub-hosted runners hold the token as an encrypted secret. For
+# the most tamper-resistant setup, use a self-hosted runner on your own machine
+# and point JERRYQUANT_ENV_PATH at a local .env so the token never leaves it.
 
 on:
   workflow_dispatch:
   schedule:
-    # Weekdays 21:35 UTC, just after the US close. Equities only trade live.
-    - cron: "35 21 * * 1-5"
+    - cron: "35 21 * * 1-5"   # after US close  -> preview (heads-up only)
+    - cron: "35 13 * * 1-5"   # at US open (EDT) -> propose + gated execute
 
 permissions:
   contents: write
@@ -42,7 +45,28 @@ env:
   ROBINHOOD_ACCOUNT_NUMBER: ${{ secrets.ROBINHOOD_ACCOUNT_NUMBER }}
 
 jobs:
+  # ---- after-close heads-up: recognize the trend, place nothing ----
+  preview:
+    if: github.event.schedule == '35 21 * * 1-5'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: JerryQuant/requirements.txt
+      - run: pip install -r JerryQuant/requirements.txt
+      - name: Preview proposed tickets (places nothing)
+        run: |
+          cd JerryQuant
+          python main.py --mode live_propose
+          cat live_pending.md >> "$GITHUB_STEP_SUMMARY"
+
+  # ---- at-open: recompute on fresh prices and stage for approval ----
   propose:
+    if: github.event.schedule == '35 13 * * 1-5' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     outputs:
@@ -54,8 +78,7 @@ jobs:
           python-version: "3.11"
           cache: pip
           cache-dependency-path: JerryQuant/requirements.txt
-      - name: Install dependencies
-        run: pip install -r JerryQuant/requirements.txt
+      - run: pip install -r JerryQuant/requirements.txt
       - name: Propose live actions (read-only, places nothing)
         id: propose
         run: |
@@ -64,13 +87,13 @@ jobs:
           cat live_pending.md >> "$GITHUB_STEP_SUMMARY"
           n=$(python -c "import json;print(len(json.load(open('live_pending.json'))['actions']))")
           echo "has_actions=$([ "$n" -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-      - name: Upload proposed tickets
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: live-pending
           path: JerryQuant/live_pending.json
           retention-days: 5
 
+  # ---- gated execute: fills at the open after your mobile approval ----
   execute:
     needs: propose
     if: needs.propose.outputs.has_actions == 'true'
@@ -84,14 +107,12 @@ jobs:
           python-version: "3.11"
           cache: pip
           cache-dependency-path: JerryQuant/requirements.txt
-      - name: Install dependencies
-        run: pip install -r JerryQuant/requirements.txt
-      - name: Download the exact approved tickets
-        uses: actions/download-artifact@v4
+      - run: pip install -r JerryQuant/requirements.txt
+      - uses: actions/download-artifact@v4
         with:
           name: live-pending
           path: JerryQuant
-      - name: Execute approved tickets
+      - name: Execute approved tickets at the open
         run: cd JerryQuant && python main.py --mode live_execute
       - name: Persist live state to repo
         if: always()

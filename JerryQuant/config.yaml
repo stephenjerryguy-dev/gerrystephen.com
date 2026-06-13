@@ -21,6 +21,8 @@ watchlist:
     - SPY
     - QQQ
     - IWM                # Russell 2000 small-caps — broad US equity sleeve
+    - IBIT               # spot Bitcoin ETF — crypto exposure on equity rails
+    - ETHA               # spot Ethereum ETF — crypto exposure on equity rails
 
 risk:
   max_risk_per_trade_pct: 1.0        # max % of account equity risked per trade
@@ -40,6 +42,7 @@ risk:
     enabled: true
     clusters:                        # correlated names share a combined cap
       crypto: [BTC, ETH, SOL]
+      crypto_etf: [IBIT, ETHA]       # spot-crypto ETFs move with their coin, not the S&P
       equity_index: [SPY, QQQ, IWM]
     max_cluster_pct: 50.0            # max combined allocation to one cluster
     haircut_threshold: 0.6           # correlation above this shrinks a new position
