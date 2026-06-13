@@ -44,6 +44,24 @@ class WatchlistConfig(BaseModel):
         return list(self.crypto) + list(self.equities)
 
 
+class CorrelationConfig(BaseModel):
+    """Correlation-aware exposure. Three crypto names that move together
+    are one bet, not three — cluster caps and a sizing haircut stop the
+    portfolio from quietly concentrating risk."""
+
+    enabled: bool = True
+    clusters: dict[str, list[str]] = Field(
+        default_factory=lambda: {
+            "crypto": ["BTC", "ETH", "SOL"],
+            "equity_index": ["SPY", "QQQ"],
+        }
+    )
+    max_cluster_pct: float = Field(default=50.0, gt=0, le=100)
+    haircut_threshold: float = Field(default=0.6, ge=0, le=1)
+    max_haircut: float = Field(default=0.5, ge=0, lt=1)
+    lookback_days: int = Field(default=60, ge=20)
+
+
 class RiskConfig(BaseModel):
     max_risk_per_trade_pct: float = Field(default=1.0, gt=0)
     max_daily_drawdown_pct: float = Field(default=5.0, gt=0)
@@ -58,6 +76,7 @@ class RiskConfig(BaseModel):
     min_dollar_volume_20d: float = Field(default=1_000_000, ge=0)
     max_atr_pct: float = Field(default=8.0, gt=0)
     min_atr_pct: float = Field(default=0.2, ge=0)
+    correlation: CorrelationConfig = Field(default_factory=CorrelationConfig)
 
     @field_validator("max_risk_per_trade_pct")
     @classmethod
@@ -117,10 +136,25 @@ class TrendFollowingConfig(BaseModel):
     atr_stop_multiple: float = 2.0
     pullback_lookback: int = 10
 
+    # --- exit management (capture fat-tailed winners, cut dead capital) ---
+    use_trailing_stop: bool = True
+    trail_atr_multiple: float = 3.0     # chandelier: high - mult*ATR
+    trail_lookback: int = 22            # bars for the chandelier high
+    max_holding_days: int = 90          # time stop; 0 disables
+    time_stop_min_gain_pct: float = 2.0  # exit at time stop only if gain below this
+    scale_out_enabled: bool = True
+    scale_out_r: float = 1.5            # take partial profit at this R multiple
+    scale_out_fraction: float = 0.5     # fraction of the position to sell
+    breakeven_after_scale: bool = True  # ratchet stop to entry after scaling out
+
     @model_validator(mode="after")
     def _ma_order(self) -> "TrendFollowingConfig":
         if self.fast_ma >= self.slow_ma:
             raise ValueError("fast_ma must be shorter than slow_ma")
+        if not 0.0 < self.scale_out_fraction < 1.0:
+            raise ValueError("scale_out_fraction must be between 0 and 1")
+        if self.trail_atr_multiple <= 0:
+            raise ValueError("trail_atr_multiple must be positive")
         return self
 
 
@@ -128,9 +162,23 @@ class MomentumConfig(BaseModel):
     enabled: bool = False
 
 
+class RegimeConfig(BaseModel):
+    """Market-regime gate. Trend-following bleeds in bear/chop tapes, so
+    new longs are only allowed when the broad market is itself healthy."""
+
+    enabled: bool = True
+    benchmark: str = "SPY"
+    benchmark_ma: int = Field(default=200, ge=20)
+    require_benchmark_uptrend: bool = True
+    min_breadth_pct: float = Field(default=40.0, ge=0, le=100)
+    breadth_ma: int = Field(default=200, ge=20)
+    max_benchmark_atr_pct: float = Field(default=0.0, ge=0)  # 0 disables vol gate
+
+
 class StrategyConfig(BaseModel):
     trend_following: TrendFollowingConfig = TrendFollowingConfig()
     momentum: MomentumConfig = MomentumConfig()
+    regime: RegimeConfig = RegimeConfig()
 
 
 class SignalsConfig(BaseModel):

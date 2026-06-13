@@ -28,6 +28,34 @@ It is built to behave like a disciplined quant assistant, not a gambling bot.
    whenever no edge exists.
 8. Requires explicit per-trade manual approval before any live order.
 
+## Edge controls (added on top of the base trend follower)
+
+These make the system more discerning without weakening any safety rule —
+every new signal still passes through position sizing, exposure limits, the
+drawdown guard, the kill switch, and per-trade approval.
+
+- **Market-regime gate** (`strategy.regime`): no new longs unless the broad
+  market is healthy — the benchmark (SPY) above its 200-day MA and a minimum
+  fraction of the universe above their own MAs. Trend-following bleeds in
+  bear/chop tapes; this keeps it flat there. The gate only ever *blocks* new
+  entries; it never forces a trade and never touches open positions.
+- **Smarter exits** (`strategy.trend_following`): a chandelier **trailing
+  stop** that ratchets up and lets winners run (replacing the fixed target),
+  a **time stop** that closes dead-money positions, and **partial
+  profit-taking** that scales out a fraction at a set R multiple and moves
+  the stop to breakeven.
+- **Correlation-aware exposure** (`risk.correlation`): correlated names
+  (BTC/ETH/SOL) share a combined **cluster cap**, and a new position that is
+  highly correlated with what is already open is **sized down** — so three
+  crypto names cannot quietly become one triple-sized bet.
+- **Validation tooling** (`python main.py --validate`): walk-forward
+  out-of-sample windows, a parameter-sensitivity sweep (curve-fit check),
+  and a bootstrap Monte Carlo over the realized trades (return and
+  drawdown distributions). Pure analysis — it never trades.
+
+Each control has an `enabled` flag and conservative defaults in
+`config.yaml`; turning any of them off falls back to the base behavior.
+
 ## What it does NOT do
 
 - No high-frequency trading or scalping — it works on **daily bars**.
@@ -39,10 +67,12 @@ It is built to behave like a disciplined quant assistant, not a gambling bot.
 - Sentiment and prediction markets **never** trigger trades. They can only
   nudge confidence within a small bounded range, and a positive nudge can
   never rescue a signal that failed on its own merits.
-- It does not place live orders today. The Robinhood MCP broker interface
-  exists and can discover Robinhood's tools, but order placement stays
-  unimplemented until the connection is made and the real tool schemas
-  are seen — the system never guesses at an API.
+- It places live orders ONLY when fully armed and only with per-trade
+  approval. Order placement is now implemented against Robinhood's real,
+  discovered MCP tool schemas (review-then-place, equities only — the
+  agentic MCP exposes no crypto order tools), and still requires the
+  config flag, the credentials, LIVE_APPROVED mode, and the typed `APPROVE`.
+  It never guesses at an API it has not seen.
 
 ## Risk rules (enforced in code)
 
@@ -160,6 +190,17 @@ python main.py --mode backtest
 Fetches history for the watchlist, runs the trend-following strategy through
 the engine with costs applied, prints the full performance report, and
 journals every simulated trade to `jerryquant.db`.
+
+### Validation mode (run before trusting the edge)
+
+```bash
+python main.py --validate       # walk-forward + sensitivity + Monte Carlo
+```
+
+Pure analysis on historical data — never trades. Prints walk-forward
+out-of-sample windows, a parameter-sensitivity surface (curve-fit check),
+and a bootstrap Monte Carlo distribution of returns and drawdowns. Use it
+to decide whether the strategy's edge is robust or fit to noise.
 
 ### Paper mode
 

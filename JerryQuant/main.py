@@ -105,6 +105,8 @@ def run_backtest_mode(cfg: Config, journal: TradeJournal) -> int:
         print(f"\n  NOTE: backtest HALTED early — {result.halt_reason}")
     if result.skipped_signals:
         print(f"  Signals skipped by risk gates: {result.skipped_signals}")
+    if result.regime_blocked:
+        print(f"  Days new entries blocked by regime: {result.regime_blocked}")
     print("=" * 62)
 
     for t in result.trades:
@@ -130,6 +132,7 @@ def _load_paper_state(broker, path: Path) -> None:
             strategy=p["strategy"],
             dollar_risk=p["dollar_risk"],
         )
+        broker.positions[p["asset"]]._scaled_out = p.get("scaled_out", False)
         broker._entry_fees[p["asset"]] = p.get("entry_fee", 0.0)
 
 
@@ -148,6 +151,7 @@ def _save_paper_state(broker, path: Path) -> None:
                 "strategy": p.strategy,
                 "dollar_risk": p.dollar_risk,
                 "entry_fee": broker._entry_fees.get(p.asset, 0.0),
+                "scaled_out": getattr(p, "_scaled_out", False),
             }
             for p in broker.positions.values()
         ],
@@ -166,6 +170,7 @@ def run_signal_cycle(cfg: Config, journal: TradeJournal,
     from execution import order_manager
     from execution.paper_broker import OrderRejected, PaperBroker
     from reports import daily_report
+    from risk import correlation, regime_filter
     from risk.drawdown_guard import DrawdownGuard
     from risk.position_sizing import PositionSizeError
     from strategies import prediction_market_signal, signal_aggregator, trend_following
@@ -183,20 +188,47 @@ def run_signal_cycle(cfg: Config, journal: TradeJournal,
 
     prices = {a: float(df["close"].iloc[-1]) for a, df in data.items()}
 
+    tf = cfg.strategy.trend_following
+
     # --- manage existing positions ---
     if execute:
+        # Ratchet trailing stops before the stop/target sweep.
+        if tf.use_trailing_stop:
+            for asset, pos in broker.positions.items():
+                if asset in data:
+                    ind = trend_following.compute_indicators(data[asset], cfg)
+                    pos.stop = trend_following.compute_trailing_stop(
+                        ind, cfg, pos.stop
+                    )
         for t in broker.check_stops_and_targets(prices):
             journal.record_trade(t, mode="PAPER")
             logger.info(f"Closed {t.asset}: {t.exit_reason}, P&L ${t.pnl:+.2f}")
         for asset in list(broker.positions.keys()):
             if asset not in data:
                 continue
+            pos = broker.positions[asset]
             ind = trend_following.compute_indicators(data[asset], cfg)
-            reason = trend_following.should_exit(ind, cfg)
+            days_held = max(0, (datetime.now(timezone.utc) - pos.opened_at).days)
+            reason = (
+                trend_following.time_stop_reason(
+                    days_held, pos.entry_price, prices[asset], cfg)
+                or trend_following.should_exit(ind, cfg)
+            )
             if reason:
                 t = broker.close_long(asset, prices[asset], reason)
                 journal.record_trade(t, mode="PAPER")
                 logger.info(f"Closed {asset}: {reason}, P&L ${t.pnl:+.2f}")
+                continue
+            # Partial profit-take (scale-out) at the configured R multiple.
+            units = trend_following.scale_out_units(
+                pos.entry_price, pos.size, pos.dollar_risk, prices[asset], cfg,
+                getattr(pos, "_scaled_out", False),
+            )
+            if units > 0:
+                t = broker.scale_out_long(asset, units, prices[asset])
+                pos._scaled_out = True
+                journal.record_trade(t, mode="PAPER")
+                logger.info(f"Scaled out {asset}: {units:.6f}, P&L ${t.pnl:+.2f}")
 
     equity = broker.equity(prices)
     journal.record_equity(equity, cfg.mode.value)
@@ -241,6 +273,16 @@ def run_signal_cycle(cfg: Config, journal: TradeJournal,
         f"{len(signals)} signals evaluated, {len(actionable)} actionable."
     )
 
+    # --- regime gate: no new longs in a bear/chop tape ---
+    regime = regime_filter.assess_regime(data, cfg)
+    logger.info(regime.render())
+    if not regime.risk_on and actionable:
+        for sig in actionable:
+            missed.append(f"{sig.asset}: signal valid but regime risk-off "
+                          f"({'; '.join(regime.reasons)})")
+        actionable = []
+    closes = {a: df["close"] for a, df in data.items()}
+
     # --- act on signals ---
     for sig in actionable:
         if not kill_switch.can_trade():
@@ -257,6 +299,23 @@ def run_signal_cycle(cfg: Config, journal: TradeJournal,
             kill_switch.engage(f"Position sizing failed for {sig.asset}: {e}")
             journal.record_risk_event("position_sizing_failure", str(e))
             break
+
+        # Correlation haircut + cluster cap.
+        mult, note = correlation.correlation_haircut(
+            sig.asset, list(broker.positions.values()), closes, cfg
+        )
+        if mult < 1.0:
+            size.units *= mult
+            size.value_usd *= mult
+            size.dollar_risk *= mult
+            logger.info(f"{sig.asset}: {note}")
+        cluster_viol = correlation.check_cluster_exposure(
+            sig.asset, size.value_usd, equity,
+            list(broker.positions.values()), prices, cfg
+        )
+        if cluster_viol:
+            missed.append(f"{sig.asset}: blocked — {'; '.join(cluster_viol)}")
+            continue
 
         if execute:
             try:
@@ -362,6 +421,7 @@ def _run_live_cycle(cfg: Config, journal: TradeJournal,
     from execution import order_manager
     from execution.robinhood_mcp_broker import BrokerDisabled, OrderError
     from reports import daily_report
+    from risk import correlation, regime_filter
     from risk.drawdown_guard import DrawdownGuard
     from risk.position_sizing import PositionSizeError
     from strategies import prediction_market_signal, signal_aggregator, trend_following
@@ -426,9 +486,41 @@ def _run_live_cycle(cfg: Config, journal: TradeJournal,
         missed.append(f"{s}: held in account but not opened by JerryQuant — "
                       f"left alone (no stop is being managed for it)")
 
-    # --- manage exits: stop / target / trend break, each needs APPROVE ---
+    tf = cfg.strategy.trend_following
+
+    def _approved(prompt: str) -> bool:
+        print(prompt)
+        print("Type APPROVE to proceed. Anything else declines.")
+        try:
+            return input("Decision: ").strip() == "APPROVE"
+        except (EOFError, KeyboardInterrupt):
+            return False
+
+    # --- manage exits: trailing stop / target / trend / time / scale-out,
+    #     each needing explicit APPROVE ---
     open_positions: list[Position] = []
     for sym, st in list(state["positions"].items()):
+        price = prices.get(sym)
+        if price is None:
+            missed.append(f"{sym}: no fresh price — exit checks skipped today")
+            open_positions.append(Position(
+                asset=sym, direction=Direction.LONG, size=held[sym],
+                entry_price=st["entry_price"], stop=st["stop"],
+                target=st["target"],
+                opened_at=datetime.fromisoformat(st["opened_at"]),
+                strategy=st.get("strategy", "trend_following"),
+                dollar_risk=st.get("dollar_risk", 0.0)))
+            continue
+
+        ind = trend_following.compute_indicators(data[sym], cfg) if sym in data else None
+
+        # Ratchet the trailing stop and persist it.
+        if ind is not None and tf.use_trailing_stop:
+            new_stop = trend_following.compute_trailing_stop(ind, cfg, st["stop"])
+            if new_stop > st["stop"]:
+                st["stop"] = new_stop
+                state_path.write_text(json.dumps(state, indent=2))
+
         pos = Position(
             asset=sym, direction=Direction.LONG, size=held[sym],
             entry_price=st["entry_price"], stop=st["stop"], target=st["target"],
@@ -436,44 +528,76 @@ def _run_live_cycle(cfg: Config, journal: TradeJournal,
             strategy=st.get("strategy", "trend_following"),
             dollar_risk=st.get("dollar_risk", 0.0),
         )
-        price = prices.get(sym)
+        days_held = max(0, (datetime.now(timezone.utc)
+                            - pos.opened_at).days)
+
+        # Decide on a FULL exit first (priority order).
         reason = None
-        if price is None:
-            missed.append(f"{sym}: no fresh price — exit checks skipped today")
-        elif pos.stop is not None and price <= pos.stop:
-            reason = f"stop hit (price {price:.2f} <= stop {pos.stop:.2f})"
-        elif pos.target is not None and price >= pos.target:
-            reason = f"target reached (price {price:.2f} >= target {pos.target:.2f})"
-        elif sym in data:
-            ind = trend_following.compute_indicators(data[sym], cfg)
-            reason = trend_following.should_exit(ind, cfg)
-        if not reason:
+        if pos.stop is not None and price <= pos.stop:
+            reason = f"stop/trailing-stop hit (price {price:.2f} <= {pos.stop:.2f})"
+        elif not tf.use_trailing_stop and pos.target and price >= pos.target:
+            reason = f"target reached (price {price:.2f} >= {pos.target:.2f})"
+        elif (tr := trend_following.time_stop_reason(
+                days_held, pos.entry_price, price, cfg)):
+            reason = tr
+        elif ind is not None and (xr := trend_following.should_exit(ind, cfg)):
+            reason = xr
+
+        if reason:
+            if not _approved(
+                f"\nEXIT — sell ALL {held[sym]} {sym} @ ~${price:,.2f}: {reason}"
+            ):
+                journal.record_risk_event("live_exit_rejected", f"{sym}: {reason}")
+                missed.append(f"{sym}: exit signaled ({reason}) but not approved")
+                open_positions.append(pos)
+                continue
+            try:
+                result = broker.sell_position(sym, held[sym], manually_approved=True)
+                journal.record_risk_event("live_exit", json.dumps(
+                    {"symbol": sym, "reason": reason, "result": result},
+                    default=str)[:2000])
+                logger.info(f"LIVE exit: sold {held[sym]} {sym} — {reason}")
+                del state["positions"][sym]
+                state_path.write_text(json.dumps(state, indent=2))
+            except (BrokerDisabled, OrderError) as e:
+                journal.record_risk_event("live_exit_failed", f"{sym}: {e}")
+                missed.append(f"{sym}: exit approved but order failed — {e}")
+                open_positions.append(pos)
+            continue
+
+        # No full exit — consider a partial profit-take (scale-out).
+        units = trend_following.scale_out_units(
+            pos.entry_price, held[sym], pos.dollar_risk, price, cfg,
+            st.get("scaled_out", False),
+        )
+        if units > 0:
+            if not _approved(
+                f"\nSCALE-OUT — sell {units:.6f} of {held[sym]} {sym} "
+                f"@ ~${price:,.2f} (partial profit at {tf.scale_out_r}R)"
+            ):
+                journal.record_risk_event("live_scale_rejected", f"{sym}")
+                missed.append(f"{sym}: scale-out signaled but not approved")
+                open_positions.append(pos)
+                continue
+            try:
+                result = broker.sell_position(sym, units, manually_approved=True)
+                journal.record_risk_event("live_scale_out", json.dumps(
+                    {"symbol": sym, "units": units, "result": result},
+                    default=str)[:2000])
+                st["scaled_out"] = True
+                st["size"] = held[sym] - units
+                if tf.breakeven_after_scale:
+                    st["stop"] = max(st["stop"], pos.entry_price)
+                    pos.stop = st["stop"]
+                state_path.write_text(json.dumps(state, indent=2))
+                logger.info(f"LIVE scale-out: sold {units:.6f} {sym}")
+            except (BrokerDisabled, OrderError) as e:
+                journal.record_risk_event("live_scale_failed", f"{sym}: {e}")
+                missed.append(f"{sym}: scale-out approved but failed — {e}")
             open_positions.append(pos)
             continue
 
-        print(f"\nEXIT SIGNAL — sell {held[sym]} {sym} @ ~${price:,.2f}: {reason}")
-        print("Type APPROVE to sell. Anything else keeps the position.")
-        try:
-            answer = input("Decision: ").strip()
-        except (EOFError, KeyboardInterrupt):
-            answer = ""
-        if answer != "APPROVE":
-            journal.record_risk_event("live_exit_rejected", f"{sym}: {reason}")
-            missed.append(f"{sym}: exit signaled ({reason}) but not approved")
-            open_positions.append(pos)
-            continue
-        try:
-            result = broker.sell_position(sym, held[sym], manually_approved=True)
-            journal.record_risk_event(
-                "live_exit", json.dumps({"symbol": sym, "reason": reason,
-                                         "result": result}, default=str)[:2000])
-            logger.info(f"LIVE exit: sold {held[sym]} {sym} — {reason}")
-            del state["positions"][sym]
-            state_path.write_text(json.dumps(state, indent=2))
-        except (BrokerDisabled, OrderError) as e:
-            journal.record_risk_event("live_exit_failed", f"{sym}: {e}")
-            missed.append(f"{sym}: exit approved but order failed — {e}")
-            open_positions.append(pos)
+        open_positions.append(pos)
 
     # --- generate signals (same pipeline as paper/backtest) ---
     signals = []
@@ -498,6 +622,19 @@ def _run_live_cycle(cfg: Config, journal: TradeJournal,
     actionable = signal_aggregator.filter_actionable(signals, cfg)
     logger.info(f"{len(signals)} signals evaluated, {len(actionable)} actionable.")
 
+    # --- regime gate: no new longs in a bear/chop tape ---
+    regime = regime_filter.assess_regime(data, cfg)
+    logger.info(regime.render())
+    journal.record_risk_event(
+        "regime", f"risk_on={regime.risk_on}; {regime.render()}"
+    )
+    if not regime.risk_on and actionable:
+        for sig in actionable:
+            missed.append(f"{sig.asset}: signal valid but regime risk-off "
+                          f"({'; '.join(regime.reasons)})")
+        actionable = []
+
+    closes = {a: df["close"] for a, df in data.items()}
     equities = {a.upper() for a in cfg.watchlist.equities}
     for sig in actionable:
         if sig.asset.upper().replace("-USD", "") not in equities:
@@ -518,6 +655,22 @@ def _run_live_cycle(cfg: Config, journal: TradeJournal,
             kill_switch.engage(f"Position sizing failed for {sig.asset}: {e}")
             journal.record_risk_event("position_sizing_failure", str(e))
             break
+
+        # Correlation haircut + cluster cap on top of the standard gates.
+        mult, note = correlation.correlation_haircut(
+            sig.asset, open_positions, closes, cfg
+        )
+        if mult < 1.0:
+            size.units *= mult
+            size.value_usd *= mult
+            size.dollar_risk *= mult
+            logger.info(f"{sig.asset}: {note}")
+        cluster_viol = correlation.check_cluster_exposure(
+            sig.asset, size.value_usd, equity, open_positions, prices, cfg
+        )
+        if cluster_viol:
+            missed.append(f"{sig.asset}: blocked — {'; '.join(cluster_viol)}")
+            continue
 
         def execute(t, _sig=sig, _size=size):
             result = broker.place_order(_sig, _size.units, manually_approved=True)
@@ -566,6 +719,72 @@ def _run_live_cycle(cfg: Config, journal: TradeJournal,
     return 0
 
 
+def run_validation(cfg: Config, journal: TradeJournal) -> int:
+    """Validation rigor: walk-forward, parameter sensitivity, Monte Carlo.
+
+    Pure analysis on historical data — never trades. Run this to decide
+    whether the edge is robust before trusting it with money."""
+    from backtesting import validation
+    from backtesting.backtest_engine import run_backtest
+
+    logger.info("Fetching historical data for validation...")
+    data = fetch_all_data(cfg, check_fresh=False)
+    if not data:
+        logger.error("No usable data for any watchlist asset. Aborting.")
+        return 1
+
+    start = cfg.backtest.start_date
+    end = cfg.backtest.end_date
+    for asset in list(data):
+        df = data[asset]
+        df = df[df.index >= start]
+        if end:
+            df = df[df.index <= end]
+        data[asset] = df
+
+    print("\n" + "=" * 62)
+    print("VALIDATION — is the edge real, or curve-fit?")
+    print("=" * 62)
+
+    # 1) Walk-forward out-of-sample windows
+    try:
+        wf = validation.walk_forward(data, cfg, n_windows=4)
+        print("\n" + wf.render())
+        journal.record_risk_event(
+            "validation_walk_forward",
+            f"profitable_windows_pct={wf.consistency_pct:.0f}",
+        )
+    except ValueError as e:
+        print(f"\nWalk-forward skipped: {e}")
+
+    # 2) Parameter sensitivity (curve-fit surface)
+    grid = {
+        "fast_ma": [20, 50, 80],
+        "slow_ma": [150, 200],
+        "atr_stop_multiple": [1.5, 2.0, 3.0],
+    }
+    pts = validation.parameter_sensitivity(data, cfg, grid)
+    print("\n" + validation.render_sensitivity(pts))
+
+    # 3) Monte Carlo on the realized trade sequence
+    full = run_backtest(data, cfg)
+    mc = validation.monte_carlo(
+        [t.pnl for t in full.trades],
+        cfg.account.starting_equity_usd,
+        cfg,
+    )
+    if mc is None:
+        print("\nMonte Carlo skipped: fewer than 5 trades in the base backtest.")
+    else:
+        print("\n" + mc.render())
+        journal.record_risk_event(
+            "validation_monte_carlo",
+            f"p95_max_dd={mc.p95_max_dd_pct:.1f};prob_loss={mc.prob_loss_pct:.1f}",
+        )
+    print("\n" + "=" * 62)
+    return 0
+
+
 def main() -> int:
     load_dotenv(BASE_DIR / ".env")
     parser = argparse.ArgumentParser(description="JerryQuant trading assistant")
@@ -575,6 +794,12 @@ def main() -> int:
         choices=["backtest", "paper", "live_review", "live_approved"],
         default=None,
         help="Override mode from config.yaml",
+    )
+    parser.add_argument(
+        "--validate",
+        action="store_true",
+        help="Run validation (walk-forward, parameter sensitivity, Monte "
+             "Carlo) on historical data and exit. Never trades.",
     )
     args = parser.parse_args()
 
@@ -595,6 +820,8 @@ def main() -> int:
     db = Database(BASE_DIR / cfg.database.path)
     journal = TradeJournal(db)
     try:
+        if args.validate:
+            return run_validation(cfg, journal)
         if cfg.mode == Mode.BACKTEST:
             return run_backtest_mode(cfg, journal)
         if cfg.mode == Mode.PAPER:

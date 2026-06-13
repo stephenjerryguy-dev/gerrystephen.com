@@ -233,3 +233,73 @@ def should_exit(df: pd.DataFrame, cfg: Config) -> Optional[str]:
     if bar["atr_pct"] > cfg.risk.max_atr_pct * 1.5:
         return f"Extreme volatility: ATR {bar['atr_pct']:.1f}%"
     return None
+
+
+# ----------------------------------------------------------------------
+# Exit management: trailing stop, time stop, partial profit (scale-out).
+# These are the asymmetry edge of a trend follower — cut losers fast, let
+# winners run, and stop feeding capital to positions that go nowhere.
+# ----------------------------------------------------------------------
+
+def compute_trailing_stop(
+    df: pd.DataFrame, cfg: Config, current_stop: float
+) -> float:
+    """Chandelier trailing stop: highest high over the lookback minus a
+    multiple of ATR. The stop only ever RATCHETS UP (never loosens) and is
+    kept strictly below the latest close so it cannot trigger instantly.
+    Returns the (possibly unchanged) stop."""
+    p = cfg.strategy.trend_following
+    if not p.use_trailing_stop or len(df) < p.trail_lookback:
+        return current_stop
+    bar = df.iloc[-1]
+    if pd.isna(bar["atr"]):
+        return current_stop
+    chandelier = (
+        float(df["high"].tail(p.trail_lookback).max())
+        - p.trail_atr_multiple * float(bar["atr"])
+    )
+    new_stop = max(current_stop, chandelier)
+    # Never sit at or above price; leave a small gap below the close.
+    ceiling = float(bar["close"]) * 0.999
+    return min(new_stop, ceiling) if new_stop > current_stop else current_stop
+
+
+def time_stop_reason(
+    bars_held: int, entry_price: float, current_price: float, cfg: Config
+) -> Optional[str]:
+    """Exit a position that has consumed its time budget without working.
+    Dead capital is a real cost — a flat position blocks a better one."""
+    p = cfg.strategy.trend_following
+    if p.max_holding_days <= 0 or bars_held < p.max_holding_days:
+        return None
+    gain = (current_price / entry_price - 1) * 100.0 if entry_price > 0 else 0.0
+    if gain < p.time_stop_min_gain_pct:
+        return (
+            f"Time stop: held {bars_held} bars, gain {gain:+.1f}% below "
+            f"{p.time_stop_min_gain_pct:.1f}% threshold"
+        )
+    return None
+
+
+def scale_out_units(
+    entry_price: float,
+    size: float,
+    dollar_risk: float,
+    current_price: float,
+    cfg: Config,
+    already_scaled: bool,
+) -> float:
+    """Units to sell as a partial profit-take at the configured R multiple.
+    Returns 0.0 when scaling is disabled, already done, or not yet reached.
+    Taking money off the table at +Nr de-risks the position while letting
+    the remainder ride the trend behind a breakeven stop."""
+    p = cfg.strategy.trend_following
+    if not p.scale_out_enabled or already_scaled or size <= 0:
+        return 0.0
+    risk_per_unit = dollar_risk / size if size else 0.0
+    if risk_per_unit <= 0:
+        return 0.0
+    trigger = entry_price + p.scale_out_r * risk_per_unit
+    if current_price >= trigger:
+        return size * p.scale_out_fraction
+    return 0.0
