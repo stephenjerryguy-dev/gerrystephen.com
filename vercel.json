@@ -128,6 +128,8 @@
     { "source": "/sappy/studio", "destination": "/sappy/studio.html" },
     { "source": "/sappy/studio/", "destination": "/sappy/studio.html" },
     { "source": "/agents", "destination": "/agents.html" },
+    { "source": "/agents/jerryquant", "destination": "/agents/jerryquant.html" },
+    { "source": "/agents/jerryquant/", "destination": "/agents/jerryquant.html" },
     { "source": "/agents/:path*", "destination": "/agents.html" },
     { "source": "/:path*", "destination": "/" }
   ],
