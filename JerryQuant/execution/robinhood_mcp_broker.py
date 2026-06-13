@@ -52,7 +52,77 @@ class RobinhoodMCPBroker:
         self.kill_switch = kill_switch
         self.url = os.environ.get("ROBINHOOD_MCP_URL", "").strip()
         self.api_key = os.environ.get("ROBINHOOD_MCP_API_KEY", "").strip()
+        self.refresh_token = os.environ.get("ROBINHOOD_MCP_REFRESH_TOKEN", "").strip()
+        self.oauth_client_id = os.environ.get(
+            "ROBINHOOD_OAUTH_CLIENT_ID",
+            "LtLiNmbs9owbYfWgBlC68Z2VujIPuvGoAiSYr8xW",
+        ).strip()
         self._account_number: Optional[str] = None
+
+    def refresh_access_token(self) -> bool:
+        """Mint a fresh access token from the stored refresh token.
+
+        Unattended runs (CI / a scheduled cycle) can't re-do the browser
+        sign-in, so an expired access token would otherwise dead-end. With a
+        refresh token present we renew silently. Robinhood rotates refresh
+        tokens, so the new one is persisted back to .env when we're writing
+        to a local file. Returns True on success."""
+        if not self.refresh_token:
+            return False
+        import httpx
+        try:
+            resp = httpx.post(
+                "https://api.robinhood.com/oauth2/token/",
+                data={
+                    "grant_type": "refresh_token",
+                    "client_id": self.oauth_client_id,
+                    "refresh_token": self.refresh_token,
+                },
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                timeout=30,
+            )
+            resp.raise_for_status()
+            tok = resp.json()
+        except Exception:
+            return False
+        new_access = tok.get("access_token")
+        if not new_access:
+            return False
+        self.api_key = new_access.strip()
+        if tok.get("refresh_token"):
+            self.refresh_token = tok["refresh_token"].strip()
+        self._persist_tokens()
+        return True
+
+    def _persist_tokens(self) -> None:
+        """Write the current tokens back to .env when it exists locally, so a
+        rotated refresh token survives to the next run. No-op if there's no
+        local .env (e.g. tokens injected purely via environment)."""
+        env_path = os.environ.get("JERRYQUANT_ENV_PATH", ".env")
+        if not os.path.exists(env_path):
+            return
+        try:
+            lines = open(env_path).read().splitlines()
+            seen_access = seen_refresh = False
+            out = []
+            for ln in lines:
+                if ln.startswith("ROBINHOOD_MCP_API_KEY="):
+                    out.append(f"ROBINHOOD_MCP_API_KEY={self.api_key}")
+                    seen_access = True
+                elif ln.startswith("ROBINHOOD_MCP_REFRESH_TOKEN="):
+                    out.append(f"ROBINHOOD_MCP_REFRESH_TOKEN={self.refresh_token}")
+                    seen_refresh = True
+                else:
+                    out.append(ln)
+            if not seen_access:
+                out.append(f"ROBINHOOD_MCP_API_KEY={self.api_key}")
+            if not seen_refresh and self.refresh_token:
+                out.append(f"ROBINHOOD_MCP_REFRESH_TOKEN={self.refresh_token}")
+            with open(env_path, "w") as f:
+                f.write("\n".join(out) + "\n")
+            os.chmod(env_path, 0o600)
+        except OSError:
+            pass
 
     def status(self) -> dict:
         return {
@@ -114,38 +184,51 @@ class RobinhoodMCPBroker:
 
         headers = self._headers()
         client = httpx.Client(timeout=30)
-        init = client.post(self.url, headers=headers, json={
-            "jsonrpc": "2.0", "id": 1, "method": "initialize",
-            "params": {
-                "protocolVersion": "2025-03-26",
-                "capabilities": {},
-                "clientInfo": {"name": "jerryquant", "version": "0.1.0"},
-            },
-        })
-        init.raise_for_status()
-        session_id = init.headers.get("mcp-session-id")
-        if session_id:
-            headers["Mcp-Session-Id"] = session_id
-        self._parse(init)
-        client.post(self.url, headers=headers, json={
-            "jsonrpc": "2.0", "method": "notifications/initialized",
-        })
+        try:
+            init = client.post(self.url, headers=headers, json={
+                "jsonrpc": "2.0", "id": 1, "method": "initialize",
+                "params": {
+                    "protocolVersion": "2025-03-26",
+                    "capabilities": {},
+                    "clientInfo": {"name": "jerryquant", "version": "0.1.0"},
+                },
+            })
+            init.raise_for_status()
+            session_id = init.headers.get("mcp-session-id")
+            if session_id:
+                headers["Mcp-Session-Id"] = session_id
+            self._parse(init)
+            client.post(self.url, headers=headers, json={
+                "jsonrpc": "2.0", "method": "notifications/initialized",
+            })
+        except Exception:
+            client.close()
+            raise
         return client, headers
 
-    def call_tool(self, name: str, arguments: dict) -> Any:
+    def call_tool(self, name: str, arguments: dict, _retried: bool = False) -> Any:
         """tools/call against the live endpoint. Returns the tool's data
         payload. Raises OrderError on tool-level errors — callers must
-        never treat a failed call as success."""
-        client, headers = self._session()
+        never treat a failed call as success. On a 401 (expired token) it
+        refreshes the access token once and retries."""
+        import httpx
+        client, headers = None, None
         try:
+            client, headers = self._session()
             resp = client.post(self.url, headers=headers, json={
                 "jsonrpc": "2.0", "id": 2, "method": "tools/call",
                 "params": {"name": name, "arguments": arguments},
             })
             resp.raise_for_status()
             body = self._parse(resp)
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 401 and not _retried \
+                    and self.refresh_access_token():
+                return self.call_tool(name, arguments, _retried=True)
+            raise
         finally:
-            client.close()
+            if client is not None:
+                client.close()
         if "error" in body:
             raise OrderError(f"{name}: MCP error {body['error']}")
         result = body.get("result", {})

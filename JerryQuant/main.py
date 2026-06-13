@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -34,6 +35,9 @@ from risk.kill_switch import KillSwitch, TradingHalted
 
 PAPER_STATE_FILE = "paper_state.json"
 LIVE_STATE_FILE = "live_state.json"
+LIVE_PENDING_FILE = "live_pending.json"
+LIVE_PENDING_MD = "live_pending.md"
+LIVE_PENDING_MAX_AGE_H = 18  # a proposal older than this is stale; execute refuses
 
 
 def setup_logging(cfg: Config) -> None:
@@ -748,6 +752,318 @@ def _run_live_cycle(cfg: Config, journal: TradeJournal,
     return 0
 
 
+def _arm_live_broker(cfg: Config, journal: TradeJournal, kill_switch: KillSwitch):
+    """Arm the live broker and confirm Robinhood still exposes the tools we
+    place orders against. Returns the broker, or None on any blocker."""
+    from execution.robinhood_mcp_broker import BrokerDisabled, RobinhoodMCPBroker
+
+    broker = RobinhoodMCPBroker(cfg, kill_switch)
+    try:
+        broker.assert_armed()
+    except BrokerDisabled as e:
+        print(f"Refusing to run live: {e}")
+        return None
+    try:
+        tools = {t.get("name") for t in broker.discover()}
+    except Exception as e:
+        kill_switch.engage(f"Robinhood MCP connection failed: {e}")
+        journal.record_risk_event("mcp_connection_failed", str(e))
+        print(f"MCP connection failed ({e}).")
+        return None
+    required = {"get_accounts", "get_portfolio", "get_equity_positions",
+                "review_equity_order", "place_equity_order"}
+    if required - tools:
+        kill_switch.engage(f"Robinhood MCP missing tools: {required - tools}")
+        journal.record_risk_event("mcp_tools_missing", str(required - tools))
+        print(f"Robinhood no longer exposes {required - tools}. Halting.")
+        return None
+    return broker
+
+
+def _decide_live_actions(cfg: Config, journal: TradeJournal,
+                         kill_switch: KillSwitch, broker):
+    """Compute — WITHOUT executing — exactly what JerryQuant would do this
+    cycle: trailing-stop ratchets, exits, scale-outs, and one-or-more entries,
+    each already through every risk gate. Returns (actions, summary_lines).
+
+    This is the single source of truth the propose step serializes and the
+    execute step then applies, so you execute exactly what you approved."""
+    from data_sources import sentiment_data, prediction_market_data
+    from execution import order_manager
+    from risk import correlation, regime_filter
+    from risk.drawdown_guard import DrawdownGuard
+    from risk.position_sizing import PositionSizeError
+    from strategies import prediction_market_signal, signal_aggregator, trend_following
+
+    actions: list[dict] = []
+    notes: list[str] = []
+
+    acct = broker.get_account_number()
+    equity = broker.get_balance()
+    if equity is None or equity <= 0:
+        kill_switch.engage("Robinhood balance could not be verified")
+        journal.record_risk_event("balance_unverifiable", f"got {equity}")
+        return [], [f"Balance unverifiable (got {equity}) — kill switch engaged."], 0.0
+    journal.record_equity(equity, cfg.mode.value)
+
+    history = journal.db.equity_history(cfg.mode.value)
+    guard = DrawdownGuard(
+        max_daily_pct=cfg.risk.max_daily_drawdown_pct,
+        max_total_pct=cfg.risk.max_total_drawdown_pct,
+        max_monthly_pct=cfg.risk.max_monthly_loss_pct,
+        starting_equity=history[0][1] if history else equity,
+    )
+    for ts_str, eq in history:
+        for b in guard.update(eq, datetime.fromisoformat(ts_str).date()):
+            kill_switch.engage(str(b))
+            journal.record_risk_event("drawdown_breach", str(b))
+
+    data = fetch_all_data(cfg, check_fresh=True)
+    prices = {a: float(df["close"].iloc[-1]) for a, df in data.items()}
+
+    state_path = BASE_DIR / LIVE_STATE_FILE
+    state = (json.loads(state_path.read_text())
+             if state_path.exists() else {"positions": {}})
+    held = broker.get_live_positions()
+    for sym in list(state["positions"]):
+        if sym not in held:
+            del state["positions"][sym]
+    tf = cfg.strategy.trend_following
+
+    # --- exits / scale-outs on managed positions ---
+    open_positions = []
+    for sym, st in list(state["positions"].items()):
+        qty = held[sym]["quantity"]
+        sellable = held[sym]["sellable"]
+        price = prices.get(sym)
+        if price is None:
+            notes.append(f"{sym}: no fresh price — exit checks skipped")
+            continue
+        ind = trend_following.compute_indicators(data[sym], cfg) if sym in data else None
+        if ind is not None and tf.use_trailing_stop:
+            new_stop = trend_following.compute_trailing_stop(ind, cfg, st["stop"])
+            if new_stop > st["stop"]:
+                st["stop"] = new_stop
+        from database.models import Direction, Position
+        pos = Position(asset=sym, direction=Direction.LONG, size=qty,
+                       entry_price=st["entry_price"], stop=st["stop"],
+                       target=st["target"],
+                       opened_at=datetime.fromisoformat(st["opened_at"]),
+                       strategy=st.get("strategy", "trend_following"),
+                       dollar_risk=st.get("dollar_risk", 0.0))
+        open_positions.append(pos)
+        days_held = max(0, (datetime.now(timezone.utc) - pos.opened_at).days)
+        reason = None
+        if pos.stop is not None and price <= pos.stop:
+            reason = f"stop/trailing-stop hit ({price:.2f} <= {pos.stop:.2f})"
+        elif not tf.use_trailing_stop and pos.target and price >= pos.target:
+            reason = f"target reached ({price:.2f} >= {pos.target:.2f})"
+        elif (tr := trend_following.time_stop_reason(days_held, pos.entry_price, price, cfg)):
+            reason = tr
+        elif ind is not None and (xr := trend_following.should_exit(ind, cfg)):
+            reason = xr
+        if reason:
+            if sellable <= 0:
+                notes.append(f"{sym}: exit signaled ({reason}) but 0 settled — will retry")
+                continue
+            actions.append({"kind": "exit", "symbol": sym, "units": sellable,
+                            "reference_price": price, "reason": reason,
+                            "full": sellable >= qty * 0.999})
+            continue
+        units = trend_following.scale_out_units(
+            pos.entry_price, qty, pos.dollar_risk, price, cfg,
+            st.get("scaled_out", False))
+        units = min(units, sellable)
+        if units > 0:
+            actions.append({"kind": "scale_out", "symbol": sym, "units": units,
+                            "reference_price": price,
+                            "reason": f"partial profit at {tf.scale_out_r}R"})
+
+    state_path.write_text(json.dumps(state, indent=2))  # persist ratcheted stops
+
+    # --- entries ---
+    regime = regime_filter.assess_regime(data, cfg)
+    journal.record_risk_event("regime", f"risk_on={regime.risk_on}; {regime.render()}")
+    if not regime.risk_on:
+        notes.append(f"Regime RISK-OFF — no new entries ({'; '.join(regime.reasons)})")
+        return actions, notes, equity
+
+    signals = []
+    for asset, df in data.items():
+        ind = trend_following.compute_indicators(df, cfg)
+        sig = trend_following.evaluate(ind, asset, cfg)
+        if sig is None:
+            continue
+        s_adj = sentiment_data.confidence_adjustment(
+            sentiment_data.fetch_sentiment(asset),
+            cfg.signals.sentiment_max_confidence_adjust)
+        pm = prediction_market_signal.assess(
+            asset, prediction_market_data.fetch_probabilities(asset), cfg)
+        sig = signal_aggregator.apply_confidence_adjustments(sig, s_adj, pm.confidence_adjust, cfg)
+        journal.record_signal(sig)
+        signals.append(sig)
+    actionable = signal_aggregator.filter_actionable(signals, cfg)
+
+    closes = {a: df["close"] for a, df in data.items()}
+    equities = {a.upper() for a in cfg.watchlist.equities}
+    for sig in actionable:
+        if sig.asset.upper().replace("-USD", "") not in equities:
+            notes.append(f"{sig.asset}: valid but crypto can't trade live")
+            continue
+        if not kill_switch.can_trade():
+            notes.append(f"{sig.asset}: valid but kill switch engaged")
+            continue
+        if sig.asset.upper() in state["positions"]:
+            continue
+        try:
+            ticket, size = order_manager.build_ticket(sig, equity, open_positions, prices, cfg)
+        except order_manager.TradeBlocked as e:
+            notes.append(f"{sig.asset}: blocked — {e}")
+            continue
+        except PositionSizeError as e:
+            kill_switch.engage(f"Position sizing failed for {sig.asset}: {e}")
+            journal.record_risk_event("position_sizing_failure", str(e))
+            break
+        mult, note = correlation.correlation_haircut(sig.asset, open_positions, closes, cfg)
+        if mult < 1.0:
+            size.units *= mult; size.value_usd *= mult; size.dollar_risk *= mult
+        if correlation.check_cluster_exposure(sig.asset, size.value_usd, equity,
+                                              open_positions, prices, cfg):
+            notes.append(f"{sig.asset}: blocked — cluster cap")
+            continue
+        actions.append({"kind": "entry", "symbol": sig.asset.upper(),
+                        "units": size.units, "entry": sig.entry, "stop": sig.stop,
+                        "target": sig.target, "dollar_risk": size.dollar_risk,
+                        "confidence": sig.confidence, "strategy": sig.strategy,
+                        "reason": "; ".join(sig.reasons_for)[:300],
+                        "ticket": ticket.render()})
+    return actions, notes, equity
+
+
+def _render_pending_md(actions, notes, equity, acct_last4) -> str:
+    lines = ["# JerryQuant — proposed live actions", "",
+             f"Account ****{acct_last4} · equity ${equity:,.2f} · "
+             f"generated {datetime.now(timezone.utc):%Y-%m-%d %H:%M UTC}", ""]
+    if not actions:
+        lines += ["**No actions proposed — JerryQuant recommends doing nothing.**", ""]
+    for i, a in enumerate(actions, 1):
+        if a["kind"] == "entry":
+            lines += [f"## {i}. BUY {a['symbol']} — {a['units']:.6f} units",
+                      f"- Entry ~${a['entry']:,.2f} · stop ${a['stop']:,.2f} · "
+                      f"target ${a['target']:,.2f}",
+                      f"- Max loss ${a['dollar_risk']:,.2f} · confidence {a['confidence']}/100",
+                      f"- {a['reason']}", ""]
+        elif a["kind"] == "exit":
+            lines += [f"## {i}. SELL {a['symbol']} — {a['units']:.6f} units (exit)",
+                      f"- {a['reason']} · ~${a['reference_price']:,.2f}", ""]
+        else:
+            lines += [f"## {i}. SCALE-OUT {a['symbol']} — {a['units']:.6f} units",
+                      f"- {a['reason']} · ~${a['reference_price']:,.2f}", ""]
+    if notes:
+        lines += ["---", "### Not traded", *[f"- {n}" for n in notes]]
+    return "\n".join(lines)
+
+
+def run_live_propose(cfg: Config, journal: TradeJournal,
+                     kill_switch: KillSwitch) -> int:
+    """Read-only: compute the exact live actions and serialize them for an
+    out-of-band approval (e.g. a GitHub environment gate). Places nothing."""
+    broker = _arm_live_broker(cfg, journal, kill_switch)
+    if broker is None:
+        return 1
+    acct = broker.get_account_number()
+    actions, notes, equity = _decide_live_actions(cfg, journal, kill_switch, broker)
+    payload = {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "account_last4": acct[-4:], "equity": equity, "actions": actions,
+    }
+    (BASE_DIR / LIVE_PENDING_FILE).write_text(json.dumps(payload, indent=2))
+    md = _render_pending_md(actions, notes, equity, acct[-4:])
+    (BASE_DIR / LIVE_PENDING_MD).write_text(md)
+    print(md)
+    print(f"\n{len(actions)} action(s) proposed → {LIVE_PENDING_FILE} "
+          f"(nothing placed).")
+    return 0
+
+
+def run_live_execute(cfg: Config, journal: TradeJournal,
+                     kill_switch: KillSwitch) -> int:
+    """Apply EXACTLY the actions serialized by a prior propose run. Intended
+    to run only after an authenticated human approval (the GitHub environment
+    gate). Re-checks the kill switch and re-prices via the broker's own
+    deviation guard at execution time."""
+    from execution.robinhood_mcp_broker import BrokerDisabled, OrderError
+    from database.models import Direction, Signal, SignalType
+
+    pending_path = BASE_DIR / LIVE_PENDING_FILE
+    if not pending_path.exists():
+        print("No live_pending.json — nothing to execute.")
+        return 0
+    payload = json.loads(pending_path.read_text())
+    gen = datetime.fromisoformat(payload["generated_at"])
+    age_h = (datetime.now(timezone.utc) - gen).total_seconds() / 3600
+    if age_h > LIVE_PENDING_MAX_AGE_H:
+        journal.record_risk_event("live_pending_stale", f"{age_h:.1f}h old")
+        print(f"Proposal is {age_h:.1f}h old (> {LIVE_PENDING_MAX_AGE_H}h) — "
+              f"refusing to execute stale tickets. Re-run propose.")
+        pending_path.unlink()
+        return 1
+
+    broker = _arm_live_broker(cfg, journal, kill_switch)
+    if broker is None:
+        return 1
+
+    state_path = BASE_DIR / LIVE_STATE_FILE
+    state = (json.loads(state_path.read_text())
+             if state_path.exists() else {"positions": {}})
+    tf = cfg.strategy.trend_following
+    done, failed = 0, 0
+    for a in payload["actions"]:
+        sym = a["symbol"]
+        try:
+            if a["kind"] == "entry":
+                sig = Signal(asset=sym, signal_type=SignalType.ENTRY,
+                             direction=Direction.LONG, entry=a["entry"],
+                             stop=a["stop"], target=a["target"],
+                             confidence=a["confidence"], strategy=a["strategy"])
+                result = broker.place_order(sig, a["units"], manually_approved=True)
+                state["positions"][sym] = {
+                    "entry_price": a["entry"], "stop": a["stop"],
+                    "target": a["target"], "size": a["units"],
+                    "opened_at": datetime.now(timezone.utc).isoformat(),
+                    "strategy": a["strategy"], "dollar_risk": a["dollar_risk"]}
+                journal.record_risk_event("live_entry", json.dumps(
+                    {"symbol": sym, "units": a["units"], "result": result}, default=str)[:2000])
+            elif a["kind"] == "exit":
+                result = broker.sell_position(sym, a["units"], manually_approved=True)
+                journal.record_risk_event("live_exit", json.dumps(
+                    {"symbol": sym, "reason": a.get("reason"), "result": result}, default=str)[:2000])
+                if a.get("full", True):
+                    state["positions"].pop(sym, None)
+                elif sym in state["positions"]:
+                    state["positions"][sym]["size"] = (
+                        state["positions"][sym].get("size", a["units"]) - a["units"])
+            else:  # scale_out
+                result = broker.sell_position(sym, a["units"], manually_approved=True)
+                if sym in state["positions"]:
+                    st = state["positions"][sym]
+                    st["scaled_out"] = True
+                    if tf.breakeven_after_scale:
+                        st["stop"] = max(st["stop"], st["entry_price"])
+                journal.record_risk_event("live_scale_out", json.dumps(
+                    {"symbol": sym, "units": a["units"], "result": result}, default=str)[:2000])
+            state_path.write_text(json.dumps(state, indent=2))
+            print(f"Executed {a['kind']} {sym} ({a['units']:.6f}).")
+            done += 1
+        except (BrokerDisabled, OrderError) as e:
+            failed += 1
+            journal.record_risk_event(f"live_{a['kind']}_failed", f"{sym}: {e}")
+            print(f"FAILED {a['kind']} {sym}: {e}")
+    pending_path.unlink()  # consume the proposal so it can't be replayed
+    print(f"\nExecuted {done} action(s), {failed} failed. Proposal consumed.")
+    return 0 if failed == 0 else 1
+
+
 def run_validation(cfg: Config, journal: TradeJournal) -> int:
     """Validation rigor: walk-forward, parameter sensitivity, Monte Carlo.
 
@@ -815,14 +1131,21 @@ def run_validation(cfg: Config, journal: TradeJournal) -> int:
 
 
 def main() -> int:
-    load_dotenv(BASE_DIR / ".env")
+    # JERRYQUANT_ENV_PATH lets a self-hosted runner keep .env (and the
+    # Robinhood token) outside the checked-out workspace, so `git clean`
+    # during checkout can't delete it. Falls back to the local .env.
+    load_dotenv(os.environ.get("JERRYQUANT_ENV_PATH") or (BASE_DIR / ".env"))
     parser = argparse.ArgumentParser(description="JerryQuant trading assistant")
     parser.add_argument("--config", default=str(BASE_DIR / "config.yaml"))
     parser.add_argument(
         "--mode",
-        choices=["backtest", "paper", "live_review", "live_approved"],
+        choices=["backtest", "paper", "live_review", "live_approved",
+                 "live_propose", "live_execute"],
         default=None,
-        help="Override mode from config.yaml",
+        help="Override mode from config.yaml. live_propose computes and "
+             "serializes the day's tickets without placing anything; "
+             "live_execute places exactly the proposed tickets (intended to "
+             "run only after an authenticated approval gate).",
     )
     parser.add_argument(
         "--validate",
@@ -833,7 +1156,12 @@ def main() -> int:
     args = parser.parse_args()
 
     cfg = load_config(args.config)
-    if args.mode:
+    # propose/execute are sub-flows of live: arm the broker (mode LIVE_APPROVED)
+    # but dispatch to the split propose/execute runners rather than the prompt.
+    live_sub = args.mode if args.mode in ("live_propose", "live_execute") else None
+    if live_sub:
+        cfg = cfg.model_copy(update={"mode": Mode.LIVE_APPROVED})
+    elif args.mode:
         cfg = cfg.model_copy(update={"mode": Mode(args.mode.upper())})
     setup_logging(cfg)
     logger.info(f"JerryQuant starting in {cfg.mode.value} mode")
@@ -851,6 +1179,10 @@ def main() -> int:
     try:
         if args.validate:
             return run_validation(cfg, journal)
+        if live_sub == "live_propose":
+            return run_live_propose(cfg, journal, kill_switch)
+        if live_sub == "live_execute":
+            return run_live_execute(cfg, journal, kill_switch)
         if cfg.mode == Mode.BACKTEST:
             return run_backtest_mode(cfg, journal)
         if cfg.mode == Mode.PAPER:

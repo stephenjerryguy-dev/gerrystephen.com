@@ -133,6 +133,37 @@ still appear in the workflow run summary and in `logs/reports/`.
 (If you instead run on your own machine, put the same values in
 `JerryQuant/.env` per `.env.example`.)
 
+## Approving live trades from your phone
+
+Approval must go through something that knows it's *you* — never a public web
+page. The supported on-the-go path is a **GitHub Environment gate** you approve
+in the GitHub mobile app:
+
+1. The `JerryQuant Live` workflow (`.github/workflows/jerryquant-live.yml`)
+   runs `--mode live_propose`, which computes the day's exact tickets and posts
+   them to the run summary. It places nothing.
+2. The `execute` job is gated by a GitHub Environment named `live-trading` with
+   you as a **required reviewer**. It pauses and notifies you. You open the
+   GitHub app, read the proposed tickets, and tap **Approve** or **Reject**.
+3. On approval, `--mode live_execute` places **exactly** the proposed tickets
+   (downloaded as an artifact — not a recomputed set), re-checking the kill
+   switch and the price-deviation guard at execution time. A proposal older
+   than `LIVE_PENDING_MAX_AGE_H` hours is refused as stale.
+
+One-time setup (only you can do these) is documented at the top of the workflow
+file: create the `live-trading` environment with yourself as required reviewer,
+and add the `ROBINHOOD_*` repository secrets. There is no "always approve" —
+each run is a separate, authenticated approval, by design.
+
+**Most tamper-resistant variant:** switch the workflow's `runs-on` to a
+self-hosted runner on your own machine and point `JERRYQUANT_ENV_PATH` at a
+local `.env`. Then the Robinhood token never leaves your hardware and GitHub
+only provides the approval gate.
+
+On a computer you can still approve interactively with
+`python main.py --mode live_approved` (it prints each ticket and waits for you
+to type `APPROVE`).
+
 ## The live test: $100 in Robinhood's agentic account
 
 Owner decision (2026-06-12): the live test with $100 **is** the test

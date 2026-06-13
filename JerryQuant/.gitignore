@@ -9,3 +9,5 @@ logs/*
 HALT_TRADING.txt
 .venv/
 live_state.json
+live_pending.json
+live_pending.md

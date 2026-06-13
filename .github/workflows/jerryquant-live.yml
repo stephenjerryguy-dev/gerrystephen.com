@@ -1,0 +1,108 @@
+name: JerryQuant Live (approve on mobile)
+
+# Mobile-approved live trading. The "propose" job computes the day's exact
+# tickets and posts them to the run summary; the "execute" job is gated by a
+# GitHub Environment with you as a required reviewer, so it does not run until
+# you approve in the GitHub mobile app. Execute places EXACTLY the proposed
+# tickets (downloaded as an artifact), never a recomputed set.
+#
+# SETUP (one-time, only you can do these):
+#   1. Repo Settings -> Environments -> New environment "live-trading".
+#      Add yourself under "Required reviewers". (This is the approval gate.)
+#   2. Repo Settings -> Secrets and variables -> Actions -> add secrets:
+#        ROBINHOOD_MCP_URL            = https://agent.robinhood.com/mcp/trading
+#        ROBINHOOD_MCP_API_KEY        = (access token from JerryQuant/.env)
+#        ROBINHOOD_MCP_REFRESH_TOKEN  = (refresh token from JerryQuant/.env)
+#        ROBINHOOD_ACCOUNT_NUMBER     = (the ****1530 agentic account number)
+#   3. Scheduled runs only fire on the default branch — merge to main to arm.
+#
+# SECURITY NOTE: this runs on GitHub-hosted runners, so the token lives as a
+# GitHub encrypted secret (a bigger surface than laptop-only). For the most
+# tamper-resistant setup, switch `runs-on` to a self-hosted runner on your own
+# machine and keep the token in a local .env referenced by JERRYQUANT_ENV_PATH
+# — then the token never leaves your hardware and GitHub only provides the gate.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Weekdays 21:35 UTC, just after the US close. Equities only trade live.
+    - cron: "35 21 * * 1-5"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: jerryquant-live
+  cancel-in-progress: false
+
+env:
+  ROBINHOOD_MCP_URL: ${{ secrets.ROBINHOOD_MCP_URL }}
+  ROBINHOOD_MCP_API_KEY: ${{ secrets.ROBINHOOD_MCP_API_KEY }}
+  ROBINHOOD_MCP_REFRESH_TOKEN: ${{ secrets.ROBINHOOD_MCP_REFRESH_TOKEN }}
+  ROBINHOOD_ACCOUNT_NUMBER: ${{ secrets.ROBINHOOD_ACCOUNT_NUMBER }}
+
+jobs:
+  propose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      has_actions: ${{ steps.propose.outputs.has_actions }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: JerryQuant/requirements.txt
+      - name: Install dependencies
+        run: pip install -r JerryQuant/requirements.txt
+      - name: Propose live actions (read-only, places nothing)
+        id: propose
+        run: |
+          cd JerryQuant
+          python main.py --mode live_propose
+          cat live_pending.md >> "$GITHUB_STEP_SUMMARY"
+          n=$(python -c "import json;print(len(json.load(open('live_pending.json'))['actions']))")
+          echo "has_actions=$([ "$n" -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - name: Upload proposed tickets
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-pending
+          path: JerryQuant/live_pending.json
+          retention-days: 5
+
+  execute:
+    needs: propose
+    if: needs.propose.outputs.has_actions == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: live-trading   # <-- pauses here until YOU approve on mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: JerryQuant/requirements.txt
+      - name: Install dependencies
+        run: pip install -r JerryQuant/requirements.txt
+      - name: Download the exact approved tickets
+        uses: actions/download-artifact@v4
+        with:
+          name: live-pending
+          path: JerryQuant
+      - name: Execute approved tickets
+        run: cd JerryQuant && python main.py --mode live_execute
+      - name: Persist live state to repo
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f JerryQuant/jerryquant.db JerryQuant/live_state.json 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No state changes to commit."
+            exit 0
+          fi
+          git commit -m "JerryQuant live state: $(date -u +%Y-%m-%d) [skip ci]"
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push origin "${GITHUB_REF_NAME}"
