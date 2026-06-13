@@ -500,11 +500,13 @@ def _run_live_cycle(cfg: Config, journal: TradeJournal,
     #     each needing explicit APPROVE ---
     open_positions: list[Position] = []
     for sym, st in list(state["positions"].items()):
+        qty = held[sym]["quantity"]        # total held — for management/size
+        sellable = held[sym]["sellable"]   # settled — the most we can sell now
         price = prices.get(sym)
         if price is None:
             missed.append(f"{sym}: no fresh price — exit checks skipped today")
             open_positions.append(Position(
-                asset=sym, direction=Direction.LONG, size=held[sym],
+                asset=sym, direction=Direction.LONG, size=qty,
                 entry_price=st["entry_price"], stop=st["stop"],
                 target=st["target"],
                 opened_at=datetime.fromisoformat(st["opened_at"]),
@@ -522,7 +524,7 @@ def _run_live_cycle(cfg: Config, journal: TradeJournal,
                 state_path.write_text(json.dumps(state, indent=2))
 
         pos = Position(
-            asset=sym, direction=Direction.LONG, size=held[sym],
+            asset=sym, direction=Direction.LONG, size=qty,
             entry_price=st["entry_price"], stop=st["stop"], target=st["target"],
             opened_at=datetime.fromisoformat(st["opened_at"]),
             strategy=st.get("strategy", "trend_following"),
@@ -544,21 +546,40 @@ def _run_live_cycle(cfg: Config, journal: TradeJournal,
             reason = xr
 
         if reason:
+            # Can only sell settled shares; an unsettled remainder (e.g. a
+            # position opened yesterday) clears on a later cycle.
+            if sellable <= 0:
+                journal.record_risk_event("live_exit_unsettled", f"{sym}: {reason}")
+                missed.append(f"{sym}: exit signaled ({reason}) but 0 shares "
+                              f"are settled/sellable today — will retry")
+                open_positions.append(pos)
+                continue
+            partial = sellable < qty * 0.999
+            label = "PARTIAL (rest unsettled)" if partial else "ALL"
             if not _approved(
-                f"\nEXIT — sell ALL {held[sym]} {sym} @ ~${price:,.2f}: {reason}"
+                f"\nEXIT — sell {label} {sellable:.6f}/{qty:.6f} {sym} "
+                f"@ ~${price:,.2f}: {reason}"
             ):
                 journal.record_risk_event("live_exit_rejected", f"{sym}: {reason}")
                 missed.append(f"{sym}: exit signaled ({reason}) but not approved")
                 open_positions.append(pos)
                 continue
             try:
-                result = broker.sell_position(sym, held[sym], manually_approved=True)
+                result = broker.sell_position(sym, sellable, manually_approved=True)
                 journal.record_risk_event("live_exit", json.dumps(
-                    {"symbol": sym, "reason": reason, "result": result},
-                    default=str)[:2000])
-                logger.info(f"LIVE exit: sold {held[sym]} {sym} — {reason}")
-                del state["positions"][sym]
-                state_path.write_text(json.dumps(state, indent=2))
+                    {"symbol": sym, "reason": reason, "sold": sellable,
+                     "result": result}, default=str)[:2000])
+                logger.info(f"LIVE exit: sold {sellable:.6f} {sym} — {reason}")
+                if partial:
+                    # Keep managing the unsettled remainder until it clears.
+                    st["size"] = qty - sellable
+                    state_path.write_text(json.dumps(state, indent=2))
+                    missed.append(f"{sym}: sold settled {sellable:.6f}; "
+                                  f"{qty - sellable:.6f} unsettled remains")
+                    open_positions.append(pos)
+                else:
+                    del state["positions"][sym]
+                    state_path.write_text(json.dumps(state, indent=2))
             except (BrokerDisabled, OrderError) as e:
                 journal.record_risk_event("live_exit_failed", f"{sym}: {e}")
                 missed.append(f"{sym}: exit approved but order failed — {e}")
@@ -567,12 +588,13 @@ def _run_live_cycle(cfg: Config, journal: TradeJournal,
 
         # No full exit — consider a partial profit-take (scale-out).
         units = trend_following.scale_out_units(
-            pos.entry_price, held[sym], pos.dollar_risk, price, cfg,
+            pos.entry_price, qty, pos.dollar_risk, price, cfg,
             st.get("scaled_out", False),
         )
+        units = min(units, sellable)   # never try to sell unsettled shares
         if units > 0:
             if not _approved(
-                f"\nSCALE-OUT — sell {units:.6f} of {held[sym]} {sym} "
+                f"\nSCALE-OUT — sell {units:.6f} of {qty:.6f} {sym} "
                 f"@ ~${price:,.2f} (partial profit at {tf.scale_out_r}R)"
             ):
                 journal.record_risk_event("live_scale_rejected", f"{sym}")
@@ -585,7 +607,7 @@ def _run_live_cycle(cfg: Config, journal: TradeJournal,
                     {"symbol": sym, "units": units, "result": result},
                     default=str)[:2000])
                 st["scaled_out"] = True
-                st["size"] = held[sym] - units
+                st["size"] = qty - units
                 if tf.breakeven_after_scale:
                     st["stop"] = max(st["stop"], pos.entry_price)
                     pos.stop = st["stop"]
@@ -678,13 +700,20 @@ def _run_live_cycle(cfg: Config, journal: TradeJournal,
                 "live_entry", json.dumps({"symbol": _sig.asset,
                                           "units": _size.units,
                                           "result": result}, default=str)[:2000])
+            opened_at = datetime.now(timezone.utc)
             state["positions"][_sig.asset.upper()] = {
                 "entry_price": _sig.entry, "stop": _sig.stop,
                 "target": _sig.target, "size": _size.units,
-                "opened_at": datetime.now(timezone.utc).isoformat(),
+                "opened_at": opened_at.isoformat(),
                 "strategy": _sig.strategy, "dollar_risk": _size.dollar_risk,
             }
             state_path.write_text(json.dumps(state, indent=2))
+            # Reflect the new position in the same-day report.
+            open_positions.append(Position(
+                asset=_sig.asset.upper(), direction=Direction.LONG,
+                size=_size.units, entry_price=_sig.entry, stop=_sig.stop,
+                target=_sig.target, opened_at=opened_at,
+                strategy=_sig.strategy, dollar_risk=_size.dollar_risk))
             logger.info(f"LIVE fill submitted: {_sig.asset} {_size.units:.6f}")
 
         try:

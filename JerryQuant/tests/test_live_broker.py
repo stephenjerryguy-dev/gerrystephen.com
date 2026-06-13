@@ -114,6 +114,41 @@ def test_account_resolution_refuses_ambiguity(broker, monkeypatch):
         broker.get_account_number()
 
 
+def test_fmt_qty_rejects_sub_precision_size(broker):
+    # A size that rounds to zero at 6 dp must raise, never become "0".
+    with pytest.raises(OrderError, match="rounds to zero"):
+        broker._fmt_qty(0.0000004)
+    assert broker._fmt_qty(0.027) == "0.027"
+    assert broker._fmt_qty(1.0) == "1"
+
+
+def test_live_positions_uses_quantity_not_sellable_for_holding(broker, monkeypatch):
+    # A freshly bought position: held in full, but 0 settled/sellable.
+    # The "0" string is truthy — a naive `a or b` would drop it. It must
+    # still be reported as held (quantity), with sellable surfaced separately.
+    monkeypatch.setattr(broker, "get_account_number", lambda: "A1")
+    monkeypatch.setattr(broker, "call_tool", lambda n, a: {"positions": [
+        {"symbol": "SPY", "type": "long", "quantity": "0.027000",
+         "shares_available_for_sells": "0"},
+        {"symbol": "QQQ", "type": "long", "quantity": "0.05",
+         "shares_available_for_sells": "0.05"},
+    ]})
+    pos = broker.get_live_positions()
+    assert pos["SPY"]["quantity"] == 0.027     # still recognized as held
+    assert pos["SPY"]["sellable"] == 0.0       # but nothing sellable yet
+    assert pos["QQQ"]["quantity"] == 0.05
+    assert pos["QQQ"]["sellable"] == 0.05
+
+
+def test_live_positions_skips_zero_and_short(broker, monkeypatch):
+    monkeypatch.setattr(broker, "get_account_number", lambda: "A1")
+    monkeypatch.setattr(broker, "call_tool", lambda n, a: {"positions": [
+        {"symbol": "ZERO", "type": "empty", "quantity": "0"},
+        {"symbol": "SHORT", "type": "short", "quantity": "-1"},
+    ]})
+    assert broker.get_live_positions() == {}
+
+
 def test_account_resolution_picks_single_agentic(broker, monkeypatch):
     monkeypatch.setattr(
         broker, "call_tool",

@@ -237,18 +237,35 @@ class RobinhoodMCPBroker:
         except (OrderError, KeyError, ValueError, TypeError):
             return None
 
-    def get_live_positions(self) -> dict[str, float]:
-        """Open equity positions as {symbol: sellable_shares}."""
+    def get_live_positions(self) -> dict[str, dict]:
+        """Open long equity positions as
+        {symbol: {"quantity": total_held, "sellable": settled_sellable}}.
+
+        These are DIFFERENT numbers and must not be conflated: `quantity`
+        answers "do I hold this / how big is the position" (used for
+        reconciliation and stop management), while `sellable` answers "how
+        much can I sell right now" (a freshly-bought position is held in
+        full but may be unsettled and not yet sellable). Parsed explicitly
+        because the API returns strings — and the string "0" is truthy, so
+        a naive `a or b` silently picks the wrong field."""
+        def _f(x) -> float:
+            try:
+                return float(x)
+            except (TypeError, ValueError):
+                return 0.0
+
         data = self.call_tool(
             "get_equity_positions",
             {"account_number": self.get_account_number()},
         )
-        out: dict[str, float] = {}
+        out: dict[str, dict] = {}
         for p in data.get("positions") or []:
-            qty = float(p.get("shares_available_for_sells")
-                        or p.get("quantity") or 0)
-            if qty > 0 and p.get("type") == "long":
-                out[p["symbol"]] = qty
+            quantity = _f(p.get("quantity"))
+            if quantity > 0 and p.get("type") == "long":
+                out[p["symbol"]] = {
+                    "quantity": quantity,
+                    "sellable": _f(p.get("shares_available_for_sells")),
+                }
         return out
 
     # ------------------------------------------------------------------
@@ -268,6 +285,20 @@ class RobinhoodMCPBroker:
             )
         return symbol
 
+    @staticmethod
+    def _fmt_qty(quantity: float) -> str:
+        """Format a fractional share quantity to Robinhood's 6-dp precision.
+        Raises if it rounds to zero — submitting a "0" quantity (which a
+        naive rstrip would produce for any size < 5e-7) must never happen."""
+        s = f"{quantity:.6f}".rstrip("0").rstrip(".")
+        if not s or float(s) <= 0:
+            raise OrderError(
+                f"Order size {quantity} rounds to zero at 6-dp precision — "
+                f"position too small to place. Increase account size or the "
+                f"per-trade risk so the order clears the minimum."
+            )
+        return s
+
     def _order_params(self, symbol: str, side: str, quantity: float) -> dict:
         # Fractional quantities require type=market + regular_hours per
         # Robinhood's schema — and a $100 account trades fractions of SPY.
@@ -276,7 +307,7 @@ class RobinhoodMCPBroker:
             "symbol": symbol,
             "side": side,
             "type": "market",
-            "quantity": f"{quantity:.6f}".rstrip("0").rstrip("."),
+            "quantity": self._fmt_qty(quantity),
             "time_in_force": "gfd",
             "market_hours": "regular_hours",
         }
