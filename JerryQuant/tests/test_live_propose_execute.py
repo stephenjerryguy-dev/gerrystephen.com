@@ -178,7 +178,9 @@ def test_refresh_writes_rotated_token_to_store(tmp_path, monkeypatch):
     db = Database(tmp_path / "t.db")
     monkeypatch.setenv("ROBINHOOD_MCP_API_KEY", "env-access")
     monkeypatch.setenv("ROBINHOOD_MCP_REFRESH_TOKEN", "env-refresh")
-    monkeypatch.delenv("JERRYQUANT_ENV_PATH", raising=False)
+    # Isolate the env file so refresh's _persist_tokens never touches the
+    # real .env (it writes to a cwd-relative ".env" by default).
+    monkeypatch.setenv("JERRYQUANT_ENV_PATH", str(tmp_path / ".env"))
     b = RobinhoodMCPBroker(_live_cfg(), KillSwitch(tmp_path / "HALT.txt"), token_store=db)
 
     class FakeResp:

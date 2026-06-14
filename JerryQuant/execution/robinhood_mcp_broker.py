@@ -273,22 +273,30 @@ class RobinhoodMCPBroker:
                     return c["text"]
         return result
 
-    def discover(self) -> list[dict]:
+    def discover(self, _retried: bool = False) -> list[dict]:
         """MCP handshake + tools/list against the configured endpoint.
 
         Read-only: lists the tools Robinhood exposes (names, descriptions,
-        input schemas). Requires only the URL; sends the API key as a
-        bearer token when present.
+        input schemas). Refreshes the access token once on a 401 (an expired
+        token between runs must not dead-end the agent at arming time).
         """
-        client, headers = self._session()
+        import httpx
+        client = None
         try:
+            client, headers = self._session()
             listing = client.post(self.url, headers=headers, json={
                 "jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {},
             })
             listing.raise_for_status()
             return self._parse(listing).get("result", {}).get("tools", [])
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 401 and not _retried \
+                    and self.refresh_access_token():
+                return self.discover(_retried=True)
+            raise
         finally:
-            client.close()
+            if client is not None:
+                client.close()
 
     # ------------------------------------------------------------------
     # Account / read-side
