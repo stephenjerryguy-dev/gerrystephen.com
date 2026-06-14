@@ -18,6 +18,7 @@ import pandas as pd
 from backtesting.performance_metrics import PerformanceReport, compute_metrics
 from core.config import Config
 from database.models import Direction, Position, SignalType, Trade
+from risk import correlation, regime_filter
 from risk.drawdown_guard import DrawdownGuard
 from risk.exposure_limits import check_exposure
 from risk.position_sizing import PositionSizeError, calculate_position_size
@@ -32,12 +33,15 @@ class BacktestResult:
     halted: bool
     halt_reason: Optional[str]
     skipped_signals: int = 0
+    regime_blocked: int = 0
 
 
 @dataclass
 class _OpenPosition:
     position: Position
     entry_fees: float = 0.0
+    scaled_out: bool = False
+    bars_held: int = 0
 
 
 def _apply_entry_costs(price: float, cfg: Config) -> float:
@@ -82,6 +86,7 @@ def run_backtest(data: dict[str, pd.DataFrame], cfg: Config) -> BacktestResult:
     halt_reason: Optional[str] = None
     daily_halt_day = None
     skipped = 0
+    regime_blocked = 0
     fee_rate = cfg.backtest.fee_pct / 100.0
 
     warmup = p.slow_ma + 1
@@ -93,20 +98,13 @@ def run_backtest(data: dict[str, pd.DataFrame], cfg: Config) -> BacktestResult:
                 prices[asset] = float(df.loc[ts, "close"])
         return prices
 
-    def close_position(asset: str, fill: float, ts: pd.Timestamp, reason: str) -> None:
-        nonlocal cash
-        op = open_pos.pop(asset)
-        pos = op.position
-        exit_fee = fill * pos.size * fee_rate
-        proceeds = fill * pos.size - exit_fee
-        cash += proceeds
-        total_fees = op.entry_fees + exit_fee
-        pnl = (fill - pos.entry_price) * pos.size - total_fees
+    def _record(asset, pos, units, fill, ts, reason, entry_fee_part, exit_fee):
+        pnl = (fill - pos.entry_price) * units - entry_fee_part - exit_fee
         closed.append(
             Trade(
                 asset=asset,
                 direction=pos.direction,
-                size=pos.size,
+                size=units,
                 entry_price=pos.entry_price,
                 exit_price=fill,
                 stop=pos.stop,
@@ -119,31 +117,91 @@ def run_backtest(data: dict[str, pd.DataFrame], cfg: Config) -> BacktestResult:
                 opened_at=pos.opened_at,
                 closed_at=ts.to_pydatetime().replace(tzinfo=timezone.utc),
                 exit_reason=reason,
-                fees=total_fees,
+                fees=entry_fee_part + exit_fee,
                 pnl=pnl,
             )
         )
 
+    def close_position(asset: str, fill: float, ts: pd.Timestamp, reason: str) -> None:
+        nonlocal cash
+        op = open_pos.pop(asset)
+        pos = op.position
+        exit_fee = fill * pos.size * fee_rate
+        cash += fill * pos.size - exit_fee
+        _record(asset, pos, pos.size, fill, ts, reason, op.entry_fees, exit_fee)
+
+    def scale_out(asset: str, units: float, fill: float, ts: pd.Timestamp) -> None:
+        """Sell part of a winner, bank the profit, ratchet stop to breakeven."""
+        nonlocal cash
+        op = open_pos[asset]
+        pos = op.position
+        units = min(units, pos.size)
+        frac = units / pos.size if pos.size else 0.0
+        exit_fee = fill * units * fee_rate
+        cash += fill * units - exit_fee
+        entry_fee_part = op.entry_fees * frac
+        _record(asset, pos, units, fill, ts,
+                "Scale-out: partial profit", entry_fee_part, exit_fee)
+        pos.size -= units
+        pos.dollar_risk *= (1 - frac)
+        op.entry_fees *= (1 - frac)
+        op.scaled_out = True
+        if cfg.strategy.trend_following.breakeven_after_scale:
+            pos.stop = max(pos.stop, pos.entry_price)
+
     for i, ts in enumerate(common_index):
         # --- 1) manage exits on today's bar (stop first: pessimistic) ---
+        tf = cfg.strategy.trend_following
         for asset in list(open_pos.keys()):
             df = indicators[asset]
             if ts not in df.index:
                 continue
             bar = df.loc[ts]
-            pos = open_pos[asset].position
+            op = open_pos[asset]
+            op.bars_held += 1
+            pos = op.position
+
+            # Ratchet the trailing stop using data through YESTERDAY only —
+            # the stop in force today must be knowable at today's open.
+            if tf.use_trailing_stop:
+                prior = df.loc[:ts].iloc[:-1]
+                pos.stop = trend_following.compute_trailing_stop(prior, cfg, pos.stop)
+
+            # Stop (incl. ratcheted trailing stop) — pessimistic intrabar fill.
             if bar["low"] <= pos.stop:
                 fill = _apply_exit_costs(min(pos.stop, float(bar["open"])), cfg)
-                close_position(asset, fill, ts, "Stop loss hit")
-            elif bar["high"] >= pos.target:
-                fill = _apply_exit_costs(pos.target, cfg)
-                close_position(asset, fill, ts, "Take profit hit")
-            else:
-                upto = df.loc[:ts]
-                exit_reason = trend_following.should_exit(upto, cfg)
-                if exit_reason:
-                    fill = _apply_exit_costs(float(bar["close"]), cfg)
-                    close_position(asset, fill, ts, exit_reason)
+                close_position(asset, fill, ts, "Stop/trailing-stop hit")
+                continue
+
+            # Fixed take-profit only when NOT trailing; trailing lets winners run.
+            if not tf.use_trailing_stop and bar["high"] >= pos.target:
+                close_position(asset, _apply_exit_costs(pos.target, cfg), ts,
+                               "Take profit hit")
+                continue
+
+            close = float(bar["close"])
+            # Partial profit-take at the configured R multiple.
+            units = trend_following.scale_out_units(
+                pos.entry_price, pos.size, pos.dollar_risk, close, cfg,
+                op.scaled_out,
+            )
+            if units > 0:
+                scale_out(asset, units, _apply_exit_costs(close, cfg), ts)
+                if open_pos.get(asset) is None or pos.size <= 0:
+                    continue
+
+            # Time stop: dead capital is a cost.
+            tr = trend_following.time_stop_reason(
+                op.bars_held, pos.entry_price, close, cfg
+            )
+            if tr:
+                close_position(asset, _apply_exit_costs(close, cfg), ts, tr)
+                continue
+
+            # Trend break / extreme volatility.
+            exit_reason = trend_following.should_exit(df.loc[:ts], cfg)
+            if exit_reason:
+                close_position(asset, _apply_exit_costs(close, cfg), ts, exit_reason)
 
         # --- 2) mark equity and run drawdown guard ---
         prices = mark_prices(ts)
@@ -179,6 +237,17 @@ def run_backtest(data: dict[str, pd.DataFrame], cfg: Config) -> BacktestResult:
             continue
         next_ts = common_index[i + 1]
 
+        # Regime gate: no new longs in a bear/chop tape. Built from data
+        # through today only (the slices end at ts), so there is no lookahead.
+        data_upto = {
+            a: idf.loc[:ts] for a, idf in indicators.items() if ts in idf.index
+        }
+        regime = regime_filter.assess_regime(data_upto, cfg)
+        if not regime.risk_on:
+            regime_blocked += 1
+            continue
+        closes_upto = {a: d["close"] for a, d in data_upto.items()}
+
         for asset, df in indicators.items():
             if asset in open_pos or ts not in df.index or next_ts not in df.index:
                 continue
@@ -213,17 +282,37 @@ def run_backtest(data: dict[str, pd.DataFrame], cfg: Config) -> BacktestResult:
                 skipped += 1
                 continue
 
+            open_positions = [op.position for op in open_pos.values()]
+
+            # Correlation haircut: shrink a position that doubles up on risk
+            # already in the book (e.g. a third correlated crypto name).
+            mult, _ = correlation.correlation_haircut(
+                asset, open_positions, closes_upto, cfg
+            )
+            if mult < 1.0:
+                size.units *= mult
+                size.value_usd *= mult
+                size.dollar_risk *= mult
+
             violations = check_exposure(
                 candidate_asset=asset,
                 candidate_value_usd=size.value_usd,
                 candidate_is_crypto=asset.upper() in crypto_assets,
                 equity=equity,
-                open_positions=[op.position for op in open_pos.values()],
+                open_positions=open_positions,
                 position_prices=prices,
                 max_open_positions=cfg.risk.max_open_positions,
                 max_single_asset_pct=cfg.risk.max_single_asset_pct,
                 max_crypto_pct=cfg.risk.max_crypto_allocation_pct,
                 crypto_assets=crypto_assets,
+            )
+            violations += correlation.check_cluster_exposure(
+                candidate_asset=asset,
+                candidate_value_usd=size.value_usd,
+                equity=equity,
+                open_positions=open_positions,
+                position_prices=prices,
+                cfg=cfg,
             )
             if violations:
                 skipped += 1
@@ -281,6 +370,7 @@ def run_backtest(data: dict[str, pd.DataFrame], cfg: Config) -> BacktestResult:
         halted=halted,
         halt_reason=halt_reason,
         skipped_signals=skipped,
+        regime_blocked=regime_blocked,
     )
 
 

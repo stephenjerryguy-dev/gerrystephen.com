@@ -1,4 +1,4 @@
-"""Robinhood MCP broker interface — DISABLED until explicitly armed.
+"""Robinhood MCP broker interface.
 
 Three independent locks must ALL be open before this broker will accept
 an order, and there is no code path that opens them programmatically:
@@ -12,18 +12,26 @@ an order, and there is no code path that opens them programmatically:
 Owner decision 2026-06-12: the live test runs with $100 in Robinhood's
 dedicated agentic account (endpoint: agent.robinhood.com/mcp/trading).
 
-discover() speaks the standard MCP streamable-HTTP protocol (initialize,
-then tools/list) so the first connected run can enumerate Robinhood's
-actual tool names and schemas. Order placement is wired up only after
-that discovery — we do not guess at an API we have never seen, the same
-way we do not trade on data we do not trust.
+Order placement is implemented against the tool schemas enumerated by
+discover() on 2026-06-12 (33 tools; full schemas journaled in
+logs/robinhood_mcp_tools.json). Equities only: Robinhood's agentic MCP
+exposes no crypto order tools, so crypto signals can never trade live
+through this broker. Every order is review_equity_order first, then
+place_equity_order with an idempotency ref_id — and only after the
+caller has collected explicit per-trade human approval.
+
+Stops are software-managed: fractional positions (unavoidable at $100
+account size) cannot carry native stop orders, so the daily cycle
+checks stops/targets/trend-breaks and exits with a market order. This
+matches paper-mode behavior on daily bars.
 """
 
 from __future__ import annotations
 
 import json
 import os
-from typing import Optional
+import uuid
+from typing import Any, Optional
 
 from core.config import Config, Mode
 from database.models import Signal
@@ -34,12 +42,113 @@ class BrokerDisabled(Exception):
     """The live broker is not armed. This is the expected state."""
 
 
+class OrderError(Exception):
+    """Robinhood rejected or blocked an order. The message says why."""
+
+
 class RobinhoodMCPBroker:
-    def __init__(self, cfg: Config, kill_switch: KillSwitch):
+    def __init__(self, cfg: Config, kill_switch: KillSwitch, token_store=None):
         self.cfg = cfg
         self.kill_switch = kill_switch
         self.url = os.environ.get("ROBINHOOD_MCP_URL", "").strip()
         self.api_key = os.environ.get("ROBINHOOD_MCP_API_KEY", "").strip()
+        self.refresh_token = os.environ.get("ROBINHOOD_MCP_REFRESH_TOKEN", "").strip()
+        self.oauth_client_id = os.environ.get(
+            "ROBINHOOD_OAUTH_CLIENT_ID",
+            "LtLiNmbs9owbYfWgBlC68Z2VujIPuvGoAiSYr8xW",
+        ).strip()
+        # Optional durable token store (duck-typed: get_token/set_token).
+        # On ephemeral hosted runners a GitHub secret can't be written back,
+        # so the rotated refresh token would be lost; the store persists it.
+        # A stored token is preferred over the env secret (it's the most
+        # recently rotated one); the env secret seeds the store on first run.
+        self.token_store = token_store
+        if token_store is not None:
+            try:
+                stored_access = token_store.get_token("robinhood_access")
+                stored_refresh = token_store.get_token("robinhood_refresh")
+                if stored_access:
+                    self.api_key = stored_access
+                elif self.api_key:
+                    token_store.set_token("robinhood_access", self.api_key)
+                if stored_refresh:
+                    self.refresh_token = stored_refresh
+                elif self.refresh_token:
+                    token_store.set_token("robinhood_refresh", self.refresh_token)
+            except Exception:
+                pass  # token store is best-effort; never block on it
+        self._account_number: Optional[str] = None
+
+    def refresh_access_token(self) -> bool:
+        """Mint a fresh access token from the stored refresh token.
+
+        Unattended runs (CI / a scheduled cycle) can't re-do the browser
+        sign-in, so an expired access token would otherwise dead-end. With a
+        refresh token present we renew silently. Robinhood rotates refresh
+        tokens, so the new one is persisted back to .env when we're writing
+        to a local file. Returns True on success."""
+        if not self.refresh_token:
+            return False
+        import httpx
+        try:
+            resp = httpx.post(
+                "https://api.robinhood.com/oauth2/token/",
+                data={
+                    "grant_type": "refresh_token",
+                    "client_id": self.oauth_client_id,
+                    "refresh_token": self.refresh_token,
+                },
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                timeout=30,
+            )
+            resp.raise_for_status()
+            tok = resp.json()
+        except Exception:
+            return False
+        new_access = tok.get("access_token")
+        if not new_access:
+            return False
+        self.api_key = new_access.strip()
+        if tok.get("refresh_token"):
+            self.refresh_token = tok["refresh_token"].strip()
+        self._persist_tokens()
+        if self.token_store is not None:
+            try:
+                self.token_store.set_token("robinhood_access", self.api_key)
+                self.token_store.set_token("robinhood_refresh", self.refresh_token)
+            except Exception:
+                pass
+        return True
+
+    def _persist_tokens(self) -> None:
+        """Write the current tokens back to .env when it exists locally, so a
+        rotated refresh token survives to the next run. No-op if there's no
+        local .env (e.g. tokens injected purely via environment)."""
+        env_path = os.environ.get("JERRYQUANT_ENV_PATH", ".env")
+        if not os.path.exists(env_path):
+            return
+        try:
+            lines = open(env_path).read().splitlines()
+            seen_access = seen_refresh = False
+            out = []
+            for ln in lines:
+                if ln.startswith("ROBINHOOD_MCP_API_KEY="):
+                    out.append(f"ROBINHOOD_MCP_API_KEY={self.api_key}")
+                    seen_access = True
+                elif ln.startswith("ROBINHOOD_MCP_REFRESH_TOKEN="):
+                    out.append(f"ROBINHOOD_MCP_REFRESH_TOKEN={self.refresh_token}")
+                    seen_refresh = True
+                else:
+                    out.append(ln)
+            if not seen_access:
+                out.append(f"ROBINHOOD_MCP_API_KEY={self.api_key}")
+            if not seen_refresh and self.refresh_token:
+                out.append(f"ROBINHOOD_MCP_REFRESH_TOKEN={self.refresh_token}")
+            with open(env_path, "w") as f:
+                f.write("\n".join(out) + "\n")
+            os.chmod(env_path, 0o600)
+        except OSError:
+            pass
 
     def status(self) -> dict:
         return {
@@ -71,42 +180,37 @@ class RobinhoodMCPBroker:
                 f"Mode is {self.cfg.mode.value}; live orders require LIVE_APPROVED."
             )
 
-    def get_balance(self) -> Optional[float]:
-        """Returns None when the balance cannot be verified — callers must
-        treat that as a kill-switch condition, never assume a value."""
-        if not self.is_armed():
-            return None
-        # Wired up after discover() reveals Robinhood's balance tool.
-        return None
+    # ------------------------------------------------------------------
+    # MCP transport
+    # ------------------------------------------------------------------
 
-    def discover(self) -> list[dict]:
-        """MCP handshake + tools/list against the configured endpoint.
-
-        Read-only: lists the tools Robinhood exposes (names, descriptions,
-        input schemas) so order placement can be implemented against the
-        real API instead of guesses. Requires only the URL; sends the API
-        key as a bearer token when present.
-        """
-        if not self.url:
-            raise BrokerDisabled("ROBINHOOD_MCP_URL is not set in .env.")
-        import httpx
-
+    def _headers(self) -> dict:
         headers = {
             "Content-Type": "application/json",
             "Accept": "application/json, text/event-stream",
         }
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
+        return headers
 
-        def parse(resp: httpx.Response) -> dict:
-            if "text/event-stream" in resp.headers.get("content-type", ""):
-                for line in resp.text.splitlines():
-                    if line.startswith("data:"):
-                        return json.loads(line[len("data:"):].strip())
-                raise ValueError("Empty SSE response from MCP server")
-            return resp.json()
+    @staticmethod
+    def _parse(resp) -> dict:
+        if "text/event-stream" in resp.headers.get("content-type", ""):
+            for line in resp.text.splitlines():
+                if line.startswith("data:"):
+                    return json.loads(line[len("data:"):].strip())
+            raise ValueError("Empty SSE response from MCP server")
+        return resp.json()
 
-        with httpx.Client(timeout=30) as client:
+    def _session(self):
+        """Open an initialized MCP session. Returns (client, headers)."""
+        if not self.url:
+            raise BrokerDisabled("ROBINHOOD_MCP_URL is not set in .env.")
+        import httpx
+
+        headers = self._headers()
+        client = httpx.Client(timeout=30)
+        try:
             init = client.post(self.url, headers=headers, json={
                 "jsonrpc": "2.0", "id": 1, "method": "initialize",
                 "params": {
@@ -119,27 +223,360 @@ class RobinhoodMCPBroker:
             session_id = init.headers.get("mcp-session-id")
             if session_id:
                 headers["Mcp-Session-Id"] = session_id
-            parse(init)
+            self._parse(init)
             client.post(self.url, headers=headers, json={
                 "jsonrpc": "2.0", "method": "notifications/initialized",
             })
+        except Exception:
+            client.close()
+            raise
+        return client, headers
+
+    def call_tool(self, name: str, arguments: dict, _retried: bool = False) -> Any:
+        """tools/call against the live endpoint. Returns the tool's data
+        payload. Raises OrderError on tool-level errors — callers must
+        never treat a failed call as success. On a 401 (expired token) it
+        refreshes the access token once and retries."""
+        import httpx
+        client, headers = None, None
+        try:
+            client, headers = self._session()
+            resp = client.post(self.url, headers=headers, json={
+                "jsonrpc": "2.0", "id": 2, "method": "tools/call",
+                "params": {"name": name, "arguments": arguments},
+            })
+            resp.raise_for_status()
+            body = self._parse(resp)
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 401 and not _retried \
+                    and self.refresh_access_token():
+                return self.call_tool(name, arguments, _retried=True)
+            raise
+        finally:
+            if client is not None:
+                client.close()
+        if "error" in body:
+            raise OrderError(f"{name}: MCP error {body['error']}")
+        result = body.get("result", {})
+        if result.get("isError"):
+            texts = [c.get("text", "") for c in result.get("content", [])]
+            raise OrderError(f"{name}: {' '.join(texts)[:500]}")
+        if "structuredContent" in result:
+            return result["structuredContent"].get("data",
+                                                   result["structuredContent"])
+        for c in result.get("content", []):
+            if c.get("type") == "text":
+                try:
+                    parsed = json.loads(c["text"])
+                    return parsed.get("data", parsed)
+                except (json.JSONDecodeError, AttributeError):
+                    return c["text"]
+        return result
+
+    def discover(self, _retried: bool = False) -> list[dict]:
+        """MCP handshake + tools/list against the configured endpoint.
+
+        Read-only: lists the tools Robinhood exposes (names, descriptions,
+        input schemas). Refreshes the access token once on a 401 (an expired
+        token between runs must not dead-end the agent at arming time).
+        """
+        import httpx
+        client = None
+        try:
+            client, headers = self._session()
             listing = client.post(self.url, headers=headers, json={
                 "jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {},
             })
             listing.raise_for_status()
-            return parse(listing).get("result", {}).get("tools", [])
+            return self._parse(listing).get("result", {}).get("tools", [])
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 401 and not _retried \
+                    and self.refresh_access_token():
+                return self.discover(_retried=True)
+            raise
+        finally:
+            if client is not None:
+                client.close()
+
+    # ------------------------------------------------------------------
+    # Account / read-side
+    # ------------------------------------------------------------------
+
+    def get_account_number(self) -> str:
+        """Resolve the agentic-enabled account. Refuses to guess: exactly
+        one active agentic_allowed account must exist (Robinhood keeps the
+        agentic account separate from the rest of the portfolio)."""
+        if self._account_number:
+            return self._account_number
+        env_acct = os.environ.get("ROBINHOOD_ACCOUNT_NUMBER", "").strip()
+        if env_acct:
+            self._account_number = env_acct
+            return env_acct
+        data = self.call_tool("get_accounts", {})
+        accounts = data.get("accounts") or []
+        agentic = [
+            a for a in accounts
+            if a.get("agentic_allowed")
+            and a.get("state", "active") == "active"
+            and not a.get("deactivated")
+        ]
+        if len(agentic) != 1:
+            raise OrderError(
+                f"Expected exactly 1 active agentic account, found "
+                f"{len(agentic)}. Set ROBINHOOD_ACCOUNT_NUMBER in .env to "
+                f"choose explicitly."
+            )
+        self._account_number = agentic[0]["account_number"]
+        return self._account_number
+
+    def get_balance(self) -> Optional[float]:
+        """Total value of the agentic account. Returns None when the
+        balance cannot be verified — callers must treat that as a
+        kill-switch condition, never assume a value."""
+        if not self.is_armed():
+            return None
+        try:
+            data = self.call_tool(
+                "get_portfolio", {"account_number": self.get_account_number()}
+            )
+            return float(data["total_value"])
+        except (OrderError, KeyError, ValueError, TypeError):
+            return None
+
+    def get_buying_power(self) -> Optional[float]:
+        if not self.is_armed():
+            return None
+        try:
+            data = self.call_tool(
+                "get_portfolio", {"account_number": self.get_account_number()}
+            )
+            return float(data["buying_power"]["buying_power"])
+        except (OrderError, KeyError, ValueError, TypeError):
+            return None
+
+    def get_live_positions(self) -> dict[str, dict]:
+        """Open long equity positions as
+        {symbol: {"quantity": total_held, "sellable": settled_sellable}}.
+
+        These are DIFFERENT numbers and must not be conflated: `quantity`
+        answers "do I hold this / how big is the position" (used for
+        reconciliation and stop management), while `sellable` answers "how
+        much can I sell right now" (a freshly-bought position is held in
+        full but may be unsettled and not yet sellable). Parsed explicitly
+        because the API returns strings — and the string "0" is truthy, so
+        a naive `a or b` silently picks the wrong field."""
+        def _f(x) -> float:
+            try:
+                return float(x)
+            except (TypeError, ValueError):
+                return 0.0
+
+        data = self.call_tool(
+            "get_equity_positions",
+            {"account_number": self.get_account_number()},
+        )
+        out: dict[str, dict] = {}
+        for p in data.get("positions") or []:
+            quantity = _f(p.get("quantity"))
+            if quantity > 0 and p.get("type") == "long":
+                out[p["symbol"]] = {
+                    "quantity": quantity,
+                    "sellable": _f(p.get("shares_available_for_sells")),
+                }
+        return out
+
+    def get_quote(self, symbol: str) -> dict:
+        """Live bid/ask/last for a symbol. After the close the book is shut
+        and bid/ask come back 0 — callers fall back to last_trade_price."""
+        def _f(x) -> float:
+            try:
+                return float(x)
+            except (TypeError, ValueError):
+                return 0.0
+        data = self.call_tool("get_equity_quotes", {"symbols": [symbol]})
+        results = data.get("results") or []
+        if not results:
+            raise OrderError(f"No quote returned for {symbol}")
+        q = results[0].get("quote", results[0])
+        return {
+            "ask": _f(q.get("ask_price")),
+            "bid": _f(q.get("bid_price")),
+            "last": _f(q.get("last_trade_price")),
+        }
+
+    # ------------------------------------------------------------------
+    # Orders
+    # ------------------------------------------------------------------
+
+    def _tradable_symbol(self, asset: str) -> str:
+        """Live trading is equities-only: Robinhood's agentic MCP exposes
+        no crypto order tools. Crypto stays paper/backtest by design."""
+        equities = {a.upper() for a in self.cfg.watchlist.equities}
+        symbol = asset.upper().replace("-USD", "")
+        if symbol not in equities:
+            raise OrderError(
+                f"{asset} is not live-tradable: Robinhood's agentic MCP "
+                f"only exposes equity order tools, and {symbol} is not in "
+                f"the equities watchlist."
+            )
+        return symbol
+
+    @staticmethod
+    def _fmt_qty(quantity: float) -> str:
+        """Format a fractional share quantity to Robinhood's 6-dp precision.
+        Raises if it rounds to zero — submitting a "0" quantity (which a
+        naive rstrip would produce for any size < 5e-7) must never happen."""
+        s = f"{quantity:.6f}".rstrip("0").rstrip(".")
+        if not s or float(s) <= 0:
+            raise OrderError(
+                f"Order size {quantity} rounds to zero at 6-dp precision — "
+                f"position too small to place. Increase account size or the "
+                f"per-trade risk so the order clears the minimum."
+            )
+        return s
+
+    @staticmethod
+    def _is_whole(quantity: float) -> bool:
+        """A whole number of shares (>=1) — the only case Robinhood lets us
+        price with a limit order; fractional must be market."""
+        return quantity >= 1 and abs(quantity - round(quantity)) < 1e-9
+
+    def _order_params(self, symbol: str, side: str, quantity: float) -> dict:
+        # Fractional quantities require type=market + regular_hours per
+        # Robinhood's schema — and a $100 account trades fractions of SPY.
+        return {
+            "account_number": self.get_account_number(),
+            "symbol": symbol,
+            "side": side,
+            "type": "market",
+            "quantity": self._fmt_qty(quantity),
+            "time_in_force": "gfd",
+            "market_hours": "regular_hours",
+        }
+
+    def _limit_params(self, symbol: str, side: str, whole_qty: float,
+                      limit_price: float) -> dict:
+        # Limit orders are whole-share only (fractional must be market).
+        return {
+            "account_number": self.get_account_number(),
+            "symbol": symbol,
+            "side": side,
+            "type": "limit",
+            "quantity": str(int(round(whole_qty))),
+            "limit_price": f"{limit_price:.2f}",
+            "time_in_force": "gfd",
+            "market_hours": "regular_hours",
+        }
+
+    def _buy_params(self, symbol: str, quantity: float, basis: float) -> dict:
+        """Marketable-limit buy when the size is a whole share (price
+        protection: limit sits just above the quote so it fills now but
+        caps the worst price); otherwise a fractional market buy."""
+        if self.cfg.execution.use_marketable_limit and self._is_whole(quantity):
+            limit = basis * (1 + self.cfg.execution.limit_buffer_pct / 100.0)
+            return self._limit_params(symbol, "buy", quantity, limit)
+        return self._order_params(symbol, "buy", quantity)
+
+    def _sell_params(self, symbol: str, quantity: float, basis: float) -> dict:
+        """Marketable-limit sell for a whole-share exit; fractional exits go
+        to market so the position fully closes (no stranded remainder)."""
+        if self.cfg.execution.use_marketable_limit and self._is_whole(quantity):
+            limit = basis * (1 - self.cfg.execution.limit_buffer_pct / 100.0)
+            return self._limit_params(symbol, "sell", quantity, limit)
+        return self._order_params(symbol, "sell", quantity)
+
+    def review_order(self, symbol: str, side: str, quantity: float) -> dict:
+        """Robinhood's native pre-trade simulation: current quote plus
+        buying-power / halt / PDT alerts. Read-only."""
+        return self.call_tool(
+            "review_equity_order", self._order_params(symbol, side, quantity)
+        )
+
+    @staticmethod
+    def _blocking_alerts(review: dict) -> list[str]:
+        alerts = []
+        for a in review.get("alerts") or []:
+            if isinstance(a, dict):
+                if a.get("severity", "blocking") in ("blocking", "error"):
+                    alerts.append(a.get("message") or json.dumps(a)[:200])
+            else:
+                alerts.append(str(a)[:200])
+        return alerts
 
     def place_order(self, signal: Signal, size_units: float,
-                    manually_approved: bool) -> None:
+                    manually_approved: bool) -> dict:
+        """review_equity_order, then place_equity_order. Every gate is
+        re-checked here; approval must have been collected by the caller
+        (order_manager prompts for the literal word APPROVE).
+
+        Buys get price protection two ways: a hard deviation guard that
+        refuses to chase a gap-up beyond max_buy_deviation_pct of the
+        signal's reference price, and (when the size is a whole share) a
+        marketable-limit order that caps the fill price."""
         self.kill_switch.assert_can_trade()
         self.assert_armed()
         if not manually_approved:
             raise BrokerDisabled(
                 "Order rejected: explicit manual approval was not given."
             )
-        raise NotImplementedError(
-            "Robinhood MCP order placement is not wired up yet. Run "
-            "LIVE_APPROVED mode once connected to enumerate Robinhood's "
-            "tools via discover(); placement is then implemented against "
-            "those real tool schemas."
-        )
+        symbol = self._tradable_symbol(signal.asset)
+        if size_units <= 0:
+            raise OrderError(f"Invalid order size {size_units}")
+
+        review = self.review_order(symbol, "buy", size_units)
+        blocking = self._blocking_alerts(review)
+        if blocking:
+            raise OrderError(
+                f"Pre-trade review blocked {symbol}: {'; '.join(blocking)}"
+            )
+
+        # Price-deviation guard: never buy into a spike away from the
+        # reference price the signal was generated at.
+        quote = self.get_quote(symbol)
+        basis = quote["ask"] if quote["ask"] > 0 else quote["last"]
+        if basis <= 0:
+            raise OrderError(f"No usable quote for {symbol}; refusing to buy blind")
+        ref = float(signal.entry)
+        if ref > 0:
+            ceiling = ref * (1 + self.cfg.execution.max_buy_deviation_pct / 100.0)
+            if basis > ceiling:
+                raise OrderError(
+                    f"{symbol} quote ${basis:,.2f} is more than "
+                    f"{self.cfg.execution.max_buy_deviation_pct}% above the "
+                    f"signal reference ${ref:,.2f} — not chasing the move"
+                )
+
+        params = self._buy_params(symbol, size_units, basis)
+        params["ref_id"] = str(uuid.uuid4())
+        return self.call_tool("place_equity_order", params)
+
+    def sell_position(self, symbol: str, quantity: float,
+                      manually_approved: bool) -> dict:
+        """Sell to exit a position (stop / target / trend break / scale-out).
+        Same gates as buys: armed broker + explicit approval. Exits are
+        deliberately NOT blocked by the kill switch — a halted system must
+        still be able to get out of risk with human approval — and exits
+        carry no deviation guard, since getting out matters more than price."""
+        self.assert_armed()
+        if not manually_approved:
+            raise BrokerDisabled(
+                "Order rejected: explicit manual approval was not given."
+            )
+        symbol = self._tradable_symbol(symbol)
+        if quantity <= 0:
+            raise OrderError(f"Invalid sell quantity {quantity}")
+        review = self.review_order(symbol, "sell", quantity)
+        blocking = self._blocking_alerts(review)
+        if blocking:
+            raise OrderError(
+                f"Pre-trade review blocked {symbol} sell: {'; '.join(blocking)}"
+            )
+        quote = self.get_quote(symbol)
+        basis = quote["bid"] if quote["bid"] > 0 else quote["last"]
+        if basis <= 0:
+            # No usable quote for a limit; fall back to a plain market exit.
+            params = self._order_params(symbol, "sell", quantity)
+        else:
+            params = self._sell_params(symbol, quantity, basis)
+        params["ref_id"] = str(uuid.uuid4())
+        return self.call_tool("place_equity_order", params)

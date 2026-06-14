@@ -137,6 +137,42 @@ class PaperBroker:
         self.closed_trades.append(trade)
         return trade
 
+    def scale_out_long(self, asset: str, units: float, market_price: float,
+                       exit_reason: str = "Scale-out: partial profit") -> Trade:
+        """Sell part of a position, banking profit while it stays open. Mirrors
+        the live broker's partial sell so paper and live behave identically."""
+        if asset not in self.positions:
+            raise OrderRejected(f"No open position in {asset}")
+        pos = self.positions[asset]
+        units = min(units, pos.size)
+        if units <= 0:
+            raise OrderRejected(f"Invalid scale-out size {units}")
+        frac = units / pos.size
+
+        fill = self._exit_fill(market_price)
+        proceeds = units * fill
+        exit_fee = self._fee(proceeds)
+        self.cash += proceeds - exit_fee
+        entry_fee_part = self._entry_fees.get(asset, 0.0) * frac
+        self._entry_fees[asset] = self._entry_fees.get(asset, 0.0) * (1 - frac)
+
+        pnl = (fill - pos.entry_price) * units - entry_fee_part - exit_fee
+        trade = Trade(
+            asset=asset, direction=pos.direction, size=units,
+            entry_price=pos.entry_price, exit_price=fill, stop=pos.stop,
+            target=pos.target, dollar_risk=pos.dollar_risk * frac, confidence=0,
+            strategy=pos.strategy, data_sources=[self.cfg.data.provider],
+            reasoning=exit_reason, opened_at=pos.opened_at,
+            closed_at=datetime.now(timezone.utc), exit_reason=exit_reason,
+            fees=entry_fee_part + exit_fee, pnl=pnl,
+        )
+        pos.size -= units
+        pos.dollar_risk *= (1 - frac)
+        if self.cfg.strategy.trend_following.breakeven_after_scale:
+            pos.stop = max(pos.stop, pos.entry_price)
+        self.closed_trades.append(trade)
+        return trade
+
     def check_stops_and_targets(
         self, prices: dict[str, float]
     ) -> list[Trade]:

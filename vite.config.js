@@ -20,6 +20,8 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
+        agents: resolve(__dirname, 'agents.html'),
+        'agents/jerryquant': resolve(__dirname, 'agents/jerryquant.html'),
         monerge: resolve(__dirname, 'monerge.html'),
         moncade: resolve(__dirname, 'moncade.html'),
         moncadeGame: resolve(__dirname, 'moncade-game.html'),
