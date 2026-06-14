@@ -148,7 +148,7 @@
       ]
     },
     {
-      "source": "/(index.html|agents.html|sappy.html|monerge.html|moncade.html|moncade-game.html|service-worker.js|manifest.webmanifest|monerge.webmanifest|sappy|agents|monerge|moncade|moncade-game)",
+      "source": "/(index.html|agents.html|sappy.html|monerge.html|moncade.html|moncade-game.html|service-worker.js|manifest.webmanifest|agents.webmanifest|monerge.webmanifest|sappy|agents|monerge|moncade|moncade-game)",
       "headers": [
         { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
       ]

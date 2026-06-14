@@ -1,0 +1,25 @@
+{
+  "name": "Gerry's Agents",
+  "short_name": "Agents",
+  "description": "Gerry Stephen's autonomous agents — starting with JerryQuant.",
+  "start_url": "/agents",
+  "scope": "/agents",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a1822",
+  "theme_color": "#0E1F2C",
+  "icons": [
+    {
+      "src": "/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-92",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/gerrys-iglu-icon.png?v=ecosystems-app-92",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
