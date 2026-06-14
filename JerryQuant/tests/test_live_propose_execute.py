@@ -132,6 +132,67 @@ def test_execute_noop_without_pending(tmp_path, monkeypatch):
     assert rc == 0
 
 
+def test_live_state_roundtrip(tmp_path):
+    db = Database(tmp_path / "t.db")
+    assert db.get_live_state() == {"positions": {}}
+    db.save_live_state({"positions": {"SPY": {"stop": 700.0, "scaled_out": True}}})
+    again = db.get_live_state()
+    assert again["positions"]["SPY"]["stop"] == 700.0
+    assert again["positions"]["SPY"]["scaled_out"] is True
+    db.close()
+
+
+def test_token_store_roundtrip_and_upsert(tmp_path):
+    db = Database(tmp_path / "t.db")
+    assert db.get_token("robinhood_access") is None
+    db.set_token("robinhood_access", "abc")
+    assert db.get_token("robinhood_access") == "abc"
+    db.set_token("robinhood_access", "def")          # upsert, not duplicate
+    assert db.get_token("robinhood_access") == "def"
+    db.close()
+
+
+def test_broker_prefers_stored_token_over_env(tmp_path, monkeypatch):
+    db = Database(tmp_path / "t.db")
+    db.set_token("robinhood_access", "stored-access")
+    db.set_token("robinhood_refresh", "stored-refresh")
+    monkeypatch.setenv("ROBINHOOD_MCP_API_KEY", "env-access")
+    monkeypatch.setenv("ROBINHOOD_MCP_REFRESH_TOKEN", "env-refresh")
+    b = RobinhoodMCPBroker(_live_cfg(), KillSwitch(tmp_path / "HALT.txt"), token_store=db)
+    assert b.api_key == "stored-access"      # the rotated token wins over the secret
+    assert b.refresh_token == "stored-refresh"
+    db.close()
+
+
+def test_broker_seeds_store_from_env_on_first_run(tmp_path, monkeypatch):
+    db = Database(tmp_path / "t.db")
+    monkeypatch.setenv("ROBINHOOD_MCP_API_KEY", "env-access")
+    monkeypatch.setenv("ROBINHOOD_MCP_REFRESH_TOKEN", "env-refresh")
+    RobinhoodMCPBroker(_live_cfg(), KillSwitch(tmp_path / "HALT.txt"), token_store=db)
+    assert db.get_token("robinhood_access") == "env-access"
+    assert db.get_token("robinhood_refresh") == "env-refresh"
+    db.close()
+
+
+def test_refresh_writes_rotated_token_to_store(tmp_path, monkeypatch):
+    db = Database(tmp_path / "t.db")
+    monkeypatch.setenv("ROBINHOOD_MCP_API_KEY", "env-access")
+    monkeypatch.setenv("ROBINHOOD_MCP_REFRESH_TOKEN", "env-refresh")
+    monkeypatch.delenv("JERRYQUANT_ENV_PATH", raising=False)
+    b = RobinhoodMCPBroker(_live_cfg(), KillSwitch(tmp_path / "HALT.txt"), token_store=db)
+
+    class FakeResp:
+        def raise_for_status(self): pass
+        def json(self): return {"access_token": "new-a", "refresh_token": "new-r"}
+
+    import httpx
+    monkeypatch.setattr(httpx, "post", lambda *a, **k: FakeResp())
+    assert b.refresh_access_token() is True
+    assert db.get_token("robinhood_access") == "new-a"   # rotation persisted to Neon
+    assert db.get_token("robinhood_refresh") == "new-r"
+    db.close()
+
+
 def test_live_proposal_dedupe_suppresses_same_action(tmp_path):
     journal = FakeJournal(tmp_path)
     action = {"kind": "entry", "symbol": "SPY", "units": 0.02, "entry": 740.0,

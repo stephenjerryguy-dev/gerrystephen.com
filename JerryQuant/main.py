@@ -754,12 +754,33 @@ def _run_live_cycle(cfg: Config, journal: TradeJournal,
     return 0
 
 
+def _load_live_state(journal: TradeJournal) -> dict:
+    """Managed-position state. Lives in Postgres when a durable ledger is
+    configured (so ephemeral hosted runs keep managing stops); otherwise a
+    local JSON file."""
+    db = getattr(journal, "db", None)
+    if db is not None and getattr(db, "uses_postgres", False):
+        return db.get_live_state()
+    p = BASE_DIR / LIVE_STATE_FILE
+    return json.loads(p.read_text()) if p.exists() else {"positions": {}}
+
+
+def _save_live_state(journal: TradeJournal, state: dict) -> None:
+    db = getattr(journal, "db", None)
+    if db is not None and getattr(db, "uses_postgres", False):
+        db.save_live_state(state)
+        return
+    (BASE_DIR / LIVE_STATE_FILE).write_text(json.dumps(state, indent=2))
+
+
 def _arm_live_broker(cfg: Config, journal: TradeJournal, kill_switch: KillSwitch):
     """Arm the live broker and confirm Robinhood still exposes the tools we
     place orders against. Returns the broker, or None on any blocker."""
     from execution.robinhood_mcp_broker import BrokerDisabled, RobinhoodMCPBroker
 
-    broker = RobinhoodMCPBroker(cfg, kill_switch)
+    # Pass the DB as a durable token store so a rotated refresh token survives
+    # ephemeral hosted runs (a GitHub secret can't be written back at runtime).
+    broker = RobinhoodMCPBroker(cfg, kill_switch, token_store=journal.db)
     try:
         broker.assert_armed()
     except BrokerDisabled as e:
@@ -823,9 +844,7 @@ def _decide_live_actions(cfg: Config, journal: TradeJournal,
     data = fetch_all_data(cfg, check_fresh=True)
     prices = {a: float(df["close"].iloc[-1]) for a, df in data.items()}
 
-    state_path = BASE_DIR / LIVE_STATE_FILE
-    state = (json.loads(state_path.read_text())
-             if state_path.exists() else {"positions": {}})
+    state = _load_live_state(journal)
     held = broker.get_live_positions()
     for sym in list(state["positions"]):
         if sym not in held:
@@ -881,7 +900,7 @@ def _decide_live_actions(cfg: Config, journal: TradeJournal,
                             "reference_price": price,
                             "reason": f"partial profit at {tf.scale_out_r}R"})
 
-    state_path.write_text(json.dumps(state, indent=2))  # persist ratcheted stops
+    _save_live_state(journal, state)  # persist ratcheted stops
 
     # --- entries ---
     regime = regime_filter.assess_regime(data, cfg)
@@ -1088,9 +1107,7 @@ def run_live_execute(cfg: Config, journal: TradeJournal,
     if broker is None:
         return 1
 
-    state_path = BASE_DIR / LIVE_STATE_FILE
-    state = (json.loads(state_path.read_text())
-             if state_path.exists() else {"positions": {}})
+    state = _load_live_state(journal)
     tf = cfg.strategy.trend_following
     done, failed = 0, 0
     for a in payload["actions"]:
@@ -1127,7 +1144,7 @@ def run_live_execute(cfg: Config, journal: TradeJournal,
                         st["stop"] = max(st["stop"], st["entry_price"])
                 journal.record_risk_event("live_scale_out", json.dumps(
                     {"symbol": sym, "units": a["units"], "result": result}, default=str)[:2000])
-            state_path.write_text(json.dumps(state, indent=2))
+            _save_live_state(journal, state)
             if a.get("fingerprint"):
                 journal.db.update_live_proposal_status(a["fingerprint"], "executed")
             print(f"Executed {a['kind']} {sym} ({a['units']:.6f}).")

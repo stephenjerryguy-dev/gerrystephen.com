@@ -208,4 +208,20 @@ CREATE TABLE IF NOT EXISTS live_proposals (
     action_json TEXT NOT NULL,
     detail TEXT
 );
+
+-- Durable managed-position state (stops/targets/scale-out) so ephemeral
+-- hosted runs keep managing positions between cycles. Single JSON blob.
+CREATE TABLE IF NOT EXISTS live_state (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+-- Durable token store so a rotated Robinhood refresh token survives across
+-- ephemeral hosted runs (a GitHub secret can't be written back at runtime).
+CREATE TABLE IF NOT EXISTS live_tokens (
+    name TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
 """

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -50,7 +50,28 @@ class Database:
                 detail TEXT
             )"""
         )
+        self._proposal_pg.execute(
+            """CREATE TABLE IF NOT EXISTS live_state (
+                key TEXT PRIMARY KEY,
+                value JSONB NOT NULL,
+                updated_at TIMESTAMPTZ NOT NULL
+            )"""
+        )
+        self._proposal_pg.execute(
+            """CREATE TABLE IF NOT EXISTS live_tokens (
+                name TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at TIMESTAMPTZ NOT NULL
+            )"""
+        )
         self._proposal_pg.commit()
+
+    @property
+    def uses_postgres(self) -> bool:
+        """True when a Postgres ledger is configured (hosted/durable mode).
+        In that mode live position state and tokens live in Postgres so they
+        survive ephemeral hosted runs; otherwise they stay local."""
+        return self._proposal_pg is not None
 
     def close(self) -> None:
         self._conn.close()
@@ -249,5 +270,77 @@ class Database:
                SET status = ?, detail = COALESCE(NULLIF(?, ''), detail)
                WHERE fingerprint = ?""",
             (status, detail, fingerprint),
+        )
+        self._conn.commit()
+
+    # --- durable live position state (survives ephemeral hosted runs) ---
+
+    def get_live_state(self) -> dict[str, Any]:
+        """Return the managed-position state blob, or an empty shell."""
+        if self._proposal_pg is not None:
+            row = self._proposal_pg.execute(
+                "SELECT value FROM live_state WHERE key = 'positions'"
+            ).fetchone()
+            if row and row["value"] is not None:
+                v = row["value"]
+                return v if isinstance(v, dict) else json.loads(v)
+            return {"positions": {}}
+        row = self._conn.execute(
+            "SELECT value FROM live_state WHERE key = 'positions'"
+        ).fetchone()
+        return json.loads(row["value"]) if row else {"positions": {}}
+
+    def save_live_state(self, state: dict[str, Any]) -> None:
+        now = datetime.now(timezone.utc)
+        if self._proposal_pg is not None:
+            self._proposal_pg.execute(
+                """INSERT INTO live_state (key, value, updated_at)
+                   VALUES ('positions', %s, %s)
+                   ON CONFLICT (key) DO UPDATE
+                   SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at""",
+                (json.dumps(state), now),
+            )
+            self._proposal_pg.commit()
+            return
+        self._conn.execute(
+            """INSERT INTO live_state (key, value, updated_at)
+               VALUES ('positions', ?, ?)
+               ON CONFLICT (key) DO UPDATE
+               SET value = excluded.value, updated_at = excluded.updated_at""",
+            (json.dumps(state), now.isoformat()),
+        )
+        self._conn.commit()
+
+    # --- durable token store (rotated refresh token survives hosted runs) ---
+
+    def get_token(self, name: str) -> Optional[str]:
+        if self._proposal_pg is not None:
+            row = self._proposal_pg.execute(
+                "SELECT value FROM live_tokens WHERE name = %s", (name,)
+            ).fetchone()
+            return row["value"] if row else None
+        row = self._conn.execute(
+            "SELECT value FROM live_tokens WHERE name = ?", (name,)
+        ).fetchone()
+        return row["value"] if row else None
+
+    def set_token(self, name: str, value: str) -> None:
+        now = datetime.now(timezone.utc)
+        if self._proposal_pg is not None:
+            self._proposal_pg.execute(
+                """INSERT INTO live_tokens (name, value, updated_at)
+                   VALUES (%s, %s, %s)
+                   ON CONFLICT (name) DO UPDATE
+                   SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at""",
+                (name, value, now),
+            )
+            self._proposal_pg.commit()
+            return
+        self._conn.execute(
+            """INSERT INTO live_tokens (name, value, updated_at)
+               VALUES (?, ?, ?)
+               ON CONFLICT (name) DO UPDATE
+               SET value = excluded.value, updated_at = excluded.updated_at""",
+            (name, value, now.isoformat()),
         )
         self._conn.commit()

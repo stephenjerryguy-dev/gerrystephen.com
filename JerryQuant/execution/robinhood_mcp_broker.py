@@ -47,7 +47,7 @@ class OrderError(Exception):
 
 
 class RobinhoodMCPBroker:
-    def __init__(self, cfg: Config, kill_switch: KillSwitch):
+    def __init__(self, cfg: Config, kill_switch: KillSwitch, token_store=None):
         self.cfg = cfg
         self.kill_switch = kill_switch
         self.url = os.environ.get("ROBINHOOD_MCP_URL", "").strip()
@@ -57,6 +57,26 @@ class RobinhoodMCPBroker:
             "ROBINHOOD_OAUTH_CLIENT_ID",
             "LtLiNmbs9owbYfWgBlC68Z2VujIPuvGoAiSYr8xW",
         ).strip()
+        # Optional durable token store (duck-typed: get_token/set_token).
+        # On ephemeral hosted runners a GitHub secret can't be written back,
+        # so the rotated refresh token would be lost; the store persists it.
+        # A stored token is preferred over the env secret (it's the most
+        # recently rotated one); the env secret seeds the store on first run.
+        self.token_store = token_store
+        if token_store is not None:
+            try:
+                stored_access = token_store.get_token("robinhood_access")
+                stored_refresh = token_store.get_token("robinhood_refresh")
+                if stored_access:
+                    self.api_key = stored_access
+                elif self.api_key:
+                    token_store.set_token("robinhood_access", self.api_key)
+                if stored_refresh:
+                    self.refresh_token = stored_refresh
+                elif self.refresh_token:
+                    token_store.set_token("robinhood_refresh", self.refresh_token)
+            except Exception:
+                pass  # token store is best-effort; never block on it
         self._account_number: Optional[str] = None
 
     def refresh_access_token(self) -> bool:
@@ -92,6 +112,12 @@ class RobinhoodMCPBroker:
         if tok.get("refresh_token"):
             self.refresh_token = tok["refresh_token"].strip()
         self._persist_tokens()
+        if self.token_store is not None:
+            try:
+                self.token_store.set_token("robinhood_access", self.api_key)
+                self.token_store.set_token("robinhood_refresh", self.refresh_token)
+            except Exception:
+                pass
         return True
 
     def _persist_tokens(self) -> None:
