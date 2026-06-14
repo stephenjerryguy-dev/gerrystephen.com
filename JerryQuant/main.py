@@ -15,6 +15,7 @@ is missing or stale. If HALT_TRADING.txt exists, nothing trades.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -38,6 +39,7 @@ LIVE_STATE_FILE = "live_state.json"
 LIVE_PENDING_FILE = "live_pending.json"
 LIVE_PENDING_MD = "live_pending.md"
 LIVE_PENDING_MAX_AGE_H = 18  # a proposal older than this is stale; execute refuses
+LIVE_PROPOSAL_STATUSES_SUPPRESS = {"proposed", "approved", "executed", "rejected"}
 
 
 def setup_logging(cfg: Config) -> None:
@@ -964,8 +966,61 @@ def _render_pending_md(actions, notes, equity, acct_last4) -> str:
     return "\n".join(lines)
 
 
+def _proposal_day() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
+def _proposal_fingerprint(action: dict, day: str | None = None) -> str:
+    """Stable per-day id for a live action.
+
+    The scan can run every 15 minutes; this prevents the same SPY buy or
+    IBIT exit from asking for approval again unless the action materially
+    changes or the calendar day rolls.
+    """
+    day = day or _proposal_day()
+    kind = str(action.get("kind", "")).lower()
+    symbol = str(action.get("symbol", "")).upper()
+    strategy = str(action.get("strategy", ""))
+    if kind == "entry":
+        price_bucket = round(float(action.get("entry", 0.0)), 2)
+        stop_bucket = round(float(action.get("stop", 0.0)), 2)
+        raw = f"{day}|{kind}|{symbol}|{strategy}|{price_bucket}|{stop_bucket}"
+    else:
+        reason = str(action.get("reason", ""))[:80]
+        raw = f"{day}|{kind}|{symbol}|{reason}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:24]
+
+
+def _filter_new_live_proposals(journal: TradeJournal, actions: list[dict],
+                               source: str) -> tuple[list[dict], list[str]]:
+    fresh: list[dict] = []
+    skipped: list[str] = []
+    now = datetime.now(timezone.utc)
+    for action in actions:
+        fp = _proposal_fingerprint(action)
+        action["fingerprint"] = fp
+        existing = journal.db.proposal_by_fingerprint(fp)
+        if existing and existing["status"] in LIVE_PROPOSAL_STATUSES_SUPPRESS:
+            skipped.append(
+                f"{action['symbol']}: {action['kind']} already proposed "
+                f"today ({existing['status']})"
+            )
+            continue
+        journal.db.insert_live_proposal(
+            fingerprint=fp,
+            timestamp=now,
+            source=source,
+            symbol=action["symbol"],
+            kind=action["kind"],
+            action=action,
+            detail=str(action.get("reason", ""))[:500],
+        )
+        fresh.append(action)
+    return fresh, skipped
+
+
 def run_live_propose(cfg: Config, journal: TradeJournal,
-                     kill_switch: KillSwitch) -> int:
+                     kill_switch: KillSwitch, source: str = "propose") -> int:
     """Read-only: compute the exact live actions and serialize them for an
     out-of-band approval (e.g. a GitHub environment gate). Places nothing."""
     broker = _arm_live_broker(cfg, journal, kill_switch)
@@ -973,14 +1028,29 @@ def run_live_propose(cfg: Config, journal: TradeJournal,
         return 1
     acct = broker.get_account_number()
     actions, notes, equity = _decide_live_actions(cfg, journal, kill_switch, broker)
+    actions, dedupe_notes = _filter_new_live_proposals(journal, actions, source)
+    notes.extend(dedupe_notes)
     payload = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "account_last4": acct[-4:], "equity": equity, "actions": actions,
+        "account_last4": acct[-4:],
+        "equity": equity,
+        "source": source,
+        "actions": actions,
     }
     (BASE_DIR / LIVE_PENDING_FILE).write_text(json.dumps(payload, indent=2))
     md = _render_pending_md(actions, notes, equity, acct[-4:])
     (BASE_DIR / LIVE_PENDING_MD).write_text(md)
     print(md)
+    if actions:
+        from reports.daily_report import send_markdown_email
+        send_markdown_email(
+            md,
+            cfg,
+            subject=(
+                f"JerryQuant Live {source.replace('_', ' ').title()} — "
+                f"{len(actions)} pending action(s)"
+            ),
+        )
     print(f"\n{len(actions)} action(s) proposed → {LIVE_PENDING_FILE} "
           f"(nothing placed).")
     return 0
@@ -1004,6 +1074,11 @@ def run_live_execute(cfg: Config, journal: TradeJournal,
     age_h = (datetime.now(timezone.utc) - gen).total_seconds() / 3600
     if age_h > LIVE_PENDING_MAX_AGE_H:
         journal.record_risk_event("live_pending_stale", f"{age_h:.1f}h old")
+        for action in payload.get("actions", []):
+            if action.get("fingerprint"):
+                journal.db.update_live_proposal_status(
+                    action["fingerprint"], "expired", f"{age_h:.1f}h old"
+                )
         print(f"Proposal is {age_h:.1f}h old (> {LIVE_PENDING_MAX_AGE_H}h) — "
               f"refusing to execute stale tickets. Re-run propose.")
         pending_path.unlink()
@@ -1053,10 +1128,14 @@ def run_live_execute(cfg: Config, journal: TradeJournal,
                 journal.record_risk_event("live_scale_out", json.dumps(
                     {"symbol": sym, "units": a["units"], "result": result}, default=str)[:2000])
             state_path.write_text(json.dumps(state, indent=2))
+            if a.get("fingerprint"):
+                journal.db.update_live_proposal_status(a["fingerprint"], "executed")
             print(f"Executed {a['kind']} {sym} ({a['units']:.6f}).")
             done += 1
         except (BrokerDisabled, OrderError) as e:
             failed += 1
+            if a.get("fingerprint"):
+                journal.db.update_live_proposal_status(a["fingerprint"], "failed", str(e))
             journal.record_risk_event(f"live_{a['kind']}_failed", f"{sym}: {e}")
             print(f"FAILED {a['kind']} {sym}: {e}")
     pending_path.unlink()  # consume the proposal so it can't be replayed
@@ -1140,10 +1219,10 @@ def main() -> int:
     parser.add_argument(
         "--mode",
         choices=["backtest", "paper", "live_review", "live_approved",
-                 "live_propose", "live_execute"],
+                 "live_plan", "live_scan", "live_propose", "live_execute"],
         default=None,
-        help="Override mode from config.yaml. live_propose computes and "
-             "serializes the day's tickets without placing anything; "
+        help="Override mode from config.yaml. live_plan/live_scan/live_propose "
+             "compute and serialize fresh tickets without placing anything; "
              "live_execute places exactly the proposed tickets (intended to "
              "run only after an authenticated approval gate).",
     )
@@ -1158,7 +1237,9 @@ def main() -> int:
     cfg = load_config(args.config)
     # propose/execute are sub-flows of live: arm the broker (mode LIVE_APPROVED)
     # but dispatch to the split propose/execute runners rather than the prompt.
-    live_sub = args.mode if args.mode in ("live_propose", "live_execute") else None
+    live_sub = args.mode if args.mode in (
+        "live_plan", "live_scan", "live_propose", "live_execute"
+    ) else None
     if live_sub:
         cfg = cfg.model_copy(update={"mode": Mode.LIVE_APPROVED})
     elif args.mode:
@@ -1179,8 +1260,8 @@ def main() -> int:
     try:
         if args.validate:
             return run_validation(cfg, journal)
-        if live_sub == "live_propose":
-            return run_live_propose(cfg, journal, kill_switch)
+        if live_sub in ("live_plan", "live_scan", "live_propose"):
+            return run_live_propose(cfg, journal, kill_switch, source=live_sub)
         if live_sub == "live_execute":
             return run_live_execute(cfg, journal, kill_switch)
         if cfg.mode == Mode.BACKTEST:

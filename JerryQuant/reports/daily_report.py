@@ -161,6 +161,28 @@ def _smtp_configured() -> bool:
 
 
 def _send_email(report: str, cfg: Config) -> None:
+    _send_markdown_email(
+        report,
+        cfg,
+        subject=f"JerryQuant Daily Report — {datetime.now(timezone.utc):%Y-%m-%d}",
+    )
+
+
+def send_markdown_email(report: str, cfg: Config, subject: str,
+                        output_fn=print) -> bool:
+    if not (cfg.reporting.email.enabled and _smtp_configured()):
+        output_fn("Email not configured; proposal printed and saved only.")
+        return False
+    try:
+        _send_markdown_email(report, cfg, subject)
+        output_fn("Email sent.")
+        return True
+    except Exception as e:
+        output_fn(f"Email delivery failed ({e}); proposal printed and saved only.")
+        return False
+
+
+def _send_markdown_email(report: str, cfg: Config, subject: str) -> None:
     host = os.environ["SMTP_HOST"]
     port = int(os.environ.get("SMTP_PORT", "587"))
     user = os.environ["SMTP_USER"]
@@ -173,9 +195,7 @@ def _send_email(report: str, cfg: Config) -> None:
         raise ValueError("No report recipient configured")
 
     msg = MIMEText(report, "plain")
-    msg["Subject"] = (
-        f"JerryQuant Daily Report — {datetime.now(timezone.utc):%Y-%m-%d}"
-    )
+    msg["Subject"] = subject
     msg["From"] = sender
     msg["To"] = recipient
 

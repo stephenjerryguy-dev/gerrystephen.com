@@ -196,4 +196,16 @@ CREATE TABLE IF NOT EXISTS risk_events (
     event TEXT NOT NULL,
     detail TEXT
 );
+
+CREATE TABLE IF NOT EXISTS live_proposals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    fingerprint TEXT NOT NULL UNIQUE,
+    timestamp TEXT NOT NULL,
+    source TEXT NOT NULL,
+    status TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    action_json TEXT NOT NULL,
+    detail TEXT
+);
 """

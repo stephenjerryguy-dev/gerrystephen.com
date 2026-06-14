@@ -1,0 +1,165 @@
+name: JerryQuant Live Agent
+
+on:
+  workflow_dispatch:
+    inputs:
+      phase:
+        description: "Which live phase to run"
+        required: true
+        default: "scan"
+        type: choice
+        options:
+          - plan
+          - scan
+          - execute
+  schedule:
+    # Times are UTC. During US daylight time (EDT):
+    # 12:45 = 8:45 AM ET pre-market plan
+    # 13:35 = 9:35 AM ET open check
+    # 13:45-19:45 every 15 min = intraday scans
+    # 20:15 = 4:15 PM ET close scan/report
+    # NOTE: in EST (winter) the US session is one hour later in UTC — shift
+    # these crons +1h, or they will run an hour early.
+    - cron: "45 12 * * 1-5"
+    - cron: "35 13 * * 1-5"
+    - cron: "45 13 * * 1-5"
+    - cron: "0,15,30,45 14-19 * * 1-5"
+    - cron: "15 20 * * 1-5"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jerryquant-live-agent
+  cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: JerryQuant   # all run-steps execute inside JerryQuant/
+
+jobs:
+  plan-or-scan:
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.phase != 'execute' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      has_actions: ${{ steps.propose.outputs.has_actions }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: JerryQuant/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Decide live phase
+        id: phase
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            phase="${{ github.event.inputs.phase }}"
+          else
+            minute="$(date -u +%H:%M)"
+            if [ "$minute" = "12:45" ]; then
+              phase="plan"
+            else
+              phase="scan"
+            fi
+          fi
+          echo "phase=$phase" >> "$GITHUB_OUTPUT"
+
+      - name: Run live plan/scan
+        id: propose
+        env:
+          ROBINHOOD_MCP_URL: ${{ secrets.ROBINHOOD_MCP_URL }}
+          ROBINHOOD_MCP_API_KEY: ${{ secrets.ROBINHOOD_MCP_API_KEY }}
+          ROBINHOOD_MCP_REFRESH_TOKEN: ${{ secrets.ROBINHOOD_MCP_REFRESH_TOKEN }}
+          JERRYQUANT_PROPOSAL_DATABASE_URL: ${{ secrets.JERRYQUANT_PROPOSAL_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          REPORT_EMAIL_FROM: ${{ secrets.REPORT_EMAIL_FROM }}
+          REPORT_EMAIL_TO: ${{ secrets.REPORT_EMAIL_TO }}
+        shell: bash
+        run: |
+          if [ "${{ steps.phase.outputs.phase }}" = "plan" ]; then
+            python main.py --mode live_plan
+          else
+            python main.py --mode live_scan
+          fi
+          if [ -f live_pending.json ] && python - <<'PY'
+          import json
+          p=json.load(open("live_pending.json"))
+          raise SystemExit(0 if p.get("actions") else 1)
+          PY
+          then
+            echo "has_actions=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_actions=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish proposed tickets
+        if: always()
+        shell: bash
+        run: |
+          if [ -f live_pending.md ]; then
+            cat live_pending.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No live proposal file was created." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload proposal
+        if: steps.propose.outputs.has_actions == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-pending
+          path: |
+            JerryQuant/live_pending.json
+            JerryQuant/live_pending.md
+          retention-days: 1
+
+  execute:
+    needs: plan-or-scan
+    if: ${{ needs.plan-or-scan.outputs.has_actions == 'true' || github.event.inputs.phase == 'execute' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: live-trading
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: JerryQuant/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Download approved proposal
+        if: ${{ github.event.inputs.phase != 'execute' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: live-pending
+          path: JerryQuant
+
+      - name: Execute approved live tickets
+        env:
+          ROBINHOOD_MCP_URL: ${{ secrets.ROBINHOOD_MCP_URL }}
+          ROBINHOOD_MCP_API_KEY: ${{ secrets.ROBINHOOD_MCP_API_KEY }}
+          ROBINHOOD_MCP_REFRESH_TOKEN: ${{ secrets.ROBINHOOD_MCP_REFRESH_TOKEN }}
+          JERRYQUANT_PROPOSAL_DATABASE_URL: ${{ secrets.JERRYQUANT_PROPOSAL_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          REPORT_EMAIL_FROM: ${{ secrets.REPORT_EMAIL_FROM }}
+          REPORT_EMAIL_TO: ${{ secrets.REPORT_EMAIL_TO }}
+        run: python main.py --mode live_execute

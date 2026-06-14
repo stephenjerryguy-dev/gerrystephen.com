@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -18,9 +19,43 @@ class Database:
         self._conn.row_factory = sqlite3.Row
         self._conn.executescript(SCHEMA)
         self._conn.commit()
+        self._proposal_pg = None
+        self._proposal_pg_url = (
+            os.environ.get("JERRYQUANT_PROPOSAL_DATABASE_URL")
+            or os.environ.get("DATABASE_URL")
+        )
+        if self._proposal_pg_url:
+            self._init_postgres_proposals(self._proposal_pg_url)
+
+    def _init_postgres_proposals(self, url: str) -> None:
+        try:
+            import psycopg
+            from psycopg.rows import dict_row
+        except ImportError as e:
+            raise RuntimeError(
+                "Postgres proposal ledger requested, but psycopg is not "
+                "installed. Add psycopg[binary] to requirements and install it."
+            ) from e
+        self._proposal_pg = psycopg.connect(url, row_factory=dict_row)
+        self._proposal_pg.execute(
+            """CREATE TABLE IF NOT EXISTS live_proposals (
+                id BIGSERIAL PRIMARY KEY,
+                fingerprint TEXT NOT NULL UNIQUE,
+                timestamp TIMESTAMPTZ NOT NULL,
+                source TEXT NOT NULL,
+                status TEXT NOT NULL,
+                symbol TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                action_json JSONB NOT NULL,
+                detail TEXT
+            )"""
+        )
+        self._proposal_pg.commit()
 
     def close(self) -> None:
         self._conn.close()
+        if self._proposal_pg is not None:
+            self._proposal_pg.close()
 
     # --- signals ---
 
@@ -133,3 +168,86 @@ class Database:
             (mode,),
         ).fetchall()
         return [(r["timestamp"], r["equity"]) for r in rows]
+
+    # --- live proposal ledger ---
+
+    def proposal_by_fingerprint(self, fingerprint: str) -> Optional[sqlite3.Row]:
+        if self._proposal_pg is not None:
+            return self._proposal_pg.execute(
+                "SELECT * FROM live_proposals WHERE fingerprint = %s",
+                (fingerprint,),
+            ).fetchone()
+        return self._conn.execute(
+            "SELECT * FROM live_proposals WHERE fingerprint = ?",
+            (fingerprint,),
+        ).fetchone()
+
+    def insert_live_proposal(
+        self,
+        fingerprint: str,
+        timestamp: datetime,
+        source: str,
+        symbol: str,
+        kind: str,
+        action: dict[str, Any],
+        detail: str = "",
+        status: str = "proposed",
+    ) -> int:
+        if self._proposal_pg is not None:
+            cur = self._proposal_pg.execute(
+                """INSERT INTO live_proposals
+                   (fingerprint, timestamp, source, status, symbol, kind,
+                    action_json, detail)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                   RETURNING id""",
+                (
+                    fingerprint,
+                    timestamp,
+                    source,
+                    status,
+                    symbol,
+                    kind,
+                    json.dumps(action, sort_keys=True),
+                    detail,
+                ),
+            )
+            row = cur.fetchone()
+            self._proposal_pg.commit()
+            return int(row["id"])
+        cur = self._conn.execute(
+            """INSERT INTO live_proposals
+               (fingerprint, timestamp, source, status, symbol, kind,
+                action_json, detail)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                fingerprint,
+                timestamp.isoformat(),
+                source,
+                status,
+                symbol,
+                kind,
+                json.dumps(action, sort_keys=True),
+                detail,
+            ),
+        )
+        self._conn.commit()
+        return int(cur.lastrowid)
+
+    def update_live_proposal_status(self, fingerprint: str, status: str,
+                                    detail: str = "") -> None:
+        if self._proposal_pg is not None:
+            self._proposal_pg.execute(
+                """UPDATE live_proposals
+                   SET status = %s, detail = COALESCE(NULLIF(%s, ''), detail)
+                   WHERE fingerprint = %s""",
+                (status, detail, fingerprint),
+            )
+            self._proposal_pg.commit()
+            return
+        self._conn.execute(
+            """UPDATE live_proposals
+               SET status = ?, detail = COALESCE(NULLIF(?, ''), detail)
+               WHERE fingerprint = ?""",
+            (status, detail, fingerprint),
+        )
+        self._conn.commit()

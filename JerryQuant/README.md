@@ -97,7 +97,7 @@ can never be disabled). Code wins over config.
 
 ## Running it from your phone (GitHub Actions)
 
-You don't need a computer or server. Two workflows live in
+You don't need a computer or server. Three workflows live in
 `.github/workflows/` at the repo root:
 
 - **JerryQuant Backtest** — manual. GitHub → Actions tab → "JerryQuant
@@ -111,6 +111,11 @@ You don't need a computer or server. Two workflows live in
   emails it if email is configured (below). **Note:** the daily schedule
   only fires on the repo's default branch — merge this branch to `main`
   to activate it; manual runs work from any branch.
+- **JerryQuant Live Agent** — prepares live tickets before the open, checks
+  again near the open, then scans during market hours for new entries,
+  exits, and scale-outs. Every proposed action still pauses at the
+  `live-trading` GitHub Environment for your approval before anything is
+  sent to Robinhood.
 
 ### Email reports (Gmail)
 
@@ -139,19 +144,36 @@ Approval must go through something that knows it's *you* — never a public web
 page. The supported on-the-go path is a **GitHub Environment gate** you approve
 in the GitHub mobile app:
 
-The `JerryQuant Live` workflow (`.github/workflows/jerryquant-live.yml`) runs
-in two windows a day so a trend recognized at the close is placed at the open:
+The `JerryQuant Live Agent` workflow
+(`.github/workflows/jerryquant-live-agent.yml`) is built around the way you
+want to run the account: tickets ready before the market opens, then a careful
+intraday watch loop.
 
-1. **After the US close** — a `preview` run posts the day's proposed tickets to
-   the run summary (the heads-up that a trend was recognized). Places nothing.
-2. **At the US open** — `propose` recomputes on fresh prices, then the `execute`
-   job is gated by a GitHub Environment named `live-trading` with you as a
-   **required reviewer**. It pauses and notifies you; you open the GitHub app,
-   read the tickets, and tap **Approve** or **Reject**.
-3. On approval, `--mode live_execute` places **exactly** the proposed tickets
+1. **Pre-market plan** — at 8:45 AM ET, `--mode live_plan` computes tickets
+   before the open so you can review them early.
+2. **Open check** — at 9:35 AM ET, `--mode live_scan` recomputes on fresher
+   prices.
+3. **Intraday scan** — every 15 minutes from 9:45 AM to 3:45 PM ET,
+   `--mode live_scan` checks exits, scale-outs, and new entries.
+4. **Approval + execution** — if a fresh action exists, the `execute` job is
+   gated by a GitHub Environment named `live-trading` with you as a
+   **required reviewer**. You open the GitHub app, read the tickets, and tap
+   **Approve** or **Reject**.
+5. On approval, `--mode live_execute` places **exactly** the proposed tickets
    (downloaded as an artifact — not a recomputed set), re-checking the kill
-   switch and the price-deviation guard at the open. A proposal older than
+   switch and the price-deviation guard. A proposal older than
    `LIVE_PENDING_MAX_AGE_H` hours is refused as stale.
+
+If SMTP secrets are configured, pending live tickets are emailed to you as
+well as posted in the run summary. No signal means no forced order — the
+correct action can still be "do nothing."
+
+The live scanner writes each action to a proposal ledger using a fingerprint
+of symbol/action/strategy/price/date. That lets scans run often without
+pinging you repeatedly for the same trade. For GitHub-hosted runners, set
+`JERRYQUANT_PROPOSAL_DATABASE_URL` to a Neon/Postgres URL so the ledger
+persists across runs. If unset, it falls back to local SQLite, which is best
+for a self-hosted runner on your Mac.
 
 The live equity universe is SPY/QQQ/IWM plus the spot-crypto ETFs **IBIT**
 (Bitcoin) and **ETHA** (Ethereum) — crypto exposure on the equity rails. Note

@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 import main
+from database.db import Database
 from core.config import Mode
 from execution.robinhood_mcp_broker import RobinhoodMCPBroker
 from risk.kill_switch import KillSwitch
@@ -66,6 +67,9 @@ class FakeBroker:
 
 
 class FakeJournal:
+    def __init__(self, tmp_path=None):
+        self.db = Database(tmp_path / "test.db") if tmp_path else None
+
     def record_risk_event(self, *a, **k): pass
 
 
@@ -94,7 +98,7 @@ def test_execute_applies_entry_and_exit(tmp_path, monkeypatch):
                                "size": 0.05, "opened_at": "2026-06-01T00:00:00+00:00",
                                "strategy": "t", "dollar_risk": 0.3}}}))
 
-    rc = main.run_live_execute(_live_cfg(), FakeJournal(), KillSwitch(tmp_path / "HALT.txt"))
+    rc = main.run_live_execute(_live_cfg(), FakeJournal(tmp_path), KillSwitch(tmp_path / "HALT.txt"))
     assert rc == 0
     assert ("buy", "SPY", 0.02, True) in fake.calls
     assert ("sell", "QQQ", 0.05, True) in fake.calls
@@ -116,7 +120,7 @@ def test_execute_refuses_stale_proposal(tmp_path, monkeypatch):
                                "dollar_risk": 0.4, "confidence": 80,
                                "strategy": "s", "reason": "x", "ticket": "t"}],
                    age_h=main.LIVE_PENDING_MAX_AGE_H + 5)
-    rc = main.run_live_execute(_live_cfg(), FakeJournal(), KillSwitch(tmp_path / "HALT.txt"))
+    rc = main.run_live_execute(_live_cfg(), FakeJournal(tmp_path), KillSwitch(tmp_path / "HALT.txt"))
     assert rc == 1
     assert armed["called"] is False              # never even armed the broker
     assert not (tmp_path / main.LIVE_PENDING_FILE).exists()  # stale file cleared
@@ -124,5 +128,21 @@ def test_execute_refuses_stale_proposal(tmp_path, monkeypatch):
 
 def test_execute_noop_without_pending(tmp_path, monkeypatch):
     monkeypatch.setattr(main, "BASE_DIR", tmp_path)
-    rc = main.run_live_execute(_live_cfg(), FakeJournal(), KillSwitch(tmp_path / "HALT.txt"))
+    rc = main.run_live_execute(_live_cfg(), FakeJournal(tmp_path), KillSwitch(tmp_path / "HALT.txt"))
     assert rc == 0
+
+
+def test_live_proposal_dedupe_suppresses_same_action(tmp_path):
+    journal = FakeJournal(tmp_path)
+    action = {"kind": "entry", "symbol": "SPY", "units": 0.02, "entry": 740.0,
+              "stop": 720.0, "target": 780.0, "dollar_risk": 0.4,
+              "confidence": 80, "strategy": "trend_following_v1",
+              "reason": "same setup"}
+
+    fresh, notes = main._filter_new_live_proposals(journal, [action.copy()], "live_plan")
+    assert len(fresh) == 1
+    assert notes == []
+
+    fresh, notes = main._filter_new_live_proposals(journal, [action.copy()], "live_scan")
+    assert fresh == []
+    assert "already proposed today" in notes[0]
