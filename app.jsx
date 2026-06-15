@@ -522,9 +522,23 @@ function PenguinCard({ size = 380, float = true, style = {} }) {
 }
 
 // ---------- Topbar ----------
+const TOPBAR_LINKS = [
+  { href: '/#journey', label: 'Journey' },
+  { href: '/#nfts', label: 'Communities' },
+  { href: '/#inkfinity', label: 'Inkfinity' },
+  { href: '/#monerge', label: 'Biome' },
+  { href: '/#now', label: 'Now' },
+  { href: '/#bluestar', label: 'Hospitality' },
+  { href: 'https://sappy.gerrystephen.com', label: 'Sappy', external: true },
+  { href: '/#contact', label: 'Contact' }
+];
+
 function Topbar() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const closeMenu = () => setMenuOpen(false);
+
   return (
-    <header className="topbar" data-screen-label="topbar">
+    <header className={`topbar ${menuOpen ? 'menu-open' : ''}`} data-screen-label="topbar">
       <div className="brand">
         <div className="brand-mark">
           <img src="assets/pudgy-penguin-cutout.png" alt="" />
@@ -532,14 +546,9 @@ function Topbar() {
         <div className="brand-text">gerrystephen<span>.com</span></div>
       </div>
       <nav className="topnav">
-        <a href="#journey">Journey</a>
-        <a href="#nfts">Communities</a>
-        <a href="#inkfinity">Inkfinity</a>
-        <a href="#monerge">Biome</a>
-        <a href="#now">Now</a>
-        <a href="#bluestar">Hospitality</a>
-        <a href="https://sappy.gerrystephen.com" target="_blank" rel="noopener">Sappy</a>
-        <a href="#contact">Contact</a>
+        {TOPBAR_LINKS.map((link) =>
+          <a key={link.label} href={link.href} target={link.external ? '_blank' : undefined} rel={link.external ? 'noopener' : undefined}>{link.label}</a>
+        )}
       </nav>
       <div className="top-actions">
         <a href="https://x.com/gerrydoteth" target="_blank" rel="noopener" className="top-cta icon" aria-label="Gerry Stephen on X">
@@ -547,7 +556,17 @@ function Topbar() {
           <strong>X</strong>
         </a>
         <a href="https://opensea.io/profile/gerrystephen" target="_blank" rel="noopener" className="top-cta">OpenSea</a>
+        <button type="button" className="top-menu-toggle" onClick={() => setMenuOpen((open) => !open)} aria-label="Open site menu" aria-expanded={menuOpen}>
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
       </div>
+      {menuOpen && <div className="top-mobile-menu" role="dialog" aria-label="Site menu">
+        {TOPBAR_LINKS.map((link) =>
+          <a key={link.label} href={link.href} onClick={closeMenu} target={link.external ? '_blank' : undefined} rel={link.external ? 'noopener' : undefined}>{link.label}</a>
+        )}
+      </div>}
     </header>);
 
 }
@@ -1399,6 +1418,7 @@ const wagmiConfig = createConfig({
   transports: { [monadMainnet.id]: http(MONAD_NETWORK.rpcUrls[0]) }
 });
 const MONERGE_APP_PATH = '/monerge';
+const AGENTS_APP_PATH = '/agents';
 const METAMASK_APP_LINK = `https://metamask.app.link/dapp/${window.location.host}${MONERGE_APP_PATH}`;
 
 function monergeWalletsFilter(options = []) {
@@ -1600,6 +1620,7 @@ function MonergeDynamicBridge() {
 function getAppMode() {
   const path = window.location.pathname.replace(/\/+$/, '') || '/';
   if (path === MONERGE_APP_PATH) return 'monerge';
+  if (path === AGENTS_APP_PATH) return 'agents';
   return new URLSearchParams(window.location.search).get('app');
 }
 
@@ -3282,7 +3303,7 @@ function Stats() {
 
 // ---------- Now Building ----------
 const NOW = [
-{ title: 'AI Agents', note: 'Autonomous workers for hospitality ops, content systems, and the useful glue between them.', logo: 'assets/pudgy-penguin-cutout.png', alt: 'Gerry Stephen Pudgy Penguin', className: 'pudgy-agent-logo', href: 'https://x.com/gerrydoteth' },
+	{ title: 'AI Agents', note: 'Autonomous workers for hospitality ops, content systems, trading bots, and the useful glue between them.', site: 'gerrystephen.com/agents', logo: 'assets/pudgy-penguin-cutout.png', alt: 'Gerry Stephen Pudgy Penguin', className: 'pudgy-agent-logo', href: AGENTS_APP_PATH },
 { title: 'Blue Star Web3', note: 'Live now: ecosystem-holder benefits for vacation, worcation, and nomadic stays.', logo: 'assets/bluestar-logo.png', alt: 'Blue Star Apartments & Hotel logo', className: 'blue-star-logo', href: 'https://x.com/bluestarstay' },
 { title: 'Seal Stay', note: 'Where Web3 meets hospitality. Stay tuned for the next stay layer.', logo: 'assets/seal-stay-logo.png', alt: 'Seal Stay logo', href: 'https://x.com/sappylifestyle' },
 { title: 'Great Terriers', note: 'Coming soon: the AI-native collection featuring my dog, Reo. It started as a 2022 idea and keeps moving forward.', logo: 'assets/great-terriers-coming-soon.png', alt: 'Great Terriers coming soon artwork', className: 'great-terriers-logo', href: 'https://x.com/greatterriers' }];
@@ -3294,12 +3315,13 @@ function NowBuilding() {
       <div className="nb-grid">
         {NOW.map((n, i) =>
         <Reveal key={n.title} delay={i * 80}>
-            <a className={`nb-card ${n.className || ''}`} href={n.href || '#now'} target={n.href ? '_blank' : undefined} rel={n.href ? 'noopener' : undefined}>
-              {n.href && <span className="nb-x-mark" aria-hidden="true"><SocialIcon name="X" /></span>}
-              {n.logo ? <img className={`nb-logo ${n.className || ''}`} src={n.logo} alt={n.alt} /> : <div className="nb-abstract-mark" aria-hidden="true">{n.glyph}</div>}
-              <div className="nb-title">{n.title}</div>
-              <div className="nb-note">{n.note}</div>
-            </a>
+	            <a className={`nb-card ${n.className || ''}`} href={n.href || '#now'} target={n.href?.startsWith?.('http') ? '_blank' : undefined} rel={n.href?.startsWith?.('http') ? 'noopener' : undefined}>
+	              {n.href?.startsWith?.('http') && <span className="nb-x-mark" aria-hidden="true"><SocialIcon name="X" /></span>}
+	              {n.logo ? <img className={`nb-logo ${n.className || ''}`} src={n.logo} alt={n.alt} /> : <div className="nb-abstract-mark" aria-hidden="true">{n.glyph}</div>}
+	              <div className="nb-title">{n.title}</div>
+	              <div className="nb-note">{n.note}</div>
+	              {n.site && <div className="nb-site">{n.site}</div>}
+	            </a>
           </Reveal>
         )}
       </div>
@@ -3440,7 +3462,7 @@ function Ventures({ y, intensity, warm }) {
 // ---------- Contact ----------
 function Contact() {
   const socials = [
-  { name: 'X', href: 'https://x.com/gerrydoteth' },
+    { name: 'X', href: 'https://x.com/gerrydoteth' },
   { name: 'Instagram', href: 'https://www.instagram.com/gerrydoteth/' },
   { name: 'TikTok', href: 'https://www.tiktok.com/@gerrydoteth' },
   { name: 'Farcaster', href: 'https://warpcast.com/gerrydoteth' },
@@ -3481,6 +3503,88 @@ function Contact() {
 
 }
 
+// ---------- Agents ----------
+const AGENT_PRODUCTS = [
+  {
+    name: 'Jerry Quant',
+    status: 'Trading agent',
+    body: 'A research, paper-trading, and approval-gated execution workflow. It can watch a defined market universe, prepare trade tickets, and keep the human in control before capital moves.',
+    bullets: ['Paper mode first', 'Approval gates for live orders', 'Risk limits and audit trail']
+  },
+  {
+    name: 'Blue Star Marketing',
+    status: 'Social media agent',
+    body: 'A content and campaign engine for hospitality brands: property moments, offer calendars, short-form prompts, captions, and posting-ready creative direction.',
+    bullets: ['Campaign briefs', 'Platform-specific posts', 'Reusable brand memory']
+  },
+  {
+    name: 'Ops Glue',
+    status: 'Back-office agent',
+    body: 'The less glamorous layer that keeps work moving: reminders, reports, lead follow-up, content queues, and system checks between tools.',
+    bullets: ['Daily summaries', 'Workflow handoffs', 'Human review before action']
+  }
+];
+
+function AgentsPage() {
+  return (
+    <div className="page agents-page">
+      <Topbar />
+      <main className="agents-shell">
+        <section className="agents-hero">
+          <div>
+            <div className="agents-kicker">AI Agents · public pilots</div>
+            <h1>Useful agents for operators, creators, and builders.</h1>
+            <p>
+              This is the public home for the agent layer I am building: trading research, hospitality marketing,
+              content systems, and the boring glue that makes work actually ship.
+            </p>
+            <div className="agents-actions">
+              <a className="btn primary" href="mailto:gerry@gerrystephen.com?subject=AI%20Agents%20pilot">Request pilot access</a>
+              <a className="btn ghost" href="#agent-pricing">How access works</a>
+            </div>
+          </div>
+          <div className="agents-safety-card">
+            <span>Public-safe by design</span>
+            <strong>No private account details. No secret tokens. No promises of returns.</strong>
+            <p>Users bring their own accounts, review their own settings, and stay responsible for approvals, risk, and final decisions.</p>
+          </div>
+        </section>
+
+        <section className="agent-grid" aria-label="Agent products">
+          {AGENT_PRODUCTS.map((agent) =>
+            <article className="agent-product" key={agent.name}>
+              <span>{agent.status}</span>
+              <h2>{agent.name}</h2>
+              <p>{agent.body}</p>
+              <ul>
+                {agent.bullets.map((item) => <li key={item}>{item}</li>)}
+              </ul>
+            </article>
+          )}
+        </section>
+
+        <section className="agent-pricing" id="agent-pricing">
+          <div>
+            <span>Access model</span>
+            <h2>Charge for the tool, not for a promise.</h2>
+            <p>
+              The clean starting model is a small wallet-native pilot fee or monthly subscription for access,
+              setup, reports, and automation infrastructure. For trading bots, every public surface should say
+              research and workflow support, not financial advice.
+            </p>
+          </div>
+          <div className="agent-pricing-steps">
+            <div><b>01</b><strong>Connect</strong><p>Wallet identity for access, profile, and future crypto checkout.</p></div>
+            <div><b>02</b><strong>Configure</strong><p>User chooses mode, universe, guardrails, and approval style.</p></div>
+            <div><b>03</b><strong>Review</strong><p>Paper reports and trade tickets are visible before live action.</p></div>
+            <div><b>04</b><strong>Launch</strong><p>Paid pilots can graduate into subscriptions once the workflow is proven.</p></div>
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+}
+
 // ---------- App ----------
 function App() {
   const [tweaks, setTweaks] = useTweaks(TWEAK_DEFAULTS);
@@ -3492,6 +3596,7 @@ function App() {
   const liteParallax = isMobileViewport || prefersReducedMotion;
   const appMode = getAppMode();
   const isGameApp = appMode === 'monerge' || appMode === 'iglu-merge';
+  const isAgentsPage = appMode === 'agents';
   const soundReady = useAmbientScrollSound(y, soundEnabled);
 
   useEffect(() => {
@@ -3508,10 +3613,16 @@ function App() {
       favicon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-93');
       return;
     }
+    if (isAgentsPage) {
+      document.title = 'AI Agents · Gerry Stephen';
+      appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-93');
+      favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-93');
+      return;
+    }
     document.title = 'Gerry Stephen · Business, Web3, and the Iglu';
     appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-93');
     favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-93');
-  }, [isGameApp]);
+  }, [isGameApp, isAgentsPage]);
 
   useEffect(() => {
     if (!window.location.hash) return;
@@ -3534,6 +3645,10 @@ function App() {
         <MonadGame />
       </div>
     );
+  }
+
+  if (isAgentsPage) {
+    return <AgentsPage />;
   }
 
   return (

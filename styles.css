@@ -46,6 +46,9 @@ html, body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   scroll-behavior: smooth;
+  overscroll-behavior-x: none;
+  overscroll-behavior-y: auto;
+  touch-action: pan-y pinch-zoom;
 }
 body {
   width: 100%;
@@ -183,6 +186,7 @@ a { color: inherit; text-decoration: none; }
   align-items: center;
   gap: 10px;
   flex-shrink: 0;
+  min-width: 0;
 }
 .top-cta {
   display: inline-flex;
@@ -216,6 +220,55 @@ a { color: inherit; text-decoration: none; }
   white-space: nowrap;
 }
 .top-cta:hover { transform: translateY(-2px); }
+.top-menu-toggle {
+  display: none;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(14,31,44,0.14);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.58);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.66), 0 10px 24px rgba(14,31,44,0.08);
+  backdrop-filter: blur(14px);
+  place-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.top-menu-toggle span {
+  display: block;
+  width: 17px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--ink);
+}
+.top-mobile-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 14px;
+  width: min(260px, calc(100vw - 28px));
+  padding: 10px;
+  border: 1px solid rgba(14,31,44,0.12);
+  border-radius: 18px;
+  background: rgba(231,246,250,0.88);
+  box-shadow: 0 24px 70px rgba(14,31,44,0.16);
+  backdrop-filter: blur(18px);
+  display: grid;
+  gap: 4px;
+}
+.top-mobile-menu a {
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 12px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.top-mobile-menu a:hover {
+  background: rgba(255,255,255,0.64);
+}
 .sound-toggle {
   position: fixed;
   right: 24px;
@@ -261,15 +314,55 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 900px) {
   .topbar { gap: 12px; padding: 12px 14px; }
   .topnav { display: none; }
+  .top-menu-toggle { display: grid; }
+  .brand { min-width: 0; }
+  .brand-text {
+    min-width: 0;
+    max-width: 34vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .brand-text { font-size: 18px; }
   .brand-mark { width: 48px; height: 48px; }
   .brand-mark img { width: 56px; height: 56px; }
 }
 @media (max-width: 520px) {
+  .topbar {
+    padding: 12px max(10px, env(safe-area-inset-right)) 12px max(10px, env(safe-area-inset-left));
+    gap: 8px;
+  }
+  .brand {
+    gap: 8px;
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+  .brand-mark { width: 42px; height: 42px; }
+  .brand-mark img { width: 50px; height: 50px; }
+  .brand-text {
+    max-width: none;
+    flex: 1 1 auto;
+    font-size: clamp(16px, 5.6vw, 20px);
+  }
   .brand-text span { display: none; }
-  .top-actions { gap: 8px; }
-  .top-cta { padding: 9px 12px; font-size: 11px; }
-  .top-cta.icon { width: 38px; height: 38px; }
+  .top-actions {
+    gap: 6px;
+    flex: 0 0 auto;
+  }
+  .top-cta { padding: 0 10px; min-width: 38px; height: 38px; font-size: 11px; }
+  .top-cta:not(.icon) {
+    width: 38px;
+    min-width: 38px;
+    padding: 0;
+    font-size: 0;
+  }
+  .top-cta:not(.icon)::before {
+    content: "OS";
+    font: 800 10px/1 var(--mono);
+    letter-spacing: 0.08em;
+  }
+  .top-cta.icon { width: 38px; min-width: 38px; height: 38px; }
+  .top-menu-toggle { width: 38px; height: 38px; order: 3; }
   .sound-toggle {
     right: 14px;
     bottom: 14px;
@@ -5181,7 +5274,7 @@ body:has(.game-app-page) {
   min-height: 268px;
   height: 100%;
   display: grid;
-  grid-template-rows: 82px auto 1fr;
+  grid-template-rows: 82px auto auto 1fr;
   align-items: start;
   gap: 12px;
   box-shadow: 0 14px 40px rgba(14,31,44,0.06);
@@ -5276,6 +5369,17 @@ body:has(.game-app-page) {
   font-size: 15px;
   line-height: 1.45;
   max-width: 28ch;
+}
+.nb-site {
+  align-self: end;
+  padding-top: 18px;
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.74;
 }
 .nb-logo.great-terriers-logo {
   width: 92px;
@@ -7069,4 +7173,233 @@ body:has(.game-app-page) {
 }
 @media (max-width: 700px) {
   .foot { flex-direction: column; gap: 12px; padding: 24px; text-align: center; }
+}
+
+/* ---------- Agents page ---------- */
+.agents-page {
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at 82% 10%, rgba(127,210,231,0.28), transparent 30%),
+    radial-gradient(circle at 18% 28%, rgba(255,212,142,0.22), transparent 34%),
+    linear-gradient(180deg, #dff3f8 0%, #f5fbfd 44%, #d4f5f1 100%);
+  color: var(--ink);
+}
+
+.agents-shell {
+  width: min(1180px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 132px 0 80px;
+}
+
+.agents-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  gap: 28px;
+  align-items: stretch;
+}
+
+.agents-kicker,
+.agent-product span,
+.agent-pricing span {
+  display: block;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(14,31,44,0.56);
+}
+
+.agents-hero h1 {
+  margin: 22px 0 0;
+  max-width: 860px;
+  font-family: var(--display-font), serif;
+  font-size: clamp(54px, 8vw, 112px);
+  line-height: 0.92;
+  letter-spacing: 0;
+}
+
+.agents-hero p,
+.agent-product p,
+.agent-pricing p {
+  color: var(--ink-soft);
+  font-size: clamp(17px, 1.4vw, 21px);
+  line-height: 1.5;
+}
+
+.agents-hero p {
+  max-width: 720px;
+  margin: 26px 0 0;
+}
+
+.agents-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+.agents-safety-card,
+.agent-product,
+.agent-pricing {
+  border: 1px solid rgba(14,31,44,0.1);
+  border-radius: 18px;
+  background: rgba(255,255,255,0.68);
+  box-shadow: 0 24px 80px rgba(14,31,44,0.08);
+  backdrop-filter: blur(16px);
+}
+
+.agents-safety-card {
+  padding: 28px;
+  align-self: end;
+}
+
+.agents-safety-card strong {
+  display: block;
+  margin-top: 18px;
+  font-size: clamp(24px, 2.5vw, 34px);
+  line-height: 1.04;
+}
+
+.agents-safety-card p {
+  margin: 18px 0 0;
+  font-size: 16px;
+}
+
+.agent-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 34px;
+}
+
+.agent-product {
+  min-height: 360px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+}
+
+.agent-product h2 {
+  margin: 18px 0 0;
+  font-family: var(--display-font), serif;
+  font-size: clamp(34px, 3vw, 46px);
+  line-height: 1;
+}
+
+.agent-product p {
+  margin: 18px 0 0;
+  font-size: 16px;
+}
+
+.agent-product ul {
+  margin: auto 0 0;
+  padding: 24px 0 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+
+.agent-product li {
+  display: flex;
+  gap: 10px;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.agent-product li::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  margin-top: 8px;
+  border-radius: 999px;
+  background: var(--ice-deep);
+  flex: 0 0 auto;
+}
+
+.agent-pricing {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: 30px;
+  margin-top: 18px;
+  padding: 34px;
+}
+
+.agent-pricing h2 {
+  margin: 16px 0 0;
+  font-family: var(--display-font), serif;
+  font-size: clamp(38px, 5vw, 68px);
+  line-height: 0.95;
+}
+
+.agent-pricing-steps {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.agent-pricing-steps div {
+  min-height: 160px;
+  padding: 20px;
+  border: 1px solid rgba(14,31,44,0.08);
+  border-radius: 14px;
+  background: rgba(220,242,247,0.52);
+}
+
+.agent-pricing-steps b {
+  display: block;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  color: var(--ice-deep);
+}
+
+.agent-pricing-steps strong {
+  display: block;
+  margin-top: 18px;
+  font-size: 22px;
+}
+
+.agent-pricing-steps p {
+  margin: 8px 0 0;
+  font-size: 14px;
+}
+
+@media (max-width: 900px) {
+  .agents-shell {
+    width: min(100% - 32px, 680px);
+    padding-top: 116px;
+  }
+  .agents-hero,
+  .agent-pricing {
+    grid-template-columns: 1fr;
+  }
+  .agent-grid {
+    grid-template-columns: 1fr;
+  }
+  .agent-product {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .agents-shell {
+    width: calc(100% - 28px);
+    padding-bottom: 48px;
+  }
+  .agents-hero h1 {
+    font-size: clamp(46px, 16vw, 64px);
+  }
+  .agents-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .agent-pricing-steps {
+    grid-template-columns: 1fr;
+  }
+  .agents-safety-card,
+  .agent-product,
+  .agent-pricing {
+    border-radius: 14px;
+    padding: 22px;
+  }
 }
