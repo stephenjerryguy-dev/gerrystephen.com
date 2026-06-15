@@ -21,6 +21,9 @@ watchlist:
     - SPY
     - QQQ
     - IWM                # Russell 2000 small-caps — broad US equity sleeve
+    - GLD                # gold (diversified-allocation sleeve)
+    - TLT                # long Treasuries (diversified-allocation sleeve)
+    - BIL                # T-bills (rotation defensive / cash leg)
     - IBIT               # spot Bitcoin ETF — crypto exposure on equity rails
     - ETHA               # spot Ethereum ETF — crypto exposure on equity rails
 
@@ -50,9 +53,20 @@ risk:
     lookback_days: 60                # window for measuring realized correlation
 
 strategy:
-  active: rotation                    # trend_following | rotation
-  rotation:                          # always-invested momentum rotation (LIVE)
+  active: allocation                  # trend_following | rotation | allocation
+  allocation:                        # diversified target allocation (LIVE)
     enabled: true
+    weights:                         # must sum to ~100; rebalanced to these
+      SPY: 40                        # US large-cap
+      QQQ: 20                        # Nasdaq / growth
+      IWM: 10                        # US small-cap
+      GLD: 15                        # gold (inflation/crisis hedge)
+      TLT: 15                        # long Treasuries (deflation hedge)
+    rebalance_band_pct: 5.0          # rebalance only when a holding drifts this far
+    min_trade_usd: 1.0
+    cash_buffer_pct: 2.0
+  rotation:                          # momentum rotation (available, not active)
+    enabled: false
     rotation_assets: [SPY, QQQ]      # hold the strongest of these
     defensive_asset: BIL             # T-bills = the "cash" leg when all are weak
     lookback_days: 63                # ~3-month momentum

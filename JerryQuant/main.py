@@ -976,9 +976,12 @@ def _render_pending_md(actions, notes, equity, acct_last4) -> str:
                     f"target ${a['target']:,.2f}",
                     f"- Max loss ${a['dollar_risk']:,.2f} · confidence {a['confidence']}/100",
                 ]
-            else:                           # rotation entry — always-invested, no stop
-                lines.append(f"- Entry ~${a['entry']:,.2f} · momentum rotation "
-                             f"(exit by rotation, not a fixed stop)")
+            else:                           # rotation/allocation — always-invested, no fixed stop
+                strat = a.get("strategy", "strategy")
+                how = ("diversified rebalance" if strat == "allocation"
+                       else "momentum rotation")
+                lines.append(f"- Entry ~${a['entry']:,.2f} · {how} "
+                             f"(managed by strategy, not a fixed stop)")
             lines += [f"- {a['reason']}", ""]
         elif a["kind"] == "exit":
             lines += [f"## {i}. SELL {a['symbol']} — {a['units']:.6f} units (exit)",
@@ -1006,10 +1009,10 @@ def _proposal_fingerprint(action: dict, day: str | None = None) -> str:
     kind = str(action.get("kind", "")).lower()
     symbol = str(action.get("symbol", "")).upper()
     strategy = str(action.get("strategy", ""))
-    if strategy == "rotation":
-        # Rotation's entry price drifts intraday; dedup on symbol+kind+day so
-        # the same "buy QQQ today" doesn't re-ask approval every 15-min scan.
-        raw = f"{day}|{kind}|{symbol}|rotation"
+    if strategy in ("rotation", "allocation"):
+        # Rotation/allocation prices drift intraday; dedup on symbol+kind+day
+        # so the same rebalance trade doesn't re-ask approval every scan.
+        raw = f"{day}|{kind}|{symbol}|{strategy}"
     elif kind == "entry":
         price_bucket = round(float(action.get("entry", 0.0)), 2)
         stop_bucket = round(float(action.get("stop", 0.0)), 2)
@@ -1141,6 +1144,90 @@ def _decide_rotation_actions(cfg: Config, journal: TradeJournal,
     return actions, notes, equity
 
 
+def _decide_allocation_actions(cfg: Config, journal: TradeJournal,
+                               kill_switch: KillSwitch, broker):
+    """Diversified target-allocation, live. Rebalance toward target weights
+    when holdings drift past the band; do nothing when within band. Sells
+    settle T+1, so a rebalance sells this cycle and buys with available
+    buying power (remaining buys complete next cycle). Returns (actions,
+    notes, equity)."""
+    from data_sources import market_data
+    from execution.robinhood_mcp_broker import OrderError
+    from strategies import allocation
+
+    ac = cfg.strategy.allocation
+    notes: list[str] = []
+
+    equity = broker.get_balance()
+    if equity is None or equity <= 0:
+        kill_switch.engage("Robinhood balance could not be verified")
+        return [], [f"Balance unverifiable (got {equity})."], 0.0
+    buying_power = broker.get_buying_power() or 0.0
+    journal.record_equity(equity, cfg.mode.value)
+    if not kill_switch.can_trade():
+        return [], ["Kill switch engaged — no rebalance."], equity
+
+    prices = {}
+    for s in allocation.normalized_weights(cfg):
+        try:
+            df = market_data.fetch_daily(s, history_days=cfg.data.history_days)
+            market_data.check_freshness(df, cfg.data.max_staleness_hours_equity, s)
+            prices[s] = float(df["close"].iloc[-1])
+        except market_data.DataUnavailableError as e:
+            notes.append(f"{s}: {e}")
+    if len(prices) < len(ac.weights):
+        return [], notes + ["missing fresh prices for some targets — standing pat"], equity
+
+    try:
+        held = broker.get_live_positions()
+    except OrderError as e:
+        kill_switch.engage(f"Cannot read live positions: {e}")
+        return [], [f"positions unreadable: {e}"], equity
+
+    current_values = {s: held[s]["quantity"] * prices.get(s, 0.0)
+                      for s in held if s in prices}
+    plan = allocation.plan_rebalance(current_values, equity, cfg)
+    notes.extend(plan.reasons)
+    if not plan.needed:
+        return [], notes, equity
+
+    actions, buy_budget = [], buying_power
+    # Sells first (free up cash; proceeds settle T+1).
+    for t in plan.trades:
+        if t.side != "sell":
+            continue
+        price = prices[t.symbol]
+        sellable = held.get(t.symbol, {}).get("sellable", 0.0)
+        units = min(t.dollars / price, sellable)
+        if units * price >= ac.min_trade_usd and units > 0:
+            qty = held[t.symbol]["quantity"]
+            actions.append({"kind": "exit", "symbol": t.symbol, "units": units,
+                            "reference_price": price,
+                            "reason": f"rebalance trim {t.symbol}",
+                            "full": units >= qty * 0.999, "strategy": "allocation"})
+    # Buys, scaled to available buying power (rest complete next cycle).
+    total_buy = sum(t.dollars for t in plan.trades if t.side == "buy")
+    scale = min(1.0, buy_budget / total_buy) if total_buy > 0 else 0.0
+    for t in plan.trades:
+        if t.side != "buy":
+            continue
+        dollars = t.dollars * scale
+        price = prices[t.symbol]
+        units = dollars / price if price > 0 else 0.0
+        if dollars >= ac.min_trade_usd and units > 0:
+            actions.append({"kind": "entry", "symbol": t.symbol, "units": units,
+                            "entry": price, "stop": None, "target": None,
+                            "dollar_risk": 0.0, "confidence": 100,
+                            "strategy": "allocation",
+                            "reason": f"rebalance buy {t.symbol} to target weight",
+                            "ticket": f"BUY {t.symbol} ~{units:.6f} @ ${price:,.2f} "
+                                      f"(~${dollars:,.2f}) — diversified rebalance"})
+    if total_buy > 0 and scale < 1.0:
+        notes.append(f"buying power ${buy_budget:,.2f} < needed ${total_buy:,.2f}; "
+                     f"buying {scale*100:.0f}% now, rest after settlement")
+    return actions, notes, equity
+
+
 def run_live_propose(cfg: Config, journal: TradeJournal,
                      kill_switch: KillSwitch, source: str = "propose") -> int:
     """Read-only: compute the exact live actions and serialize them for an
@@ -1151,6 +1238,8 @@ def run_live_propose(cfg: Config, journal: TradeJournal,
     acct = broker.get_account_number()
     if cfg.strategy.active == "rotation":
         actions, notes, equity = _decide_rotation_actions(cfg, journal, kill_switch, broker)
+    elif cfg.strategy.active == "allocation":
+        actions, notes, equity = _decide_allocation_actions(cfg, journal, kill_switch, broker)
     else:
         actions, notes, equity = _decide_live_actions(cfg, journal, kill_switch, broker)
     actions, dedupe_notes = _filter_new_live_proposals(journal, actions, source)
@@ -1317,6 +1406,38 @@ def run_rotation_backtest_mode(cfg: Config, journal: TradeJournal) -> int:
     return 0
 
 
+def run_allocation_backtest_mode(cfg: Config, journal: TradeJournal) -> int:
+    """Backtest the diversified target-allocation vs buy-&-hold SPY, and show
+    today's target vs current drift. Pure analysis — never trades."""
+    from data_sources import market_data
+    from backtesting import allocation_engine
+    from strategies import allocation
+
+    weights = allocation.normalized_weights(cfg)
+    logger.info(f"Fetching history for allocation: {list(weights)}")
+    data = {}
+    for s in weights:
+        try:
+            data[s] = market_data.fetch_daily(s, history_days=3000)
+        except market_data.DataUnavailableError as e:
+            logger.warning(f"Skipping {s}: {e}")
+
+    print("\n" + "=" * 62)
+    print("DIVERSIFIED ALLOCATION BACKTEST")
+    print("  " + "  ".join(f"{s} {w*100:.0f}%" for s, w in weights.items()))
+    print("=" * 62)
+    try:
+        r = allocation_engine.run_allocation_backtest(data, cfg)
+    except ValueError as e:
+        print(f"  cannot run: {e}")
+        return 1
+    print(r.render())
+    journal.record_risk_event("allocation_backtest",
+                              f"cagr={r.cagr_pct:.1f};max_dd={r.max_drawdown_pct:.1f}")
+    print("=" * 62)
+    return 0
+
+
 def run_validation(cfg: Config, journal: TradeJournal) -> int:
     """Validation rigor: walk-forward, parameter sensitivity, Monte Carlo.
 
@@ -1412,6 +1533,11 @@ def main() -> int:
         help="Backtest + walk-forward the momentum-rotation strategy and show "
              "today's pick. Never trades.",
     )
+    parser.add_argument(
+        "--allocation-backtest",
+        action="store_true",
+        help="Backtest the diversified target-allocation vs buy-&-hold. Never trades.",
+    )
     args = parser.parse_args()
 
     cfg = load_config(args.config)
@@ -1442,6 +1568,8 @@ def main() -> int:
             return run_validation(cfg, journal)
         if args.rotation_backtest:
             return run_rotation_backtest_mode(cfg, journal)
+        if args.allocation_backtest:
+            return run_allocation_backtest_mode(cfg, journal)
         if live_sub in ("live_plan", "live_scan", "live_propose"):
             return run_live_propose(cfg, journal, kill_switch, source=live_sub)
         if live_sub == "live_execute":

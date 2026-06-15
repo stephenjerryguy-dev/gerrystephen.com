@@ -196,12 +196,35 @@ class RotationConfig(BaseModel):
     take_profit_pct: float = Field(default=15.0, gt=0, le=100)
 
 
+class AllocationConfig(BaseModel):
+    """Diversified, always-invested target allocation (robo-advisor style):
+    hold a fixed multi-asset mix and rebalance back to targets when holdings
+    drift past a band. Diversification across stocks, gold and bonds is the
+    risk control — when stocks fall, bonds/gold usually cushion it — so there
+    is no market-timing cash exit here by design."""
+
+    enabled: bool = False
+    weights: dict[str, float] = Field(default_factory=lambda: {
+        "SPY": 40.0, "QQQ": 20.0, "IWM": 10.0, "GLD": 15.0, "TLT": 15.0,
+    })
+    rebalance_band_pct: float = Field(default=5.0, gt=0, le=50)  # drift trigger
+    min_trade_usd: float = Field(default=1.0, ge=0)  # skip dust trades
+    cash_buffer_pct: float = Field(default=2.0, ge=0, le=20)  # leave a little cash
+
+    @model_validator(mode="after")
+    def _weights_sane(self) -> "AllocationConfig":
+        if self.weights and abs(sum(self.weights.values()) - 100.0) > 0.5:
+            raise ValueError("allocation weights must sum to ~100")
+        return self
+
+
 class StrategyConfig(BaseModel):
-    active: str = "trend_following"     # trend_following | rotation
+    active: str = "trend_following"     # trend_following | rotation | allocation
     trend_following: TrendFollowingConfig = TrendFollowingConfig()
     momentum: MomentumConfig = MomentumConfig()
     regime: RegimeConfig = RegimeConfig()
     rotation: RotationConfig = RotationConfig()
+    allocation: AllocationConfig = AllocationConfig()
 
 
 class SignalsConfig(BaseModel):

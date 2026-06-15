@@ -22,7 +22,8 @@ def test_shipped_config_loads_and_is_safe():
     assert cfg.risk.max_open_positions <= 3
     assert cfg.account.starting_equity_usd == 100.0
     assert set(cfg.watchlist.crypto) == {"BTC", "ETH", "SOL"}
-    assert set(cfg.watchlist.equities) == {"SPY", "QQQ", "IWM", "IBIT", "ETHA"}
+    assert set(cfg.watchlist.equities) == {
+        "SPY", "QQQ", "IWM", "GLD", "TLT", "BIL", "IBIT", "ETHA"}
 
 
 def test_missing_config_raises():
