@@ -3,6 +3,9 @@
   "buildCommand": "npm run build",
   "cleanUrls": true,
   "outputDirectory": "dist",
+  "crons": [
+    { "path": "/api/jerryquant-cron?phase=scan", "schedule": "35 13 * * 1-5" }
+  ],
   "redirects": [
     {
       "source": "/",
