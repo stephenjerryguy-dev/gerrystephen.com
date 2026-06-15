@@ -3523,9 +3523,18 @@ a { color: inherit; text-decoration: none; }
   to { transform: scale(1); }
 }
 @media (display-mode: standalone) {
-  .topbar,
+  .page.game-app-page .topbar,
   .tweaks-panel {
     display: none !important;
+  }
+  .page:not(.game-app-page) .topbar {
+    display: flex !important;
+    padding-top: max(12px, env(safe-area-inset-top));
+  }
+  .page:not(.game-app-page) .top-mobile-menu {
+    position: fixed;
+    top: calc(max(12px, env(safe-area-inset-top)) + 62px);
+    right: max(10px, env(safe-area-inset-right));
   }
   .monad-game {
     padding-top: max(32px, env(safe-area-inset-top));

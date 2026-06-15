@@ -3639,6 +3639,40 @@ function App() {
     return () => cancelAnimationFrame(frame);
   }, []);
 
+  useEffect(() => {
+    if (isGameApp || typeof window === 'undefined') return undefined;
+    const isStandalone = window.matchMedia?.('(display-mode: standalone)')?.matches || window.navigator?.standalone;
+    if (!isStandalone) return undefined;
+
+    let startY = 0;
+    let armed = false;
+
+    const onTouchStart = (event) => {
+      if (window.scrollY > 0) {
+        armed = false;
+        return;
+      }
+      startY = event.touches?.[0]?.clientY || 0;
+      armed = startY > 0;
+    };
+
+    const onTouchMove = (event) => {
+      if (!armed || window.scrollY > 0) return;
+      const currentY = event.touches?.[0]?.clientY || 0;
+      if (currentY - startY > 118) {
+        armed = false;
+        window.location.reload();
+      }
+    };
+
+    window.addEventListener('touchstart', onTouchStart, { passive: true });
+    window.addEventListener('touchmove', onTouchMove, { passive: true });
+    return () => {
+      window.removeEventListener('touchstart', onTouchStart);
+      window.removeEventListener('touchmove', onTouchMove);
+    };
+  }, [isGameApp]);
+
   if (isGameApp) {
     return (
       <div className="page game-app-page" data-warm={tweaks.warmChapters}>
