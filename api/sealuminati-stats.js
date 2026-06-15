@@ -1,4 +1,4 @@
-import { rateLimit } from './_rate-limit.js';
+import { rateLimit } from '../lib/rate-limit.js';
 
 const OPENSEA_API = 'https://api.opensea.io/api/v2';
 const SLUG = 'sealuminati';

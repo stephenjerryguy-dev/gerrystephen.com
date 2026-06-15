@@ -1,4 +1,4 @@
-import { rateLimit } from './_rate-limit.js';
+import { rateLimit } from '../lib/rate-limit.js';
 
 const RESERVOIR_API = 'https://api.reservoir.tools';
 const RESERVOIR_APIS = [

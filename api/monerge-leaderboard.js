@@ -1,5 +1,5 @@
 import { neon } from '@neondatabase/serverless';
-import { rateLimit } from './_rate-limit.js';
+import { rateLimit } from '../lib/rate-limit.js';
 
 const MAX_ENTRIES = 50;
 const LEADERBOARD_KEY = 'monerge:leaderboard:v1';

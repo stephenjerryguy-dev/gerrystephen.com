@@ -1,6 +1,6 @@
 import { neon } from '@neondatabase/serverless';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
-import { rateLimit } from './_rate-limit.js';
+import { rateLimit } from '../lib/rate-limit.js';
 
 const PROFILE_PREFIX = 'sappy:profile:v1:';
 const DYNAMIC_ENV_ID = process.env.SAPPY_DYNAMIC_ENV_ID
@@ -51,6 +51,12 @@ async function ensureProfilesTable(sql) {
       pfp_source TEXT DEFAULT 'verified',
       x_handle TEXT DEFAULT '',
       discord_id TEXT DEFAULT '',
+      sappy_lol_id TEXT DEFAULT '',
+      sappy_lol_handle TEXT DEFAULT '',
+      sappy_lol_url TEXT DEFAULT '',
+      sappy_game_reserved BOOLEAN DEFAULT false,
+      sappy_game_verified BOOLEAN DEFAULT false,
+      sappy_game_claimed_at BIGINT DEFAULT 0,
       claimed BOOLEAN DEFAULT false,
       verified BOOLEAN DEFAULT false,
       claimed_wallet TEXT DEFAULT '',
@@ -58,6 +64,12 @@ async function ensureProfilesTable(sql) {
       updated_at BIGINT DEFAULT 0
     )
   `;
+  await sql`ALTER TABLE sappy_profiles ADD COLUMN IF NOT EXISTS sappy_lol_id TEXT DEFAULT ''`;
+  await sql`ALTER TABLE sappy_profiles ADD COLUMN IF NOT EXISTS sappy_lol_handle TEXT DEFAULT ''`;
+  await sql`ALTER TABLE sappy_profiles ADD COLUMN IF NOT EXISTS sappy_lol_url TEXT DEFAULT ''`;
+  await sql`ALTER TABLE sappy_profiles ADD COLUMN IF NOT EXISTS sappy_game_reserved BOOLEAN DEFAULT false`;
+  await sql`ALTER TABLE sappy_profiles ADD COLUMN IF NOT EXISTS sappy_game_verified BOOLEAN DEFAULT false`;
+  await sql`ALTER TABLE sappy_profiles ADD COLUMN IF NOT EXISTS sappy_game_claimed_at BIGINT DEFAULT 0`;
   await sql`CREATE INDEX IF NOT EXISTS sappy_profiles_updated_idx ON sappy_profiles (updated_at DESC)`;
   globalThis.__sappyProfilesTableReady = true;
 }
@@ -94,6 +106,24 @@ function sanitizePfp(value = '') {
   return '';
 }
 
+function sanitizeSappyLolHandle(value = '') {
+  const cleaned = sanitizeText(value, 48).replace(/^@/, '').replace(/[^A-Za-z0-9_.-]/g, '');
+  return cleaned.slice(0, 40);
+}
+
+function sanitizeSappyLolUrl(value = '') {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  try {
+    const url = new URL(raw, 'https://sappy.lol');
+    const host = url.hostname.toLowerCase().replace(/^www\./, '');
+    if (host !== 'sappy.lol') return '';
+    return url.toString().slice(0, 400);
+  } catch (_) {
+    return '';
+  }
+}
+
 function sanitizeProfile(input = {}) {
   const wallet = String(input.wallet || input.claimedWallet || '').trim().toLowerCase();
   const key = profileKey(wallet);
@@ -106,6 +136,12 @@ function sanitizeProfile(input = {}) {
     pfpSource: sanitizeText(input.pfpSource, 24) || 'verified',
     xHandle: sanitizeText(String(input.xHandle || '').replace(/^@/, ''), 15),
     discordId: sanitizeText(input.discordId, 64),
+    sappyLolId: sanitizeText(input.sappyLolId, 64),
+    sappyLolHandle: sanitizeSappyLolHandle(input.sappyLolHandle),
+    sappyLolUrl: sanitizeSappyLolUrl(input.sappyLolUrl),
+    sappyGameReserved: Boolean(input.sappyGameReserved || input.sappyLolHandle || input.sappyLolUrl),
+    sappyGameVerified: Boolean(input.sappyGameVerified),
+    sappyGameClaimedAt: Number(input.sappyGameClaimedAt || 0) || 0,
     claimed: Boolean(input.claimed),
     verified: Boolean(input.verified || input.claimed),
     claimedWallet: wallet,
@@ -184,6 +220,8 @@ async function readProfile(wallet) {
       const normalizedWallet = String(wallet || '').trim().toLowerCase();
       const rows = await sql`
         SELECT wallet, display_name, bio, pfp, pfp_source, x_handle, discord_id,
+          sappy_lol_id, sappy_lol_handle, sappy_lol_url, sappy_game_reserved,
+          sappy_game_verified, sappy_game_claimed_at,
           claimed, verified, claimed_wallet, claimed_at, updated_at
         FROM sappy_profiles
         WHERE wallet = ${normalizedWallet}
@@ -199,6 +237,12 @@ async function readProfile(wallet) {
           pfpSource: row.pfp_source,
           xHandle: row.x_handle,
           discordId: row.discord_id,
+          sappyLolId: row.sappy_lol_id,
+          sappyLolHandle: row.sappy_lol_handle,
+          sappyLolUrl: row.sappy_lol_url,
+          sappyGameReserved: row.sappy_game_reserved,
+          sappyGameVerified: row.sappy_game_verified,
+          sappyGameClaimedAt: Number(row.sappy_game_claimed_at || 0),
           claimed: row.claimed,
           verified: row.verified,
           claimedWallet: row.claimed_wallet,
@@ -227,6 +271,8 @@ async function writeProfile(profile) {
       await sql`
         INSERT INTO sappy_profiles (
           wallet, display_name, bio, pfp, pfp_source, x_handle, discord_id,
+          sappy_lol_id, sappy_lol_handle, sappy_lol_url, sappy_game_reserved,
+          sappy_game_verified, sappy_game_claimed_at,
           claimed, verified, claimed_wallet, claimed_at, updated_at
         )
         VALUES (
@@ -237,6 +283,12 @@ async function writeProfile(profile) {
           ${profile.pfpSource},
           ${profile.xHandle},
           ${profile.discordId},
+          ${profile.sappyLolId},
+          ${profile.sappyLolHandle},
+          ${profile.sappyLolUrl},
+          ${profile.sappyGameReserved},
+          ${profile.sappyGameVerified},
+          ${profile.sappyGameClaimedAt},
           ${profile.claimed},
           ${profile.verified},
           ${profile.claimedWallet},
@@ -250,6 +302,12 @@ async function writeProfile(profile) {
           pfp_source = EXCLUDED.pfp_source,
           x_handle = EXCLUDED.x_handle,
           discord_id = EXCLUDED.discord_id,
+          sappy_lol_id = EXCLUDED.sappy_lol_id,
+          sappy_lol_handle = EXCLUDED.sappy_lol_handle,
+          sappy_lol_url = EXCLUDED.sappy_lol_url,
+          sappy_game_reserved = EXCLUDED.sappy_game_reserved,
+          sappy_game_verified = EXCLUDED.sappy_game_verified,
+          sappy_game_claimed_at = EXCLUDED.sappy_game_claimed_at,
           claimed = EXCLUDED.claimed,
           verified = EXCLUDED.verified,
           claimed_wallet = EXCLUDED.claimed_wallet,
