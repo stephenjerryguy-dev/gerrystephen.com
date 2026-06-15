@@ -46,6 +46,9 @@ html, body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   scroll-behavior: smooth;
+  overscroll-behavior-x: none;
+  overscroll-behavior-y: auto;
+  touch-action: pan-y pinch-zoom;
 }
 body {
   width: 100%;
@@ -183,6 +186,7 @@ a { color: inherit; text-decoration: none; }
   align-items: center;
   gap: 10px;
   flex-shrink: 0;
+  min-width: 0;
 }
 .top-cta {
   display: inline-flex;
@@ -218,6 +222,7 @@ a { color: inherit; text-decoration: none; }
 .top-cta:hover { transform: translateY(-2px); }
 .top-menu-toggle {
   display: none;
+  flex: 0 0 auto;
   width: 42px;
   height: 42px;
   border: 1px solid rgba(14,31,44,0.14);
@@ -310,16 +315,54 @@ a { color: inherit; text-decoration: none; }
   .topbar { gap: 12px; padding: 12px 14px; }
   .topnav { display: none; }
   .top-menu-toggle { display: grid; }
+  .brand { min-width: 0; }
+  .brand-text {
+    min-width: 0;
+    max-width: 34vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .brand-text { font-size: 18px; }
   .brand-mark { width: 48px; height: 48px; }
   .brand-mark img { width: 56px; height: 56px; }
 }
 @media (max-width: 520px) {
+  .topbar {
+    padding: 12px max(10px, env(safe-area-inset-right)) 12px max(10px, env(safe-area-inset-left));
+    gap: 8px;
+  }
+  .brand {
+    gap: 8px;
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+  .brand-mark { width: 42px; height: 42px; }
+  .brand-mark img { width: 50px; height: 50px; }
+  .brand-text {
+    max-width: none;
+    flex: 1 1 auto;
+    font-size: clamp(16px, 5.6vw, 20px);
+  }
   .brand-text span { display: none; }
-  .top-actions { gap: 7px; }
-  .top-cta { padding: 9px 11px; font-size: 11px; }
-  .top-cta.icon { width: 38px; height: 38px; }
-  .top-menu-toggle { width: 38px; height: 38px; }
+  .top-actions {
+    gap: 6px;
+    flex: 0 0 auto;
+  }
+  .top-cta { padding: 0 10px; min-width: 38px; height: 38px; font-size: 11px; }
+  .top-cta:not(.icon) {
+    width: 38px;
+    min-width: 38px;
+    padding: 0;
+    font-size: 0;
+  }
+  .top-cta:not(.icon)::before {
+    content: "OS";
+    font: 800 10px/1 var(--mono);
+    letter-spacing: 0.08em;
+  }
+  .top-cta.icon { width: 38px; min-width: 38px; height: 38px; }
+  .top-menu-toggle { width: 38px; height: 38px; order: 3; }
   .sound-toggle {
     right: 14px;
     bottom: 14px;
