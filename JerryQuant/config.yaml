@@ -50,6 +50,18 @@ risk:
     lookback_days: 60                # window for measuring realized correlation
 
 strategy:
+  active: trend_following             # trend_following | rotation
+  rotation:                          # always-invested momentum rotation
+    enabled: false                   # flip on (+active: rotation) to use it live
+    rotation_assets: [SPY, QQQ]      # hold the strongest of these
+    defensive_asset: BIL             # T-bills = the "cash" leg when all are weak
+    lookback_days: 63                # ~3-month momentum
+    top_n: 1
+    rebalance: monthly
+    use_stop_loss: false             # backtests show it whipsaws; cash filter protects
+    stop_loss_pct: 10.0
+    use_take_profit: false           # trims drawdown but costs return; your call
+    take_profit_pct: 15.0
   trend_following:
     enabled: true
     fast_ma: 50

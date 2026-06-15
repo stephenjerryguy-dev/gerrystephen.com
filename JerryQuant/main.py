@@ -1160,6 +1160,57 @@ def run_live_execute(cfg: Config, journal: TradeJournal,
     return 0 if failed == 0 else 1
 
 
+def run_rotation_backtest_mode(cfg: Config, journal: TradeJournal) -> int:
+    """Backtest + walk-forward the always-invested momentum rotation strategy,
+    and print what it would hold right now. Pure analysis — never trades."""
+    from data_sources import market_data
+    from backtesting import rotation_engine
+    from strategies import momentum_rotation
+
+    rc = cfg.strategy.rotation
+    symbols = list(dict.fromkeys(rc.rotation_assets + [rc.defensive_asset]))
+    logger.info(f"Fetching history for rotation pool: {symbols}")
+    data = {}
+    for s in symbols:
+        try:
+            data[s] = market_data.fetch_daily(s, history_days=3000)
+        except market_data.DataUnavailableError as e:
+            logger.warning(f"Skipping {s}: {e}")
+    if rc.defensive_asset not in data or len(data) < 2:
+        logger.error("Need the defensive asset and at least one rotation asset.")
+        return 1
+
+    print("\n" + "=" * 62)
+    print(f"ROTATION BACKTEST — hold strongest of {rc.rotation_assets}, "
+          f"cash={rc.defensive_asset}, {rc.lookback_days}d momentum")
+    print(f"  stop-loss: {'on '+str(rc.stop_loss_pct)+'%' if rc.use_stop_loss else 'off'}"
+          f"   take-profit: {'on '+str(rc.take_profit_pct)+'%' if rc.use_take_profit else 'off'}")
+    print("=" * 62)
+    result = rotation_engine.run_rotation_backtest(data, cfg)
+    print(result.render())
+    journal.record_risk_event("rotation_backtest",
+                              f"cagr={result.cagr_pct:.1f};max_dd={result.max_drawdown_pct:.1f}")
+    print("\n  Last 6 rotations:")
+    for t in result.trades[-6:]:
+        print(f"    {t[0]}  {t[1]} -> {t[2]}")
+
+    print("\n--- Walk-forward (out-of-sample windows) ---")
+    try:
+        for w in rotation_engine.rotation_walk_forward(data, cfg, n_windows=4):
+            b = f"(b&h {w['bench_cagr']:+}%)" if w["bench_cagr"] is not None else ""
+            print(f"  {w['window']} {w['start']}..{w['end']}: "
+                  f"CAGR {w['cagr']:+}%  MaxDD {w['max_dd']}%  {b}")
+    except ValueError as e:
+        print(f"  skipped: {e}")
+
+    closes = {s: df["close"] for s, df in data.items()}
+    decision = momentum_rotation.decide_target(closes, cfg)
+    print("\n--- Right now it would hold ---")
+    print(f"  {decision.render()}")
+    print("=" * 62)
+    return 0
+
+
 def run_validation(cfg: Config, journal: TradeJournal) -> int:
     """Validation rigor: walk-forward, parameter sensitivity, Monte Carlo.
 
@@ -1249,6 +1300,12 @@ def main() -> int:
         help="Run validation (walk-forward, parameter sensitivity, Monte "
              "Carlo) on historical data and exit. Never trades.",
     )
+    parser.add_argument(
+        "--rotation-backtest",
+        action="store_true",
+        help="Backtest + walk-forward the momentum-rotation strategy and show "
+             "today's pick. Never trades.",
+    )
     args = parser.parse_args()
 
     cfg = load_config(args.config)
@@ -1277,6 +1334,8 @@ def main() -> int:
     try:
         if args.validate:
             return run_validation(cfg, journal)
+        if args.rotation_backtest:
+            return run_rotation_backtest_mode(cfg, journal)
         if live_sub in ("live_plan", "live_scan", "live_propose"):
             return run_live_propose(cfg, journal, kill_switch, source=live_sub)
         if live_sub == "live_execute":

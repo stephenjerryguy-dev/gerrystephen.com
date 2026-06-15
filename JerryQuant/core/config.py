@@ -176,10 +176,31 @@ class RegimeConfig(BaseModel):
     max_benchmark_atr_pct: float = Field(default=0.0, ge=0)  # 0 disables vol gate
 
 
+class RotationConfig(BaseModel):
+    """Always-invested momentum rotation: hold the strongest asset, rotate
+    when another overtakes it, and step to a defensive asset (T-bills/cash)
+    only when the whole pool is weaker than cash. Stop-loss / take-profit are
+    available but default OFF — backtests show the cash filter protects better
+    and the extras mostly cost return (stop-loss whipsaws)."""
+
+    enabled: bool = False
+    rotation_assets: list[str] = Field(default_factory=lambda: ["SPY", "QQQ"])
+    defensive_asset: str = "BIL"        # T-bill ETF = "cash" leg; never literally flat
+    lookback_days: int = Field(default=63, ge=20)   # ~3-month momentum
+    top_n: int = Field(default=1, ge=1)
+    rebalance: str = "monthly"          # monthly | weekly
+    use_stop_loss: bool = False
+    stop_loss_pct: float = Field(default=10.0, gt=0, le=50)
+    use_take_profit: bool = False
+    take_profit_pct: float = Field(default=15.0, gt=0, le=100)
+
+
 class StrategyConfig(BaseModel):
+    active: str = "trend_following"     # trend_following | rotation
     trend_following: TrendFollowingConfig = TrendFollowingConfig()
     momentum: MomentumConfig = MomentumConfig()
     regime: RegimeConfig = RegimeConfig()
+    rotation: RotationConfig = RotationConfig()
 
 
 class SignalsConfig(BaseModel):
