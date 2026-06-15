@@ -189,6 +189,7 @@ class RotationConfig(BaseModel):
     lookback_days: int = Field(default=63, ge=20)   # ~3-month momentum
     top_n: int = Field(default=1, ge=1)
     rebalance: str = "monthly"          # monthly | weekly
+    max_allocation_pct: float = Field(default=95.0, gt=0, le=100)  # deploy this much of equity into the leader
     use_stop_loss: bool = False
     stop_loss_pct: float = Field(default=10.0, gt=0, le=50)
     use_take_profit: bool = False

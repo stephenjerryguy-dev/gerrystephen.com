@@ -86,6 +86,56 @@ def test_rotation_backtest_needs_history():
         rotation_engine.run_rotation_backtest(short, cfg)
 
 
+class _FakeBroker:
+    def __init__(self, held=None):
+        self._held = held or {}
+    def get_balance(self): return 100.0
+    def get_buying_power(self): return 100.0
+    def get_live_positions(self): return self._held
+
+class _FakeJournal:
+    def record_equity(self, *a, **k): pass
+    def record_risk_event(self, *a, **k): pass
+
+
+def _patch_data(monkeypatch, series_by_sym):
+    import data_sources.market_data as md
+    def fake_fetch(sym, history_days=400):
+        s = series_by_sym[sym]
+        return pd.DataFrame({"open": s, "high": s, "low": s, "close": s,
+                             "volume": [1e6]*len(s)}, index=s.index)
+    monkeypatch.setattr(md, "fetch_daily", fake_fetch)
+    monkeypatch.setattr(md, "check_freshness", lambda *a, **k: None)
+
+
+def test_live_rotation_proposes_buy_when_flat(monkeypatch):
+    import main
+    from risk.kill_switch import KillSwitch
+    cfg = _cfg().model_copy(update={"strategy": _cfg().strategy})
+    _patch_data(monkeypatch, {
+        "SPY": _ramp(100, 0.001, 80), "QQQ": _ramp(100, 0.004, 80),
+        "BIL": _ramp(100, 0.0, 80)})
+    actions, notes, eq = main._decide_rotation_actions(
+        cfg, _FakeJournal(), KillSwitch("/tmp/_rot_halt.txt"), _FakeBroker(held={}))
+    buys = [a for a in actions if a["kind"] == "entry"]
+    assert len(buys) == 1 and buys[0]["symbol"] == "QQQ"
+    assert buys[0]["strategy"] == "rotation"
+    assert buys[0]["units"] > 0
+
+
+def test_live_rotation_noop_when_already_holding_target(monkeypatch):
+    import main
+    from risk.kill_switch import KillSwitch
+    cfg = _cfg()
+    _patch_data(monkeypatch, {
+        "SPY": _ramp(100, 0.001, 80), "QQQ": _ramp(100, 0.004, 80),
+        "BIL": _ramp(100, 0.0, 80)})
+    held = {"QQQ": {"quantity": 0.1, "sellable": 0.1}}
+    actions, notes, eq = main._decide_rotation_actions(
+        cfg, _FakeJournal(), KillSwitch("/tmp/_rot_halt2.txt"), _FakeBroker(held=held))
+    assert actions == []   # already in the leader, nothing to do
+
+
 def test_take_profit_flag_changes_behavior():
     # With a steadily rising winner, a take-profit forces an exit to cash that
     # the no-TP run never makes — so the trade counts differ.

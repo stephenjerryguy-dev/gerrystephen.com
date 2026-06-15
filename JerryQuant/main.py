@@ -969,11 +969,17 @@ def _render_pending_md(actions, notes, equity, acct_last4) -> str:
         lines += ["**No actions proposed — JerryQuant recommends doing nothing.**", ""]
     for i, a in enumerate(actions, 1):
         if a["kind"] == "entry":
-            lines += [f"## {i}. BUY {a['symbol']} — {a['units']:.6f} units",
-                      f"- Entry ~${a['entry']:,.2f} · stop ${a['stop']:,.2f} · "
-                      f"target ${a['target']:,.2f}",
-                      f"- Max loss ${a['dollar_risk']:,.2f} · confidence {a['confidence']}/100",
-                      f"- {a['reason']}", ""]
+            lines.append(f"## {i}. BUY {a['symbol']} — {a['units']:.6f} units")
+            if a.get("stop") is not None:   # trend-strategy entry has stop/target
+                lines += [
+                    f"- Entry ~${a['entry']:,.2f} · stop ${a['stop']:,.2f} · "
+                    f"target ${a['target']:,.2f}",
+                    f"- Max loss ${a['dollar_risk']:,.2f} · confidence {a['confidence']}/100",
+                ]
+            else:                           # rotation entry — always-invested, no stop
+                lines.append(f"- Entry ~${a['entry']:,.2f} · momentum rotation "
+                             f"(exit by rotation, not a fixed stop)")
+            lines += [f"- {a['reason']}", ""]
         elif a["kind"] == "exit":
             lines += [f"## {i}. SELL {a['symbol']} — {a['units']:.6f} units (exit)",
                       f"- {a['reason']} · ~${a['reference_price']:,.2f}", ""]
@@ -1000,7 +1006,11 @@ def _proposal_fingerprint(action: dict, day: str | None = None) -> str:
     kind = str(action.get("kind", "")).lower()
     symbol = str(action.get("symbol", "")).upper()
     strategy = str(action.get("strategy", ""))
-    if kind == "entry":
+    if strategy == "rotation":
+        # Rotation's entry price drifts intraday; dedup on symbol+kind+day so
+        # the same "buy QQQ today" doesn't re-ask approval every 15-min scan.
+        raw = f"{day}|{kind}|{symbol}|rotation"
+    elif kind == "entry":
         price_bucket = round(float(action.get("entry", 0.0)), 2)
         stop_bucket = round(float(action.get("stop", 0.0)), 2)
         raw = f"{day}|{kind}|{symbol}|{strategy}|{price_bucket}|{stop_bucket}"
@@ -1038,6 +1048,99 @@ def _filter_new_live_proposals(journal: TradeJournal, actions: list[dict],
     return fresh, skipped
 
 
+def _decide_rotation_actions(cfg: Config, journal: TradeJournal,
+                             kill_switch: KillSwitch, broker):
+    """Always-invested momentum rotation, live. Hold the strongest of the pool;
+    rotate to it when it changes; step to the defensive asset when the whole
+    pool is below cash. Returns (actions, notes, equity).
+
+    Sizing is rotation-appropriate: deploy up to max_allocation_pct of equity
+    into the leader (not the trend system's stop-based 20% sizing). A switch
+    sells this cycle and buys next cycle, since sale proceeds settle T+1."""
+    from data_sources import market_data
+    from execution.robinhood_mcp_broker import OrderError
+    from strategies import momentum_rotation
+
+    rc = cfg.strategy.rotation
+    notes: list[str] = []
+
+    equity = broker.get_balance()
+    if equity is None or equity <= 0:
+        kill_switch.engage("Robinhood balance could not be verified")
+        journal.record_risk_event("balance_unverifiable", f"got {equity}")
+        return [], [f"Balance unverifiable (got {equity})."], 0.0
+    buying_power = broker.get_buying_power() or 0.0
+    journal.record_equity(equity, cfg.mode.value)
+
+    if not kill_switch.can_trade():
+        return [], ["Kill switch engaged — no rotation."], equity
+
+    # Fresh data for the pool + defensive asset (stale = don't act, by rule).
+    symbols = list(dict.fromkeys(rc.rotation_assets + [rc.defensive_asset]))
+    closes, prices = {}, {}
+    for s in symbols:
+        try:
+            df = market_data.fetch_daily(s, history_days=cfg.data.history_days)
+            market_data.check_freshness(df, cfg.data.max_staleness_hours_equity, s)
+            closes[s] = df["close"]
+            prices[s] = float(df["close"].iloc[-1])
+        except market_data.DataUnavailableError as e:
+            notes.append(f"{s}: {e}")
+
+    decision = momentum_rotation.decide_target(closes, cfg)
+    journal.record_risk_event("rotation_decision", decision.render())
+    notes.append(decision.render())
+    target = decision.target
+    if target not in prices:
+        return [], notes + [f"No fresh price for target {target} — standing pat."], equity
+
+    try:
+        held = broker.get_live_positions()
+    except OrderError as e:
+        kill_switch.engage(f"Cannot read live positions: {e}")
+        return [], [f"positions unreadable: {e}"], equity
+
+    actions: list[dict] = []
+    selling = False
+    for sym, pos in held.items():
+        if sym == target:
+            continue
+        if pos["sellable"] > 0:
+            actions.append({"kind": "exit", "symbol": sym, "units": pos["sellable"],
+                            "reference_price": prices.get(sym, 0.0),
+                            "reason": f"rotate out of {sym} -> {target}",
+                            "full": pos["sellable"] >= pos["quantity"] * 0.999,
+                            "strategy": "rotation"})
+            selling = True
+        else:
+            notes.append(f"{sym}: 0 settled shares — will rotate out next cycle")
+
+    already_holding_target = (
+        target in held and held[target]["quantity"] > 0
+    )
+    if already_holding_target:
+        notes.append(f"already holding {target} — no change")
+    elif selling:
+        # Proceeds settle T+1; buy the new leader next cycle with settled cash.
+        notes.append(f"selling first; will buy {target} next cycle after settlement")
+    else:
+        alloc = min(equity * rc.max_allocation_pct / 100.0, buying_power)
+        price = prices[target]
+        units = alloc / price if price > 0 else 0.0
+        if alloc < 1.0 or units <= 0:
+            notes.append(f"insufficient buying power (${buying_power:.2f}) to buy {target}")
+        else:
+            actions.append({"kind": "entry", "symbol": target, "units": units,
+                            "entry": price, "stop": None, "target": None,
+                            "dollar_risk": 0.0, "confidence": 100,
+                            "strategy": "rotation",
+                            "reason": decision.reasons[0],
+                            "ticket": f"BUY {target} ~{units:.6f} @ ${price:,.2f} "
+                                      f"(~${alloc:,.2f}, {rc.max_allocation_pct:.0f}% of equity) "
+                                      f"— {decision.reasons[0]}"})
+    return actions, notes, equity
+
+
 def run_live_propose(cfg: Config, journal: TradeJournal,
                      kill_switch: KillSwitch, source: str = "propose") -> int:
     """Read-only: compute the exact live actions and serialize them for an
@@ -1046,7 +1149,10 @@ def run_live_propose(cfg: Config, journal: TradeJournal,
     if broker is None:
         return 1
     acct = broker.get_account_number()
-    actions, notes, equity = _decide_live_actions(cfg, journal, kill_switch, broker)
+    if cfg.strategy.active == "rotation":
+        actions, notes, equity = _decide_rotation_actions(cfg, journal, kill_switch, broker)
+    else:
+        actions, notes, equity = _decide_live_actions(cfg, journal, kill_switch, broker)
     actions, dedupe_notes = _filter_new_live_proposals(journal, actions, source)
     notes.extend(dedupe_notes)
     payload = {

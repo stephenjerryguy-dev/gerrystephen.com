@@ -50,9 +50,9 @@ risk:
     lookback_days: 60                # window for measuring realized correlation
 
 strategy:
-  active: trend_following             # trend_following | rotation
-  rotation:                          # always-invested momentum rotation
-    enabled: false                   # flip on (+active: rotation) to use it live
+  active: rotation                    # trend_following | rotation
+  rotation:                          # always-invested momentum rotation (LIVE)
+    enabled: true
     rotation_assets: [SPY, QQQ]      # hold the strongest of these
     defensive_asset: BIL             # T-bills = the "cash" leg when all are weak
     lookback_days: 63                # ~3-month momentum
