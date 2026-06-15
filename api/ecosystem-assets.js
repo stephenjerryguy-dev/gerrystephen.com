@@ -1,4 +1,4 @@
-import { rateLimit } from './_rate-limit.js';
+import { rateLimit } from '../lib/rate-limit.js';
 
 const ABSTRACT_WALLET = '0x382556A543aAd855C07678E7F8e820d0d90429BB';
 const ETH_WALLET = '0xc3ce1Eb539c1Cc031eCd7B95e8C00768BF324403';
