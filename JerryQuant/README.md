@@ -138,6 +138,38 @@ still appear in the workflow run summary and in `logs/reports/`.
 (If you instead run on your own machine, put the same values in
 `JerryQuant/.env` per `.env.example`.)
 
+## Reliable scheduling (don't trust GitHub cron)
+
+GitHub's built-in `schedule` triggers are best-effort — they are frequently
+delayed and **silently dropped** under load, so the workflow's `cron` lines are
+only a lean backup. For dependable timing, trigger the workflow externally via
+the `workflow_dispatch` API:
+
+1. Create a GitHub **fine-grained Personal Access Token** scoped to this repo
+   with **Actions: Read and write** (Settings → Developer settings →
+   Fine-grained tokens).
+2. Point an external scheduler at the dispatch API. [cron-job.org](https://cron-job.org)
+   is free and lets you set a **timezone (America/New_York)** — which also
+   sidesteps the UTC/DST problem GitHub cron has. For each run time, create a
+   job: method `POST`, URL
+   `https://api.github.com/repos/stephenjerryguy-dev/gerrystephen.com/actions/workflows/jerryquant-live-agent.yml/dispatches`,
+   headers `Authorization: Bearer <token>`, `Accept: application/vnd.github+json`,
+   `X-GitHub-Api-Version: 2022-11-28`, and body `{"ref":"main","inputs":{"phase":"scan"}}`
+   (use `"plan"` for the pre-market job).
+3. Suggested ET times: 8:45 (plan), 9:35, 12:00, 15:45 (scan). Add more scans if
+   you want a tighter watch — the dedup ledger stops the same setup from
+   re-asking for approval.
+
+`scripts/trigger_live_agent.sh` wraps the same call for testing or a local
+cron/launchd job:
+
+```bash
+GITHUB_DISPATCH_TOKEN=github_pat_xxx ./scripts/trigger_live_agent.sh scan
+```
+
+Running both the external trigger and GitHub's backup cron is safe: the
+per-day proposal fingerprints mean an overlapping run won't double-propose.
+
 ## Approving live trades from your phone
 
 Approval must go through something that knows it's *you* — never a public web
