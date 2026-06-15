@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-title" content="Gerry's Agents" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="description" content="JerryQuant — Gerry Stephen's cautious, capital-preservation-first trading agent. Daily-bar trend following with hard risk limits and per-trade human approval. Its favorite trade is no trade." />
+<meta name="description" content="JerryQuant — a cautious trading-research and approval workflow agent by Gerry Stephen. Built for paper runs, risk notes, and human-reviewed trade tickets." />
 <meta name="robots" content="index,follow,max-image-preview:large" />
 <meta name="author" content="Gerry Stephen" />
 <meta name="keywords" content="JerryQuant, Gerry Stephen, AI agent, trading agent, quant, Robinhood, agentic, trend following, risk management" />
@@ -16,7 +16,7 @@
 <meta property="og:locale" content="en_US" />
 <meta property="og:url" content="https://gerrystephen.com/agents/jerryquant" />
 <meta property="og:title" content="JerryQuant · Gerry's Agents" />
-<meta property="og:description" content="A cautious, capital-preservation-first trading agent. Daily bars, hard-coded risk limits, per-trade human approval. Its favorite trade is no trade." />
+<meta property="og:description" content="A cautious trading-research and approval workflow agent for paper runs, risk notes, and human-reviewed trade tickets." />
 <meta property="og:image" content="https://gerrystephen.com/assets/twitter-home-card-v92.jpg" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:site" content="@gerrydoteth" />
@@ -24,7 +24,7 @@
 <meta name="twitter:domain" content="gerrystephen.com" />
 <meta name="twitter:url" content="https://gerrystephen.com/agents/jerryquant" />
 <meta name="twitter:title" content="JerryQuant · Gerry's Agents" />
-<meta name="twitter:description" content="A cautious, capital-preservation-first trading agent. Its favorite trade is no trade." />
+<meta name="twitter:description" content="A cautious trading-research and approval workflow agent. Its favorite trade is no trade." />
 <meta name="twitter:image" content="https://gerrystephen.com/assets/twitter-home-card-v92.jpg" />
 <title>JerryQuant · Gerry's Agents</title>
 <link rel="canonical" href="https://gerrystephen.com/agents/jerryquant" />
@@ -34,7 +34,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Inter+Tight:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Fraunces:ital,wght@0,400;0,600;1,400&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"SoftwareApplication","name":"JerryQuant","applicationCategory":"FinanceApplication","operatingSystem":"Web, GitHub Actions","description":"A cautious, capital-preservation-first trading agent by Gerry Stephen. Daily-bar trend following with hard-coded risk limits, a market-regime gate, trailing/scale-out exits, correlation-aware sizing, and per-trade human approval.","url":"https://gerrystephen.com/agents/jerryquant","author":{"@type":"Person","name":"Gerry Stephen","url":"https://gerrystephen.com/"}}
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"JerryQuant","applicationCategory":"FinanceApplication","operatingSystem":"Web","description":"A cautious trading-research and approval workflow agent by Gerry Stephen for paper runs, risk notes, and human-reviewed trade tickets.","url":"https://gerrystephen.com/agents/jerryquant","author":{"@type":"Person","name":"Gerry Stephen","url":"https://gerrystephen.com/"}}
 </script>
 <style>
   :root{
@@ -156,19 +156,18 @@
 
   <header class="hero">
     <div class="wrap">
-      <span class="pill"><span class="pulse"></span> Live test · $100 · Robinhood agentic account</span>
+      <span class="pill"><span class="pulse"></span> Public pilot · human-reviewed workflow</span>
       <h1>Jerry<span class="q">Quant</span></h1>
       <p class="tag">Its favorite trade is no trade.</p>
-      <p class="lede">A cautious, capital-preservation-first trading agent. It researches,
-        backtests, and paper trades a conservative <b>daily-bar trend-following</b> strategy,
-        and only ever touches a real brokerage after multiple explicit arming steps —
-        with <b>per-trade human approval</b> on top. Built to behave like a disciplined
-        quant assistant, not a gambling bot.</p>
+      <p class="lede">A cautious trading-research and approval workflow agent. It researches,
+        backtests, and paper trades conservative <b>daily-bar trend-following</b> ideas,
+        then prepares human-reviewed trade tickets for connected brokerage workflows.
+        Built to behave like a disciplined quant assistant, not a gambling bot.</p>
 
       <div class="stats">
         <div class="stat"><div class="k">Daily bars</div><div class="l">No scalping, no HFT — swing trades on daily data</div></div>
         <div class="stat"><div class="k">1% risk</div><div class="l">Max risked per trade of account equity</div></div>
-        <div class="stat"><div class="k">APPROVE</div><div class="l">Every live order needs a typed human OK</div></div>
+        <div class="stat"><div class="k">Review</div><div class="l">Trade tickets are designed for human approval</div></div>
         <div class="stat"><div class="k">Long only</div><div class="l">No options, margin, leverage, or shorting</div></div>
       </div>
     </div>
@@ -179,13 +178,14 @@
       <p class="eyebrow">How it works</p>
       <h2>Discipline, encoded</h2>
       <p class="body">One cycle per day, after the close. It reads the market, manages open
-        risk, looks for a high-quality setup, and — most days — recommends doing nothing.</p>
+        risk, looks for a high-quality setup, and — most days — recommends doing nothing.
+        For public use, it should start in paper mode and graduate only through explicit review.</p>
       <div class="flow">
         <div class="step"><div class="n">01</div><div><h3>Collect data</h3><p>Daily bars for a broad-equity watchlist. Stale or missing data means the asset is simply not traded that day.</p></div></div>
         <div class="step"><div class="n">02</div><div><h3>Read the regime</h3><p>No new longs unless the broad market is healthy — benchmark above its 200-day average and breadth intact.</p></div></div>
         <div class="step"><div class="n">03</div><div><h3>Generate a signal</h3><p>Trend structure, volume, volatility band, breakout or pullback, an ATR stop, and a minimum 2:1 reward-to-risk.</p></div></div>
         <div class="step"><div class="n">04</div><div><h3>Size with care</h3><p>Risk-based sizing, single-asset and correlation-cluster caps, and a haircut for positions that double up on the same risk.</p></div></div>
-        <div class="step"><div class="n">05</div><div><h3>Ask a human</h3><p>It renders the full trade ticket and waits. You type APPROVE, or it stands down. No approval, no order.</p></div></div>
+        <div class="step"><div class="n">05</div><div><h3>Ask a human</h3><p>It renders the full trade ticket with reasoning, sizing, and risk notes. No review, no action.</p></div></div>
         <div class="step"><div class="n">06</div><div><h3>Journal everything</h3><p>Every signal — including explicit "avoid" decisions — and every trade is logged with full reasoning.</p></div></div>
       </div>
     </div>
@@ -213,6 +213,22 @@
 
   <section>
     <div class="wrap">
+      <p class="eyebrow">Access model</p>
+      <h2>Public, but not careless</h2>
+      <p class="body">JerryQuant can become a paid agent workflow for other builders or operators,
+        but the clean version is simple: charge for access to research, setup, alerts, paper reports,
+        and review tooling. Do not charge as if it guarantees trades or returns.</p>
+      <div class="flow">
+        <div class="step"><div class="n">01</div><div><h3>Pilot access</h3><p>A small wallet-native fee or subscription can unlock the dashboard, reports, and setup support.</p></div></div>
+        <div class="step"><div class="n">02</div><div><h3>Paper first</h3><p>Every new user should begin with paper mode so the agent proves its behavior before brokerage access.</p></div></div>
+        <div class="step"><div class="n">03</div><div><h3>Bring your own broker</h3><p>Users connect their own accounts and keep custody. The agent should never receive withdrawal permissions.</p></div></div>
+        <div class="step"><div class="n">04</div><div><h3>Human review</h3><p>Approval gates, logs, and clear disclosures keep the product a tool, not an unmanaged money manager.</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
       <p class="eyebrow">Edge controls</p>
       <h2>More discerning, never less safe</h2>
       <div class="grid">
@@ -230,9 +246,9 @@
       <h2>The human stays in the loop</h2>
       <div class="safe">
         <ul>
-          <li><span class="chk">✓</span><span><b>Per-trade approval is non-negotiable.</b> It is hard-coded; there is no setting to disable it. Every live order is shown in full and waits for the word APPROVE.</span></li>
+          <li><span class="chk">✓</span><span><b>Human review is non-negotiable.</b> Every trade ticket is shown with the setup, sizing, and risk note before any live workflow can proceed.</span></li>
           <li><span class="chk">✓</span><span><b>A kill switch that survives restarts.</b> Any breached risk rule — drawdown, stale data, an unverifiable balance — writes a halt file. While it exists, nothing trades.</span></li>
-          <li><span class="chk">✓</span><span><b>It never guesses at an API.</b> Live order placement is built only against the brokerage's real, discovered tool schemas — the same way it refuses to trade on data it doesn't trust.</span></li>
+          <li><span class="chk">✓</span><span><b>It never guesses at an API.</b> Brokerage integrations must use explicit, documented permissions and should start with read or paper flows before live use.</span></li>
           <li><span class="chk">✓</span><span><b>Sentiment never pulls the trigger.</b> News and prediction-market views can only nudge confidence within a small bounded range; they can never rescue a signal that failed on its own merits.</span></li>
         </ul>
       </div>
@@ -242,10 +258,10 @@
   <footer>
     <div class="wrap">
       <div class="disc"><b style="color:var(--ink)">Not financial advice.</b> JerryQuant is a personal research-and-education
-        project. Backtest results do not predict future returns and paper results overstate live results. Markets can gap
-        through stops. Every limit in the system is a backstop, not a guarantee. It trades only a small, dedicated test account
-        and never moves money on its own.</div>
-      <div>JerryQuant · an agent by <a href="/" style="color:var(--mint);text-decoration:none">Gerry Stephen</a> · built with Claude Code</div>
+        project. Backtest results do not predict future returns and paper results can overstate live results. Markets can gap
+        through stops. Every limit in the system is a backstop, not a guarantee. Public access should be treated as research
+        and workflow tooling, not financial advice or a managed trading service.</div>
+      <div>JerryQuant · an agent by <a href="/" style="color:var(--mint);text-decoration:none">Gerry Stephen</a></div>
     </div>
   </footer>
 </body>
