@@ -7,16 +7,16 @@
   "display": "standalone",
   "orientation": "any",
   "background_color": "#DCEEF7",
-  "theme_color": "#0E1F2C",
+  "theme_color": "#DCEEF7",
   "icons": [
     {
-      "src": "/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-92",
+      "src": "/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-97",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/assets/gerrys-iglu-icon.png?v=ecosystems-app-92",
+      "src": "/assets/gerrys-iglu-icon.png?v=ecosystems-app-97",
       "sizes": "1024x1024",
       "type": "image/png",
       "purpose": "any maskable"

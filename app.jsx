@@ -22,7 +22,7 @@ import {
 } from './tweaks-panel.jsx';
 import './styles.css';
 
-const SITE_BUILD_VERSION = 'ecosystems-app-96';
+const SITE_BUILD_VERSION = 'ecosystems-app-97';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 function safeStorage() {
@@ -3614,19 +3614,19 @@ function App() {
     const favicon = document.querySelector('link[rel="icon"]');
     if (isGameApp) {
       document.title = 'Monerge · Gerry Stephen';
-      appleIcon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-93');
-      favicon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-93');
+      appleIcon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-97');
+      favicon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-97');
       return;
     }
     if (isAgentsPage) {
       document.title = 'AI Agents · Gerry Stephen';
-      appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-93');
-      favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-93');
+      appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-97');
+      favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-97');
       return;
     }
     document.title = 'Gerry Stephen · Business, Web3, and the Iglu';
-    appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-93');
-    favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-93');
+    appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-97');
+    favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-97');
   }, [isGameApp, isAgentsPage]);
 
   useEffect(() => {

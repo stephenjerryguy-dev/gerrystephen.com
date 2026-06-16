@@ -6,17 +6,17 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#DCEEF7",
-  "theme_color": "#0E1F2C",
+  "background_color": "#1F1751",
+  "theme_color": "#1F1751",
   "icons": [
     {
-      "src": "/assets/monerge-icon-512.png?v=ecosystems-app-92",
+      "src": "/assets/monerge-icon-512.png?v=ecosystems-app-97",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/assets/monerge-icon.png?v=ecosystems-app-92",
+      "src": "/assets/monerge-icon.png?v=ecosystems-app-97",
       "sizes": "1024x1024",
       "type": "image/png",
       "purpose": "any maskable"
