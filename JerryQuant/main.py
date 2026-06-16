@@ -1257,6 +1257,7 @@ def run_live_propose(cfg: Config, journal: TradeJournal,
     print(md)
     if actions:
         from reports.daily_report import send_markdown_email
+        from reports import notify
         send_markdown_email(
             md,
             cfg,
@@ -1265,6 +1266,13 @@ def run_live_propose(cfg: Config, journal: TradeJournal,
                 f"{len(actions)} pending action(s)"
             ),
         )
+        # One-glance push to your phone: the ticket + a tap-through to approve.
+        sent = notify.push_ticket(
+            title=f"JerryQuant — approve {len(actions)} trade(s)",
+            message=notify.summarize_actions(actions) + "\n\nTap to approve.",
+        )
+        if sent:
+            print("Pushed approval notification to your phone.")
     print(f"\n{len(actions)} action(s) proposed → {LIVE_PENDING_FILE} "
           f"(nothing placed).")
     return 0
