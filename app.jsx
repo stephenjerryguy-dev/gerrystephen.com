@@ -22,7 +22,7 @@ import {
 } from './tweaks-panel.jsx';
 import './styles.css';
 
-const SITE_BUILD_VERSION = 'ecosystems-app-97';
+const SITE_BUILD_VERSION = 'ecosystems-app-98';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 function safeStorage() {
@@ -557,7 +557,7 @@ function Topbar() {
         </a>
         <a href="https://opensea.io/profile/gerrystephen" target="_blank" rel="noopener" className="top-cta opensea-cta" aria-label="Gerry Stephen on OpenSea">
           <span className="opensea-mark" aria-hidden="true">
-            <img src="/assets/opensea-logo.svg" alt="" />
+            <img src="/assets/opensea-logo.svg?v=ecosystems-app-98" alt="" />
           </span>
           <span className="top-cta-text">OpenSea</span>
         </a>
@@ -1107,10 +1107,10 @@ function normalizeNft(item, wallet) {
   };
 }
 
-function NftArt({ nft }) {
+function NftArt({ nft, eager = false }) {
   const [failed, setFailed] = useState(false);
   if (nft.image && !failed) {
-    return <img src={nft.image} alt={nft.name} loading="lazy" onError={() => setFailed(true)} />;
+    return <img src={nft.image} alt={nft.name} loading={eager ? 'eager' : 'lazy'} decoding="async" fetchPriority={eager ? 'high' : 'auto'} onError={() => setFailed(true)} />;
   }
   return <div className="nft-glyph">{nft.glyph || nft.name?.slice(0, 2) || 'NFT'}</div>;
 }
@@ -1310,7 +1310,7 @@ function NftCarousel() {
           {smartItems.map((nft, i) =>
           <a key={`${nft.name}-${nft.tokenId}-${i}`} className={`nft-card ${nft.tokenId === 'pending' || nft.tokenId === 'soon' ? 'disabled' : ''} ${nft.tokenId === 'asset' ? 'asset-card' : ''} ${nft.comingSoon ? 'coming-soon-card' : ''}`} href={nft.href || '#nfts'} target="_blank" rel="noopener" style={{ '--i': i }}>
               <div className="nft-art">
-                <NftArt nft={nft} />
+                <NftArt nft={nft} eager={i < 3} />
               </div>
               <div className="nft-meta">
                 <span>{nft.collection}</span>
