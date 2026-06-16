@@ -1806,6 +1806,84 @@ a { color: inherit; text-decoration: none; }
   font-size: clamp(16px, 1.3vw, 20px);
   line-height: 1.45;
 }
+.buildanything-card {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  width: min(100%, 390px);
+  margin-top: 20px;
+  border: 1px solid rgba(238,246,251,0.2);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 84% 16%, rgba(140,247,240,0.2), transparent 30%),
+    rgba(255,255,255,0.08);
+  box-shadow: 0 26px 74px rgba(7,9,32,0.34), inset 0 1px 0 rgba(255,255,255,0.18);
+  color: #eef6fb;
+  text-decoration: none;
+  isolation: isolate;
+  transform: translateZ(0);
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+.buildanything-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.16), transparent 38%),
+    linear-gradient(180deg, transparent 48%, rgba(12,19,57,0.66));
+  pointer-events: none;
+  z-index: 1;
+}
+.buildanything-card:hover,
+.buildanything-card:focus-visible {
+  transform: translateY(-3px);
+  border-color: rgba(140,247,240,0.42);
+  box-shadow: 0 30px 90px rgba(7,9,32,0.42), 0 0 0 4px rgba(140,247,240,0.08);
+}
+.buildanything-card img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1026 / 646;
+  object-fit: cover;
+}
+.buildanything-card-meta {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+.buildanything-card-meta span {
+  min-width: 0;
+  border: 1px solid rgba(238,246,251,0.2);
+  border-radius: 10px;
+  padding: 8px 8px 9px;
+  background: rgba(14,21,56,0.42);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.16);
+  backdrop-filter: blur(12px);
+}
+.buildanything-card-meta small {
+  display: block;
+  overflow: hidden;
+  color: rgba(238,246,251,0.7);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.buildanything-card-meta strong {
+  display: block;
+  margin-top: 5px;
+  color: #ffffff;
+  font-size: clamp(14px, 1.2vw, 18px);
+  line-height: 1;
+}
 .monad-game .chapter-meta {
   color: rgba(238,246,251,0.68);
 }
@@ -4050,6 +4128,14 @@ a { color: inherit; text-decoration: none; }
   .monad-game:not(.app-mode) .game-copy {
     display: grid;
     gap: 12px;
+  }
+  .buildanything-card {
+    width: 100%;
+    max-width: 420px;
+    margin-top: 6px;
+  }
+  .buildanything-card-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .monad-game:not(.app-mode) .game-actions {
     margin-top: 10px;

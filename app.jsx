@@ -2964,6 +2964,27 @@ function MonadGame() {
             ? 'A wallet-backed focus game for BuildAnything. Merge Monad-coded tiles, choose your difficulty, remember the hidden points, then reveal your run. Connect once; profile signing is remembered so scores can upload without another signature.'
             : 'Biome is currently being built on Monad testnet as my game network: the home for Moncade, Monerge, and future creature games. The story is proof-of-play: connect a wallet, play, build a profile, and let each run become part of the larger Biome.'}
         </p>
+        {!isGameApp && <a className="buildanything-card" href="https://buildanything.so/students/gerry" target="_blank" rel="noopener" aria-label="Open Gerry on BuildAnything">
+          <img src={`assets/buildanything-student-card.png?v=${SITE_BUILD_VERSION}`} alt="BuildAnything student card for Gerry" />
+          <span className="buildanything-card-meta">
+            <span>
+              <small>Total XP</small>
+              <strong>6,100</strong>
+            </span>
+            <span>
+              <small>Lessons</small>
+              <strong>23</strong>
+            </span>
+            <span>
+              <small>Tracks</small>
+              <strong>2</strong>
+            </span>
+            <span>
+              <small>Student ID</small>
+              <strong>#1517</strong>
+            </span>
+          </span>
+        </a>}
         <div className="monanimal-strip" aria-label="Monad character inspirations">
           {MONAD_CHARACTERS.map((character) =>
           <span key={character.name} className={`monanimal-chip tile-${character.value}`}>
