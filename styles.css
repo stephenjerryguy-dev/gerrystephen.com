@@ -226,10 +226,11 @@ a { color: inherit; text-decoration: none; }
   color: currentColor;
   flex: 0 0 auto;
 }
-.opensea-mark svg {
+.opensea-mark img {
   display: block;
   width: 100%;
   height: 100%;
+  object-fit: contain;
 }
 .top-cta:hover { transform: translateY(-2px); }
 .top-menu-toggle {
