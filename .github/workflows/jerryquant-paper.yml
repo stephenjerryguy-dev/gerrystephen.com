@@ -1,11 +1,11 @@
 name: JerryQuant Paper Trading
 
 on:
-  schedule:
-    # Daily at 21:30 UTC, after US market close. Crypto evaluates every
-    # day; equities are auto-skipped on weekends by the staleness rule.
-    # NOTE: scheduled runs only fire on the repository's default branch.
-    - cron: "30 21 * * *"
+  # PAUSED 2026-06-15 — running live only for now. The daily schedule is
+  # commented out so paper no longer runs automatically; it stays available
+  # on demand (Actions -> Run workflow). To resume, uncomment the cron.
+  # schedule:
+  #   - cron: "30 21 * * *"   # daily 21:30 UTC, after US close
   workflow_dispatch:
 
 permissions:
