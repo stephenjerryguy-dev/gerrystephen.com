@@ -555,7 +555,14 @@ function Topbar() {
           <span aria-hidden="true">𝕏</span>
           <strong>X</strong>
         </a>
-        <a href="https://opensea.io/profile/gerrystephen" target="_blank" rel="noopener" className="top-cta">OpenSea</a>
+        <a href="https://opensea.io/profile/gerrystephen" target="_blank" rel="noopener" className="top-cta opensea-cta" aria-label="Gerry Stephen on OpenSea">
+          <span className="opensea-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false">
+              <path d="M12 2.5a9.5 9.5 0 1 0 0 19 9.5 9.5 0 0 0 0-19Zm-.34 4.23-3.2 7.98h3.2V6.73Zm1.33.9v7.08h4.14l-4.14-7.08ZM7.2 16.12c1.27 1.42 2.88 2.14 4.8 2.14 1.93 0 3.53-.72 4.8-2.14H7.2Z" fill="currentColor" />
+            </svg>
+          </span>
+          <span className="top-cta-text">OpenSea</span>
+        </a>
         <button type="button" className="top-menu-toggle" onClick={() => setMenuOpen((open) => !open)} aria-label="Open site menu" aria-expanded={menuOpen}>
           <span></span>
           <span></span>
