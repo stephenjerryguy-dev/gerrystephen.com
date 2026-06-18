@@ -22,7 +22,7 @@ import {
 } from './tweaks-panel.jsx';
 import './styles.css';
 
-const SITE_BUILD_VERSION = 'ecosystems-app-95';
+const SITE_BUILD_VERSION = 'ecosystems-app-98';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 function safeStorage() {
@@ -555,7 +555,12 @@ function Topbar() {
           <span aria-hidden="true">𝕏</span>
           <strong>X</strong>
         </a>
-        <a href="https://opensea.io/profile/gerrystephen" target="_blank" rel="noopener" className="top-cta">OpenSea</a>
+        <a href="https://opensea.io/profile/gerrystephen" target="_blank" rel="noopener" className="top-cta opensea-cta" aria-label="Gerry Stephen on OpenSea">
+          <span className="opensea-mark" aria-hidden="true">
+            <img src="/assets/opensea-logo.svg?v=ecosystems-app-98" alt="" />
+          </span>
+          <span className="top-cta-text">OpenSea</span>
+        </a>
         <button type="button" className="top-menu-toggle" onClick={() => setMenuOpen((open) => !open)} aria-label="Open site menu" aria-expanded={menuOpen}>
           <span></span>
           <span></span>
@@ -1102,10 +1107,10 @@ function normalizeNft(item, wallet) {
   };
 }
 
-function NftArt({ nft }) {
+function NftArt({ nft, eager = false }) {
   const [failed, setFailed] = useState(false);
   if (nft.image && !failed) {
-    return <img src={nft.image} alt={nft.name} loading="lazy" onError={() => setFailed(true)} />;
+    return <img src={nft.image} alt={nft.name} loading={eager ? 'eager' : 'lazy'} decoding="async" fetchPriority={eager ? 'high' : 'auto'} onError={() => setFailed(true)} />;
   }
   return <div className="nft-glyph">{nft.glyph || nft.name?.slice(0, 2) || 'NFT'}</div>;
 }
@@ -1305,7 +1310,7 @@ function NftCarousel() {
           {smartItems.map((nft, i) =>
           <a key={`${nft.name}-${nft.tokenId}-${i}`} className={`nft-card ${nft.tokenId === 'pending' || nft.tokenId === 'soon' ? 'disabled' : ''} ${nft.tokenId === 'asset' ? 'asset-card' : ''} ${nft.comingSoon ? 'coming-soon-card' : ''}`} href={nft.href || '#nfts'} target="_blank" rel="noopener" style={{ '--i': i }}>
               <div className="nft-art">
-                <NftArt nft={nft} />
+                <NftArt nft={nft} eager={i < 3} />
               </div>
               <div className="nft-meta">
                 <span>{nft.collection}</span>
@@ -2959,6 +2964,27 @@ function MonadGame() {
             ? 'A wallet-backed focus game for BuildAnything. Merge Monad-coded tiles, choose your difficulty, remember the hidden points, then reveal your run. Connect once; profile signing is remembered so scores can upload without another signature.'
             : 'Biome is currently being built on Monad testnet as my game network: the home for Moncade, Monerge, and future creature games. The story is proof-of-play: connect a wallet, play, build a profile, and let each run become part of the larger Biome.'}
         </p>
+        {!isGameApp && <a className="buildanything-card" href="https://buildanything.so/students/gerry" target="_blank" rel="noopener" aria-label="Open Gerry on BuildAnything">
+          <img src={`assets/buildanything-student-card.png?v=${SITE_BUILD_VERSION}`} alt="BuildAnything student card for Gerry" />
+          <span className="buildanything-card-meta">
+            <span>
+              <small>Total XP</small>
+              <strong>6,100</strong>
+            </span>
+            <span>
+              <small>Lessons</small>
+              <strong>23</strong>
+            </span>
+            <span>
+              <small>Tracks</small>
+              <strong>2</strong>
+            </span>
+            <span>
+              <small>Student ID</small>
+              <strong>#1517</strong>
+            </span>
+          </span>
+        </a>}
         <div className="monanimal-strip" aria-label="Monad character inspirations">
           {MONAD_CHARACTERS.map((character) =>
           <span key={character.name} className={`monanimal-chip tile-${character.value}`}>
@@ -3609,19 +3635,19 @@ function App() {
     const favicon = document.querySelector('link[rel="icon"]');
     if (isGameApp) {
       document.title = 'Monerge · Gerry Stephen';
-      appleIcon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-93');
-      favicon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-93');
+      appleIcon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-97');
+      favicon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-97');
       return;
     }
     if (isAgentsPage) {
       document.title = 'AI Agents · Gerry Stephen';
-      appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-93');
-      favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-93');
+      appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-97');
+      favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-97');
       return;
     }
     document.title = 'Gerry Stephen · Business, Web3, and the Iglu';
-    appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-93');
-    favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-93');
+    appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-97');
+    favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-97');
   }, [isGameApp, isAgentsPage]);
 
   useEffect(() => {
