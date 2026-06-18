@@ -1186,6 +1186,15 @@ def _decide_allocation_actions(cfg: Config, journal: TradeJournal,
 
     current_values = {s: held[s]["quantity"] * prices.get(s, 0.0)
                       for s in held if s in prices}
+
+    # Visibility: current weight vs target for every asset, every run.
+    invested = sum(current_values.values())
+    targets = allocation.normalized_weights(cfg)
+    notes.append(f"Portfolio ${equity:,.2f} (invested ${invested:,.2f}):")
+    for s in targets:
+        cur_pct = (current_values.get(s, 0.0) / equity * 100.0) if equity else 0.0
+        notes.append(f"  {s}: {cur_pct:4.0f}% vs target {targets[s]*100:3.0f}%")
+
     plan = allocation.plan_rebalance(current_values, equity, cfg)
     notes.extend(plan.reasons)
     if not plan.needed:
@@ -1193,6 +1202,7 @@ def _decide_allocation_actions(cfg: Config, journal: TradeJournal,
 
     actions, buy_budget = [], buying_power
     # Sells first (free up cash; proceeds settle T+1).
+    settlement_pending = False
     for t in plan.trades:
         if t.side != "sell":
             continue
@@ -1205,8 +1215,20 @@ def _decide_allocation_actions(cfg: Config, journal: TradeJournal,
                             "reference_price": price,
                             "reason": f"rebalance trim {t.symbol}",
                             "full": units >= qty * 0.999, "strategy": "allocation"})
-    # Buys, scaled to available buying power (rest complete next cycle).
+        elif sellable <= 0 and t.dollars >= ac.min_trade_usd:
+            settlement_pending = True
+            notes.append(f"{t.symbol}: needs trimming but isn't settled yet — "
+                         f"will sell next cycle (T+1)")
+
+    # Buys, scaled to available buying power. If the funding is mostly tied up
+    # in not-yet-settled sells, defer the whole buy side rather than dribbling
+    # dust trades — do the real rebalance once the cash settles.
     total_buy = sum(t.dollars for t in plan.trades if t.side == "buy")
+    if settlement_pending and buy_budget < 0.5 * total_buy:
+        notes.append(f"deferring buys (only ${buy_budget:,.2f} free vs "
+                     f"${total_buy:,.2f} needed) until pending sells settle")
+        return actions, notes, equity
+
     scale = min(1.0, buy_budget / total_buy) if total_buy > 0 else 0.0
     for t in plan.trades:
         if t.side != "buy":
@@ -1222,7 +1244,7 @@ def _decide_allocation_actions(cfg: Config, journal: TradeJournal,
                             "reason": f"rebalance buy {t.symbol} to target weight",
                             "ticket": f"BUY {t.symbol} ~{units:.6f} @ ${price:,.2f} "
                                       f"(~${dollars:,.2f}) — diversified rebalance"})
-    if total_buy > 0 and scale < 1.0:
+    if total_buy > 0 and scale < 1.0 and not settlement_pending:
         notes.append(f"buying power ${buy_budget:,.2f} < needed ${total_buy:,.2f}; "
                      f"buying {scale*100:.0f}% now, rest after settlement")
     return actions, notes, equity

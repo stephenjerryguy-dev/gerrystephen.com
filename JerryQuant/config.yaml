@@ -28,10 +28,16 @@ watchlist:
     - ETHA               # spot Ethereum ETF — crypto exposure on equity rails
 
 risk:
+  # NOTE on the active strategy (allocation): these drawdown/kill-switch limits
+  # govern the ACTIVE trading strategies (trend_following / rotation) — they
+  # stop trading when a strategy is losing. The diversified ALLOCATION does NOT
+  # halt on market drawdowns by design: its risk control is diversification +
+  # rebalancing, so it stays invested and rebalances INTO dips. Allocation only
+  # stops on data/connection failures (kill switch via HALT_TRADING.txt).
   max_risk_per_trade_pct: 1.0        # max % of account equity risked per trade
-  max_daily_drawdown_pct: 5.0        # trading halts for the day past this
-  max_total_drawdown_pct: 10.0       # kill switch engages permanently past this
-  max_monthly_loss_pct: 3.0          # testing-phase monthly loss kill switch
+  max_daily_drawdown_pct: 5.0        # (active strategies) halt for the day past this
+  max_total_drawdown_pct: 10.0       # (active strategies) permanent kill switch past this
+  max_monthly_loss_pct: 3.0          # (active strategies) monthly loss kill switch
   max_single_asset_pct: 20.0         # max portfolio allocation to one asset
   max_crypto_allocation_pct: 40.0    # max combined crypto allocation
   max_open_positions: 3
@@ -57,11 +63,16 @@ strategy:
   allocation:                        # diversified target allocation (LIVE)
     enabled: true
     weights:                         # must sum to ~100; rebalanced to these
-      SPY: 40                        # US large-cap
-      QQQ: 20                        # Nasdaq / growth
-      IWM: 10                        # US small-cap
-      GLD: 15                        # gold (inflation/crisis hedge)
-      TLT: 15                        # long Treasuries (deflation hedge)
+      SPY: 37                        # US large-cap
+      QQQ: 19                        # Nasdaq / growth
+      IWM: 9                         # US small-cap
+      GLD: 14                        # gold (inflation/crisis hedge)
+      TLT: 14                        # long Treasuries (deflation hedge)
+      IBIT: 5                        # Bitcoin sleeve — speculative, capped small
+      ETHA: 2                        # Ethereum sleeve — speculative, capped small
+    # Crypto is capped at 7% on purpose: only ~2yr of price history exists to
+    # judge it, and it can halve — at 7% that's ~a 3.5% portfolio hit. The
+    # core 93% (stocks/gold/bonds) is the long-validated diversified engine.
     rebalance_band_pct: 5.0          # rebalance only when a holding drifts this far
     min_trade_usd: 1.0
     cash_buffer_pct: 2.0
