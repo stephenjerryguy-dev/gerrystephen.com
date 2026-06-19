@@ -22,7 +22,7 @@ import {
 } from './tweaks-panel.jsx';
 import './styles.css';
 
-const SITE_BUILD_VERSION = 'ecosystems-app-98';
+const SITE_BUILD_VERSION = 'ecosystems-app-99';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 function safeStorage() {
@@ -557,7 +557,7 @@ function Topbar() {
         </a>
         <a href="https://opensea.io/profile/gerrystephen" target="_blank" rel="noopener" className="top-cta opensea-cta" aria-label="Gerry Stephen on OpenSea">
           <span className="opensea-mark" aria-hidden="true">
-            <img src="/assets/opensea-logo.svg?v=ecosystems-app-98" alt="" />
+            <img src="/assets/opensea-logo.svg?v=ecosystems-app-99" alt="" />
           </span>
           <span className="top-cta-text">OpenSea</span>
         </a>
@@ -2985,6 +2985,9 @@ function MonadGame() {
             </span>
           </span>
         </a>}
+        {!isGameApp && <p className="buildanything-context">
+          I completed BuildAnything coursework to sharpen how I take a vibe-coded Monad app from an idea to a working public launch. Those lessons now feed directly into how I am building Biome, Moncade, and Monerge.
+        </p>}
         <div className="monanimal-strip" aria-label="Monad character inspirations">
           {MONAD_CHARACTERS.map((character) =>
           <span key={character.name} className={`monanimal-chip tile-${character.value}`}>
