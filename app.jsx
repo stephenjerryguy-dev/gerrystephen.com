@@ -1,16 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import {
-  DynamicContextProvider,
-  dynamicEvents,
-  useDynamicContext,
-  useDynamicModals,
-  useUserWallets
-} from '@dynamic-labs/sdk-react-core';
-import { EthereumWalletConnectors } from '@dynamic-labs/ethereum';
-import { DynamicWagmiConnector } from '@dynamic-labs/wagmi-connector';
-import { WagmiProvider, createConfig, http } from 'wagmi';
 import { defineChain, encodeFunctionData, keccak256, toHex } from 'viem';
 import {
   useTweaks,
@@ -22,7 +11,7 @@ import {
 } from './tweaks-panel.jsx';
 import './styles.css';
 
-const SITE_BUILD_VERSION = 'ecosystems-app-99';
+const SITE_BUILD_VERSION = 'ecosystems-app-100';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 function safeStorage() {
@@ -51,15 +40,6 @@ function storageRemove(key) {
   try {
     safeStorage()?.removeItem(key);
   } catch (_) {}
-}
-
-function storageKeys() {
-  try {
-    const store = safeStorage();
-    return store ? Object.keys(store) : [];
-  } catch (_) {
-    return [];
-  }
 }
 
 function safeNow() {
@@ -539,12 +519,12 @@ function Topbar() {
 
   return (
     <header className={`topbar ${menuOpen ? 'menu-open' : ''}`} data-screen-label="topbar">
-      <div className="brand">
+      <a className="brand" href="/" aria-label="Gerry Stephen home">
         <div className="brand-mark">
           <img src="assets/pudgy-penguin-cutout.png" alt="" />
         </div>
         <div className="brand-text">gerrystephen<span>.com</span></div>
-      </div>
+      </a>
       <nav className="topnav">
         {TOPBAR_LINKS.map((link) =>
           <a key={link.label} href={link.href} target={link.external ? '_blank' : undefined} rel={link.external ? 'noopener' : undefined}>{link.label}</a>
@@ -557,7 +537,7 @@ function Topbar() {
         </a>
         <a href="https://opensea.io/profile/gerrystephen" target="_blank" rel="noopener" className="top-cta opensea-cta" aria-label="Gerry Stephen on OpenSea">
           <span className="opensea-mark" aria-hidden="true">
-            <img src="/assets/opensea-logo.svg?v=ecosystems-app-99" alt="" />
+            <img src="/assets/opensea-logo.svg?v=ecosystems-app-100" alt="" />
           </span>
           <span className="top-cta-text">OpenSea</span>
         </a>
@@ -1229,19 +1209,18 @@ function NftCarousel() {
   useEffect(() => {
     const track = trackRef.current;
     if (!shouldLoop || trackPaused || !track) return undefined;
-    let frame = 0;
-    let last = 0;
-    const step = (now) => {
-      if (!last) last = now;
-      const delta = now - last;
-      last = now;
-      track.scrollLeft += 1.36 * (delta / 16.67);
+    const step = () => {
       const midpoint = track.scrollWidth / 2;
-      if (midpoint > 0 && track.scrollLeft >= midpoint) track.scrollLeft -= midpoint;
-      frame = requestAnimationFrame(step);
+      if (midpoint > 0 && track.scrollLeft >= midpoint - 8) {
+        track.scrollTo({ left: track.scrollLeft - midpoint, behavior: 'auto' });
+      }
+      const card = track.querySelector('.nft-card');
+      const gap = Number.parseFloat(window.getComputedStyle(track).columnGap || '18') || 18;
+      const distance = (card?.getBoundingClientRect().width || 280) + gap;
+      track.scrollBy({ left: distance, behavior: 'smooth' });
     };
-    frame = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(frame);
+    const timer = window.setInterval(step, 2600);
+    return () => window.clearInterval(timer);
   }, [shouldLoop, trackPaused, activeGroup?.id, visible.length]);
 
   return (
@@ -1252,7 +1231,7 @@ function NftCarousel() {
       <p className="lede nft-lede">
         {source === 'wallet'
           ? `A curated view of my owned collection: ${activeGroup?.note} Cards open the matching asset, collection, or explorer page.`
-          : `A curated view of my owned collection: ${activeGroup?.note} Waiting on exact metadata for this ecosystem.`}
+          : `A curated view of my owned collection: ${activeGroup?.note} Collection details refresh automatically when the wallet feed reconnects.`}
       </p>
       <div
         className={`ecosystem-stage ${activeGroup?.id || ''} ${expanded ? 'is-expanded' : ''}`}
@@ -1331,7 +1310,7 @@ function NftCarousel() {
       </div>
       {expanded &&
       <div className="nft-modal" role="dialog" aria-modal="true" aria-label={`${activeGroup?.label} collection preview`}>
-          <button type="button" className="nft-modal-scrim" aria-label="Close collection preview" onClick={() => {
+          <button type="button" className="nft-modal-scrim" aria-label="Close collection preview backdrop" onClick={() => {
             setExpanded(false);
             setPaused(false);
           }} />
@@ -1417,209 +1396,18 @@ const DIFFICULTY_CHAIN_CODES = {
   Hardest: 3
 };
 const DYNAMIC_ENV_ID = '794ab3a5-8cf5-43fb-963a-9a81e4a3dae7';
-const queryClient = new QueryClient();
-const wagmiConfig = createConfig({
-  chains: [monadMainnet],
-  transports: { [monadMainnet.id]: http(MONAD_NETWORK.rpcUrls[0]) }
-});
 const MONERGE_APP_PATH = '/monerge';
 const AGENTS_APP_PATH = '/agents';
-const METAMASK_APP_LINK = `https://metamask.app.link/dapp/${window.location.host}${MONERGE_APP_PATH}`;
+let monergeWalletRuntimePromise;
 
-function monergeWalletsFilter(options = []) {
-  const list = Array.isArray(options) ? options : [];
-  return list.filter((opt) => {
-    const supported = opt?.walletConnector?.supportedChains;
-    if (Array.isArray(supported) && supported.includes('EVM')) return true;
-    const key = String(opt?.key ?? opt?.walletKey ?? '').toLowerCase();
-    const group = String(opt?.chainGroup ?? opt?.walletGroup ?? '').toLowerCase();
-    return (
-      group.includes('evm') ||
-      group.includes('eth') ||
-      /metamask|walletconnect|coinbase|rainbow|rabby|zerion|trust|okx|phantom/.test(key)
-    );
-  });
-}
-
-const DYNAMIC_SETTINGS = {
-  appName: 'Monerge',
-  appLogoUrl: `${window.location.origin}/assets/monerge-icon-512.png`,
-  environmentId: DYNAMIC_ENV_ID,
-  initialAuthenticationMode: 'connect-and-sign',
-  enableVisitTrackingOnConnectOnly: true,
-  theme: 'dark',
-  defaultNumberOfWalletsToShow: 8,
-  overrides: {
-    evmNetworks: [
-      {
-        blockExplorerUrls: MONAD_NETWORK.blockExplorerUrls,
-        chainId: 143,
-        chainName: MONAD_NETWORK.chainName,
-        key: 'monad',
-        name: MONAD_NETWORK.chainName,
-        nativeCurrency: MONAD_NETWORK.nativeCurrency,
-        networkId: 143,
-        rpcUrls: MONAD_NETWORK.rpcUrls,
-        shortName: 'monad',
-        vanityName: 'Monad'
-      }
-    ]
-  },
-  walletConnectors: [EthereumWalletConnectors],
-  walletsFilter: monergeWalletsFilter,
-  events: {
-    onAuthFlowOpen: () => window.dispatchEvent(new CustomEvent('monerge-wallet-status', { detail: { status: 'Dynamic wallet modal open' } })),
-    onAuthInit: () => window.dispatchEvent(new CustomEvent('monerge-wallet-status', { detail: { status: 'Connecting with Dynamic' } })),
-    onAuthSuccess: () => window.dispatchEvent(new CustomEvent('monerge-wallet-status', { detail: { status: 'Dynamic wallet connected' } })),
-    onAuthFailure: () => window.dispatchEvent(new CustomEvent('monerge-wallet-status', { detail: { status: 'Dynamic connect needs another try' } })),
-    onAuthCancel: () => window.dispatchEvent(new CustomEvent('monerge-wallet-status', { detail: { status: 'Wallet connect cancelled' } })),
-    onLogout: () => window.dispatchEvent(new CustomEvent('monerge-wallet', { detail: { address: '' } }))
-  },
-  cssOverrides: `
-    .dynamic-shadow-dom { --dynamic-font-family-primary: inherit; }
-    :host {
-      --dynamic-brand-primary-color: #8f6bff;
-      --dynamic-brand-secondary-color: #7fd2e7;
-      --dynamic-background-color: #160f36;
-      --dynamic-base-1: #160f36;
-      --dynamic-base-2: #24184f;
-      --dynamic-base-3: #332263;
-      --dynamic-base-4: #493078;
-      --dynamic-overlay: rgba(8,7,24,0.76);
-      --dynamic-modal-backdrop-background: rgba(8,7,24,0.76);
-      --dynamic-header-background: #160f36;
-      --dynamic-footer-background: #160f36;
-      --dynamic-wallet-list-tile-background: #24184f;
-      --dynamic-wallet-list-tile-background-hover: #332263;
-      --dynamic-wallet-list-tile-border: 1px solid rgba(127,210,231,0.22);
-      --dynamic-wallet-list-tile-border-hover: 1px solid rgba(166,139,255,0.48);
-      --dynamic-connect-button-background: linear-gradient(135deg, #8f6bff, #7fd2e7);
-      --dynamic-connect-button-background-hover: linear-gradient(135deg, #a68bff, #8cf7f0);
-      --dynamic-connect-button-color: #0e1f2c;
-      --dynamic-button-primary-background: #8f6bff;
-      --dynamic-button-secondary-background: #332263;
-      --dynamic-text-primary: #ffffff;
-      --dynamic-text-primary-color: #ffffff;
-      --dynamic-text-secondary: rgba(255,255,255,0.74);
-      --dynamic-text-secondary-color: rgba(255,255,255,0.74);
-      --dynamic-text-link: #7fd2e7;
-      --dynamic-border: rgba(255,255,255,0.12);
-      --dynamic-border-color: rgba(255,255,255,0.12);
-      --dynamic-wallet-list-tile-background: rgba(255,255,255,0.08);
-      --dynamic-wallet-list-tile-background-hover: rgba(127,210,231,0.18);
-      --dynamic-wallet-list-tile-border: 1px solid rgba(238,246,251,0.16);
-      --dynamic-wallet-list-tile-border-hover: 1px solid rgba(127,210,231,0.38);
-      --dynamic-border-radius: 16px;
-      --dynamic-shadow-down-3: 0 24px 48px rgba(0,0,0,0.55);
-    }
-  `
-};
-
-const dynamicBridgeRef = { current: null };
-const DYNAMIC_AUTH_OPTIONS = {
-  initializeWalletConnect: true,
-  clearErrors: true,
-  performMultiWalletChecks: false
-};
-
-function showMonergeAuthFlow(setShowAuthFlow) {
-  try {
-    setShowAuthFlow?.(true, DYNAMIC_AUTH_OPTIONS);
-  } catch (_) {
-    setShowAuthFlow?.(true);
-  }
-}
-
-function purgeDynamicWalletCache() {
-  try {
-    storageKeys().forEach((key) => {
-      if (/^dynamic_|^@dynamic|walletconnect|wallet-connect|wc@|appkit|w3m/i.test(key)) {
-        storageRemove(key);
-      }
+function loadMonergeWalletRuntime() {
+  if (!monergeWalletRuntimePromise) {
+    monergeWalletRuntimePromise = import('./monerge-wallet.jsx').catch((error) => {
+      monergeWalletRuntimePromise = undefined;
+      throw error;
     });
-  } catch (_) {}
-}
-
-function MonergeDynamicBridge() {
-  const ctx = useDynamicContext();
-  const { setShowAuthFlow, handleLogOut, user, primaryWallet } = ctx;
-  const { setShowLinkNewWalletModal } = useDynamicModals();
-  const wallets = useUserWallets();
-
-  useEffect(() => {
-    dynamicBridgeRef.current = {
-      open: () => {
-        const authenticated = Boolean(user || primaryWallet?.address || wallets?.length);
-        if (authenticated) {
-          try {
-            setShowLinkNewWalletModal?.(true);
-            return;
-          } catch (_) {}
-        }
-        showMonergeAuthFlow(setShowAuthFlow);
-      },
-      logout: async () => {
-        await handleLogOut?.();
-        purgeDynamicWalletCache();
-      },
-      isAuthenticated: () => Boolean(user || primaryWallet?.address || wallets?.length)
-    };
-    return () => {
-      dynamicBridgeRef.current = null;
-    };
-  }, [setShowAuthFlow, setShowLinkNewWalletModal, handleLogOut, user, primaryWallet, wallets]);
-
-  useEffect(() => {
-    const syncFromDynamic = (params) => {
-      const userWallets = Array.isArray(params?.userWallets) ? params.userWallets : Array.isArray(params) ? params : [];
-      const wallet = userWallets?.find?.((item) => /^EVM|ETH$/i.test(String(item?.chain || ''))) || userWallets?.[0] || params?.wallet || params?.primaryWallet;
-      if (wallet?.address) window.dispatchEvent(new CustomEvent('monerge-wallet', { detail: { address: wallet.address } }));
-    };
-    const onLogout = () => window.dispatchEvent(new CustomEvent('monerge-wallet', { detail: { address: '' } }));
-    const syncPrimaryWallet = (wallet) => syncFromDynamic({ wallet });
-    const syncWalletFailure = () => {
-      window.dispatchEvent(new CustomEvent('monerge-wallet-status', { detail: { status: 'Dynamic wallet connect did not finish. Please try again.' } }));
-    };
-    try { dynamicEvents.on('userWalletsChanged', syncFromDynamic); } catch (_) {}
-    try { dynamicEvents.on('userWalletsPopulated', syncFromDynamic); } catch (_) {}
-    try { dynamicEvents.on('primaryWalletChanged', syncPrimaryWallet); } catch (_) {}
-    try { dynamicEvents.on('walletAdded', (_wallet, userWallets) => syncFromDynamic({ userWallets })); } catch (_) {}
-    try { dynamicEvents.on('walletRemoved', (_wallet, userWallets) => syncFromDynamic({ userWallets })); } catch (_) {}
-    try { dynamicEvents.on('walletConnectionFailed', syncWalletFailure); } catch (_) {}
-    try { dynamicEvents.on('logout', onLogout); } catch (_) {}
-    return () => {
-      try { dynamicEvents.off('userWalletsChanged', syncFromDynamic); } catch (_) {}
-      try { dynamicEvents.off('userWalletsPopulated', syncFromDynamic); } catch (_) {}
-      try { dynamicEvents.off('primaryWalletChanged', syncPrimaryWallet); } catch (_) {}
-      try { dynamicEvents.off('walletAdded', syncFromDynamic); } catch (_) {}
-      try { dynamicEvents.off('walletRemoved', syncFromDynamic); } catch (_) {}
-      try { dynamicEvents.off('walletConnectionFailed', syncWalletFailure); } catch (_) {}
-      try { dynamicEvents.off('logout', onLogout); } catch (_) {}
-    };
-  }, []);
-
-  useEffect(() => {
-    const stripIfOrphaned = () => {
-      const html = document.documentElement;
-      const body = document.body;
-      if (!html.classList.contains('dynamic-no-scroll') && !body.classList.contains('dynamic-no-scroll')) return;
-      const host = document.querySelector('.dynamic-shadow-dom');
-      const hasModal = Boolean(host?.shadowRoot?.querySelector('[data-testid*="modal"], [data-testid*="auth"], [class*="DynamicModal"], [class*="AuthFlow"]'));
-      if (!hasModal) {
-        html.classList.remove('dynamic-no-scroll');
-        body.classList.remove('dynamic-no-scroll');
-      }
-    };
-    stripIfOrphaned();
-    window.addEventListener('focus', stripIfOrphaned);
-    document.addEventListener('visibilitychange', stripIfOrphaned);
-    return () => {
-      window.removeEventListener('focus', stripIfOrphaned);
-      document.removeEventListener('visibilitychange', stripIfOrphaned);
-    };
-  }, []);
-
-  return null;
+  }
+  return monergeWalletRuntimePromise;
 }
 
 function getAppMode() {
@@ -2238,19 +2026,18 @@ function canMove(board) {
 }
 
 function MonadGame() {
-  const dynamicContext = useDynamicContext();
-  const {
-    primaryWallet,
-    setShowAuthFlow,
-    handleLogOut,
-    user,
-    sdkHasLoaded,
-    projectSettings,
-    showAuthFlow
-  } = dynamicContext;
+  const [walletSession, setWalletSession] = useState({
+    primaryWallet: null,
+    user: null,
+    sdkHasLoaded: false,
+    projectSettings: null,
+    showAuthFlow: false
+  });
+  const { primaryWallet, user, sdkHasLoaded, projectSettings, showAuthFlow } = walletSession;
   const [account, setAccount] = useState('');
   const [chainId, setChainId] = useState('');
   const [walletState, setWalletState] = useState('Ready');
+  const [dynamicRequested, setDynamicRequested] = useState(false);
   const [dynamicTimedOut, setDynamicTimedOut] = useState(false);
   const [board, setBoard] = useState(() => makeBoard());
   const [score, setScore] = useState(0);
@@ -2295,7 +2082,7 @@ function MonadGame() {
   const timeBonus = currentDifficulty.timed ? Math.max(0, timeLeft) * 2 : 0;
   const difficultyBonus = scoreReveal?.difficultyBonus ?? 0;
   const dynamicReady = Boolean(sdkHasLoaded);
-  const dynamicStatus = dynamicReady ? 'Dynamic ready' : dynamicTimedOut ? 'Dynamic settings blocked' : 'Dynamic loading';
+  const dynamicStatus = dynamicReady ? 'Dynamic ready' : dynamicTimedOut ? 'Dynamic settings blocked' : dynamicRequested ? 'Dynamic loading' : 'Wallet loads on connect';
   const cleanPlayerProfile = cleanProfile(profile);
   const profileSigned = Boolean(account && profileSignature);
   const canPromptInstall = isGameApp
@@ -2434,13 +2221,13 @@ function MonadGame() {
   }, [account, appMode, primaryWallet, projectSettings, sdkHasLoaded, showAuthFlow]);
 
   useEffect(() => {
-    if (dynamicReady) {
+    if (!dynamicRequested || dynamicReady) {
       setDynamicTimedOut(false);
       return undefined;
     }
     const timer = window.setTimeout(() => setDynamicTimedOut(true), 4500);
     return () => window.clearTimeout(timer);
-  }, [dynamicReady]);
+  }, [dynamicReady, dynamicRequested]);
 
   useEffect(() => {
     if (!primaryWallet?.address) return;
@@ -2545,6 +2332,21 @@ function MonadGame() {
   useEffect(() => {
     const syncDynamicWallet = (event) => {
       const address = event.detail?.address || '';
+      setWalletSession((current) => address ? ({
+          ...current,
+          primaryWallet: event.detail?.primaryWallet ?? current.primaryWallet,
+          user: event.detail?.user ?? current.user,
+          sdkHasLoaded: event.detail?.sdkHasLoaded ?? current.sdkHasLoaded,
+          projectSettings: event.detail?.projectSettings ?? current.projectSettings,
+          showAuthFlow: event.detail?.showAuthFlow ?? current.showAuthFlow
+        }) : ({
+          ...current,
+          primaryWallet: null,
+          user: event.detail?.user ?? current.user,
+          sdkHasLoaded: event.detail?.sdkHasLoaded ?? current.sdkHasLoaded,
+          projectSettings: event.detail?.projectSettings ?? current.projectSettings,
+          showAuthFlow: event.detail?.showAuthFlow ?? current.showAuthFlow
+        }));
       setAccount(address);
       if (address) {
         unlockMonergeAudio();
@@ -2607,20 +2409,22 @@ function MonadGame() {
     return next;
   }
 
-  function openDynamicFlow(message = 'Opening Dynamic wallet connect.') {
-    if (!dynamicReady) {
-      setWalletState('Dynamic settings are not loaded for this domain yet.');
-      window.dispatchEvent(new CustomEvent('monerge-wallet-status', {
-        detail: { status: 'Dynamic settings blocked or still loading.' }
-      }));
+  async function openDynamicFlow(message = 'Opening Dynamic wallet connect.') {
+    setDynamicRequested(true);
+    setDynamicTimedOut(false);
+    setWalletState('Loading secure wallet choices...');
+    try {
+      const walletRuntime = await loadMonergeWalletRuntime();
+      await walletRuntime.openMonergeWallet();
+      setWalletState(message);
+    } catch (error) {
+      setDynamicTimedOut(true);
+      setWalletState(error?.message || 'Dynamic wallet did not load. Please try again.');
       return;
     }
-    setWalletState(sdkHasLoaded ? message : 'Loading wallet connector...');
-    if (dynamicBridgeRef.current) dynamicBridgeRef.current.open();
-    else showMonergeAuthFlow(setShowAuthFlow);
     window.setTimeout(() => {
       setWalletState((current) => (
-        current === message || current === 'Loading wallet connector...'
+        current === message || current === 'Loading secure wallet choices...'
           ? 'Dynamic did not open yet. Check allowed domains and popup blockers.'
           : current
       ));
@@ -2657,7 +2461,7 @@ function MonadGame() {
         }
       } catch (error) {
         setWalletState(error?.message || 'Open Dynamic to finish wallet setup.');
-        showMonergeAuthFlow(setShowAuthFlow);
+        await openDynamicFlow();
       }
       return;
     }
@@ -2667,7 +2471,8 @@ function MonadGame() {
 
   async function disconnectWallet() {
     try {
-      await handleLogOut?.();
+      const walletRuntime = await loadMonergeWalletRuntime();
+      await walletRuntime.logoutMonergeWallet();
     } catch (_) {
       // Dynamic can fail logout when the session is already gone; local state still needs to clear.
     }
@@ -2675,6 +2480,7 @@ function MonadGame() {
     setChainId('');
     setWalletState('Wallet disconnected');
     setProfileSignature('');
+    setWalletSession({ primaryWallet: null, user: null, sdkHasLoaded: false, projectSettings: null, showAuthFlow: false });
     storageRemove(PROFILE_SIGNATURE_KEY);
     storageRemove(PROFILE_SIGNATURE_WALLET_KEY);
   }
@@ -3638,19 +3444,19 @@ function App() {
     const favicon = document.querySelector('link[rel="icon"]');
     if (isGameApp) {
       document.title = 'Monerge · Gerry Stephen';
-      appleIcon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-97');
-      favicon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-97');
+      appleIcon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-100');
+      favicon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-100');
       return;
     }
     if (isAgentsPage) {
       document.title = 'AI Agents · Gerry Stephen';
-      appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-97');
-      favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-97');
+      appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-100');
+      favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-100');
       return;
     }
     document.title = 'Gerry Stephen · Business, Web3, and the Iglu';
-    appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-97');
-    favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-97');
+    appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-100');
+    favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-100');
   }, [isGameApp, isAgentsPage]);
 
   useEffect(() => {
@@ -3725,7 +3531,7 @@ function App() {
         aria-label={soundEnabled ? 'Turn sound off' : 'Turn sound on'}
       >
         <span>Sound</span>
-        <i>{soundReady && soundEnabled ? 'On' : 'Off'}</i>
+        <i>{soundEnabled ? 'On' : 'Off'}</i>
       </button>
       <Hero y={y} mouse={mouse} intensity={tweaks.parallaxIntensity} lite={liteParallax} />
       {tweaks.snowfall && !prefersReducedMotion && <Snowfall count={isMobileViewport ? 22 : 60} intensity={(tweaks.parallaxIntensity / 100) * (isMobileViewport ? 0.62 : 1)} scrollY={y} />}
@@ -3775,17 +3581,8 @@ function mountApp() {
   if (!root) return;
   createRoot(root).render(
     <AppErrorBoundary>
-      <DynamicContextProvider settings={DYNAMIC_SETTINGS}>
-          <WagmiProvider config={wagmiConfig}>
-            <QueryClientProvider client={queryClient}>
-              <DynamicWagmiConnector>
-                <span className="build-version" aria-hidden="true">{SITE_BUILD_VERSION}</span>
-                <MonergeDynamicBridge />
-                <App />
-              </DynamicWagmiConnector>
-          </QueryClientProvider>
-        </WagmiProvider>
-      </DynamicContextProvider>
+      <span className="build-version" aria-hidden="true">{SITE_BUILD_VERSION}</span>
+      <App />
     </AppErrorBoundary>
   );
 }

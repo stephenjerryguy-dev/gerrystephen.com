@@ -30,11 +30,12 @@ export default defineConfig({
         'sappy/studio': resolve(__dirname, 'sappy/studio.html'),
         'sappy/ecosystem': resolve(__dirname, 'sappy/ecosystem.html'),
         'sappy/community': resolve(__dirname, 'sappy/community.html'),
-        'sappy/memes': resolve(__dirname, 'sappy/memes.html')
+        'sappy/memes': resolve(__dirname, 'sappy/memes.html'),
+        'sappy-wallet-entry': resolve(__dirname, 'src/sappy-wallet.jsx')
       },
       output: {
-        manualChunks(id) {
-          if (id.includes('@dynamic-labs')) return 'dynamic';
+        entryFileNames(chunkInfo) {
+          return chunkInfo.name === 'sappy-wallet-entry' ? 'assets/sappy-wallet-entry.js' : 'assets/[name]-[hash].js';
         }
       }
     }

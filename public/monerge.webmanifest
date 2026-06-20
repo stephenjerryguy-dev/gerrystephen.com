@@ -10,13 +10,13 @@
   "theme_color": "#1F1751",
   "icons": [
     {
-      "src": "/assets/monerge-icon-512.png?v=ecosystems-app-97",
+      "src": "/assets/monerge-icon-512.png?v=ecosystems-app-100",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/assets/monerge-icon.png?v=ecosystems-app-97",
+      "src": "/assets/monerge-icon.png?v=ecosystems-app-100",
       "sizes": "1024x1024",
       "type": "image/png",
       "purpose": "any maskable"

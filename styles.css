@@ -152,7 +152,7 @@ a { color: inherit; text-decoration: none; }
   border-bottom: 1px solid rgba(14,31,44,0.06);
 }
 .brand { flex-shrink: 0; }
-.brand { display: flex; align-items: center; gap: 12px; }
+.brand { display: flex; align-items: center; gap: 12px; color: inherit; text-decoration: none; }
 .brand-mark {
   width: 54px; height: 54px;
   overflow: visible;
@@ -1438,7 +1438,8 @@ a { color: inherit; text-decoration: none; }
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
-  scroll-snap-type: none;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
 }
 .smart-track.is-looped::-webkit-scrollbar {
   display: none;
@@ -1672,19 +1673,24 @@ a { color: inherit; text-decoration: none; }
     min-height: 44px;
   }
   .nft-track {
-    overflow-x: hidden;
-    scroll-snap-type: none;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 0;
     mask-image: none;
     padding-right: 0;
     scrollbar-width: none;
   }
   .nft-track::-webkit-scrollbar { display: none; }
   .smart-track.is-looped {
-    overflow-x: hidden;
+    overflow-x: auto;
     scrollbar-width: none;
   }
   .smart-track.is-looped::-webkit-scrollbar { display: none; }
-  .nft-card { flex-basis: min(78vw, 300px); }
+  .nft-card {
+    flex-basis: min(78vw, 300px);
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
   .nft-modal {
     padding: max(12px, env(safe-area-inset-top)) 11px max(12px, env(safe-area-inset-bottom));
     place-items: center;
@@ -7514,5 +7520,71 @@ body:has(.game-app-page) {
   .agent-pricing {
     border-radius: 14px;
     padding: 22px;
+  }
+}
+
+/* Keep long mobile chapters compact without hiding their content. */
+@media (max-width: 700px) {
+  .now-building {
+    padding: 76px 24px 82px;
+    overflow: hidden;
+  }
+  .nb-grid,
+  .ventures-panel,
+  .contact-grid {
+    display: flex;
+    grid-template-columns: none;
+    gap: 14px;
+    width: calc(100vw - 24px);
+    margin-right: -24px;
+    padding: 4px 24px 16px 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+  .nb-grid::-webkit-scrollbar,
+  .ventures-panel::-webkit-scrollbar,
+  .contact-grid::-webkit-scrollbar {
+    display: none;
+  }
+  .nb-grid > .reveal,
+  .ventures-panel > .reveal,
+  .contact-grid > .reveal {
+    flex: 0 0 min(82vw, 320px);
+    min-width: 0;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
+  .nb-card {
+    height: 100%;
+    min-height: 360px;
+  }
+  .ventures-combo {
+    padding: 76px 24px 82px;
+    overflow: hidden;
+  }
+  .venture-mini {
+    height: 100%;
+    grid-template-columns: 1fr;
+  }
+  .venture-mini-photo {
+    aspect-ratio: 16 / 10;
+  }
+  .venture-mini-copy {
+    min-height: 390px;
+  }
+  .venture-mini .venture-actions {
+    grid-template-columns: 1fr;
+  }
+  .contact {
+    padding-top: 72px;
+  }
+  .contact-grid > .reveal {
+    flex-basis: min(84vw, 330px);
+  }
+  .contact-grid .cc {
+    min-height: 310px;
   }
 }
