@@ -11,7 +11,7 @@ import {
 } from './tweaks-panel.jsx';
 import './styles.css';
 
-const SITE_BUILD_VERSION = 'ecosystems-app-100';
+const SITE_BUILD_VERSION = 'ecosystems-app-101';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 function safeStorage() {
@@ -537,7 +537,7 @@ function Topbar() {
         </a>
         <a href="https://opensea.io/profile/gerrystephen" target="_blank" rel="noopener" className="top-cta opensea-cta" aria-label="Gerry Stephen on OpenSea">
           <span className="opensea-mark" aria-hidden="true">
-            <img src="/assets/opensea-logo.svg?v=ecosystems-app-100" alt="" />
+            <img src="/assets/opensea-logo.svg?v=ecosystems-app-101" alt="" />
           </span>
           <span className="top-cta-text">OpenSea</span>
         </a>
@@ -773,6 +773,16 @@ function Chapter({ num, kicker, title }) {
       <h2 className="chapter-title">{title}</h2>
     </div>);
 
+}
+
+function RailSwipeCue({ label, overlay = false }) {
+  return (
+    <div className={`rail-swipe-cue ${overlay ? 'is-overlay' : ''}`} role="img" aria-label={label}>
+      <span aria-hidden="true">‹</span>
+      <i aria-hidden="true" />
+      <span aria-hidden="true">›</span>
+    </div>
+  );
 }
 
 // ---------- Timeline ----------
@@ -1105,6 +1115,13 @@ function NftCarousel() {
   const [expanded, setExpanded] = useState(false);
   const [isMobileCarousel, setIsMobileCarousel] = useState(() => window.matchMedia?.('(max-width: 700px)').matches || false);
   const trackRef = useRef(null);
+  const trackResumeTimerRef = useRef(null);
+
+  const pauseTrackTemporarily = (delay = 3600) => {
+    setTrackPaused(true);
+    window.clearTimeout(trackResumeTimerRef.current);
+    trackResumeTimerRef.current = window.setTimeout(() => setTrackPaused(false), delay);
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -1160,6 +1177,8 @@ function NftCarousel() {
     return () => controller.abort();
   }, []);
 
+  useEffect(() => () => window.clearTimeout(trackResumeTimerRef.current), []);
+
   useEffect(() => {
     const query = window.matchMedia?.('(max-width: 700px)');
     if (!query) return undefined;
@@ -1178,12 +1197,12 @@ function NftCarousel() {
   }, []);
 
   useEffect(() => {
-    if (groups.length <= 1 || paused || expanded) return undefined;
+    if (groups.length <= 1 || paused || trackPaused || expanded) return undefined;
     const timer = window.setInterval(() => {
       setIndex((i) => (i + 1) % groups.length);
     }, 8000);
     return () => window.clearInterval(timer);
-  }, [groups.length, paused, expanded]);
+  }, [groups.length, paused, trackPaused, expanded]);
 
   const next = () => {
     setExpanded(false);
@@ -1222,6 +1241,10 @@ function NftCarousel() {
     const timer = window.setInterval(step, 2600);
     return () => window.clearInterval(timer);
   }, [shouldLoop, trackPaused, activeGroup?.id, visible.length]);
+
+  useEffect(() => {
+    trackRef.current?.scrollTo({ left: 0, behavior: 'auto' });
+  }, [activeGroup?.id]);
 
   return (
     <section className="nft-showcase" id="nfts">
@@ -1280,12 +1303,19 @@ function NftCarousel() {
         <div
           ref={trackRef}
           className={`nft-track smart-track ${shouldLoop ? 'is-looped' : ''}`}
-          onTouchStart={() => {
+          onPointerEnter={(event) => {
+            if (event.pointerType !== 'mouse') return;
+            window.clearTimeout(trackResumeTimerRef.current);
             setTrackPaused(true);
           }}
-          onTouchEnd={() => {
-            setTrackPaused(false);
-          }}>
+          onPointerLeave={(event) => {
+            if (event.pointerType === 'mouse') pauseTrackTemporarily();
+          }}
+          onPointerDown={() => pauseTrackTemporarily(5000)}
+          onPointerUp={() => pauseTrackTemporarily()}
+          onPointerCancel={() => pauseTrackTemporarily()}
+          onWheel={() => pauseTrackTemporarily()}>
+          <RailSwipeCue label="Swipe through collection" overlay />
           {smartItems.map((nft, i) =>
           <a key={`${nft.name}-${nft.tokenId}-${i}`} className={`nft-card ${nft.tokenId === 'pending' || nft.tokenId === 'soon' ? 'disabled' : ''} ${nft.tokenId === 'asset' ? 'asset-card' : ''} ${nft.comingSoon ? 'coming-soon-card' : ''}`} href={nft.href || '#nfts'} target="_blank" rel="noopener" style={{ '--i': i }}>
               <div className="nft-art">
@@ -3147,6 +3177,7 @@ function NowBuilding() {
   return (
     <section className="now-building" id="now">
       <Chapter num="05" kicker="Now" title="Currently building the next layer." />
+      <RailSwipeCue label="Swipe through current projects" />
       <div className="nb-grid">
         {NOW.map((n, i) =>
         <Reveal key={n.title} delay={i * 80}>
@@ -3254,6 +3285,7 @@ function Ventures({ y, intensity, warm }) {
     <section className={`ventures-combo ${warm ? 'warm' : ''}`} id="ventures">
       <div className="ventures-bg" style={{ transform: `translate3d(0, ${y * 0.025 * k}px, 0)` }} />
       <Chapter num="06" kicker="IRL ventures" title="Stay, eat, and build from the same standard." />
+      <RailSwipeCue label="Swipe through ventures" />
       <div className="ventures-panel">
         <Reveal>
           <article className="venture-mini bluestar-mini" id="bluestar">
@@ -3313,6 +3345,7 @@ function Contact() {
   return (
     <section className="contact" id="contact">
       <Chapter num="08" kicker="Hello" title="Come through the iglu." />
+      <RailSwipeCue label="Swipe through links" />
       <div className="contact-grid">
         {cards.map((c, i) =>
         <Reveal key={c.kind} delay={i * 80}>
@@ -3444,19 +3477,19 @@ function App() {
     const favicon = document.querySelector('link[rel="icon"]');
     if (isGameApp) {
       document.title = 'Monerge · Gerry Stephen';
-      appleIcon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-100');
-      favicon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-100');
+      appleIcon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-101');
+      favicon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-101');
       return;
     }
     if (isAgentsPage) {
       document.title = 'AI Agents · Gerry Stephen';
-      appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-100');
-      favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-100');
+      appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-101');
+      favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-101');
       return;
     }
     document.title = 'Gerry Stephen · Business, Web3, and the Iglu';
-    appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-100');
-    favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-100');
+    appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-101');
+    favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-101');
   }, [isGameApp, isAgentsPage]);
 
   useEffect(() => {
