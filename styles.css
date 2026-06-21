@@ -545,25 +545,36 @@ a { color: inherit; text-decoration: none; }
   bottom: 12vh;
   left: 50%;
   transform: translateX(-50%);
-  width: min(720px, 90vw);
+  width: clamp(720px, 44vw, 1180px);
   display: grid;
   place-items: center;
   pointer-events: none;
 }
 .igloo-wrap {
+  width: 100%;
   filter:
     drop-shadow(0 0 22px rgba(255,255,255,0.82))
     drop-shadow(0 30px 60px rgba(11,34,48,0.22));
   transform-origin: 50% 80%;
   transition: none;
 }
+.igloo-wrap svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
 .penguin-wrap {
   position: absolute;
   bottom: 30%;
   left: 50%;
-  width: 260px;
+  width: clamp(260px, 16vw, 460px);
   z-index: 6;
   transform-origin: 50% 100%;
+}
+
+@media (max-width: 900px) {
+  .scene { width: min(720px, 90vw); }
+  .penguin-wrap { width: 260px; }
 }
 .penguin-wrap .pengcard { width: 100%; }
 
@@ -1438,8 +1449,9 @@ a { color: inherit; text-decoration: none; }
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
-  scroll-snap-type: x mandatory;
-  scroll-behavior: smooth;
+  scroll-snap-type: none;
+  scroll-behavior: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .smart-track.is-looped::-webkit-scrollbar {
   display: none;
@@ -1724,6 +1736,7 @@ a { color: inherit; text-decoration: none; }
   .smart-track.is-looped {
     overflow-x: auto;
     scrollbar-width: none;
+    scroll-snap-type: none;
   }
   .smart-track.is-looped::-webkit-scrollbar { display: none; }
   .nft-card {

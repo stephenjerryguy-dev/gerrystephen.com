@@ -11,7 +11,7 @@ import {
 } from './tweaks-panel.jsx';
 import './styles.css';
 
-const SITE_BUILD_VERSION = 'ecosystems-app-101';
+const SITE_BUILD_VERSION = 'ecosystems-app-102';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 function safeStorage() {
@@ -537,7 +537,7 @@ function Topbar() {
         </a>
         <a href="https://opensea.io/profile/gerrystephen" target="_blank" rel="noopener" className="top-cta opensea-cta" aria-label="Gerry Stephen on OpenSea">
           <span className="opensea-mark" aria-hidden="true">
-            <img src="/assets/opensea-logo.svg?v=ecosystems-app-101" alt="" />
+            <img src="/assets/opensea-logo.svg?v=ecosystems-app-102" alt="" />
           </span>
           <span className="top-cta-text">OpenSea</span>
         </a>
@@ -703,7 +703,7 @@ function Hero({ y, mouse, intensity, lite = false }) {
 
         <div className="hero-copy" style={{ opacity: copyOpacity, transform: `translate3d(0, ${copyY}px, 0)` }}>
           <h1 className="display">Welcome to<br />Gerry's<br /><em>iglu.</em></h1>
-          <p className="lede">A one-page home base for the journey: business, Web3, family legacy, and the Pudgy that made the cold internet feel warm.</p>
+          <p className="lede">A home base for the journey: business, Web3, legacy, and the Pengu that made the cold Internet feel warm.</p>
           <div className="hero-values" aria-label="Personal values">
             <span>God first</span>
             <span>Husband</span>
@@ -964,7 +964,7 @@ const NFT_ECOSYSTEMS = [
     keywords: ['sappy', 'pixl', 'omnia', 'pets', 'pixseals', 'sappy key', 'pixlverse items'],
     fallback: [
   { name: 'Sappy Seals ecosystem', collection: 'Owned-token images only', glyph: 'SS', tokenId: 'pending', contract: 'pending' },
-  { name: '$PIXL', collection: 'Omnia ecosystem', glyph: '$PIXL', tokenId: 'asset', amount: 'syncing', chain: 'Ethereum' },
+  { name: '$PIXL', collection: 'Omnia ecosystem', image: 'assets/pixl-logo.png', glyph: '$PIXL', tokenId: 'asset', amount: 'syncing', chain: 'Ethereum' },
   { name: 'Pixseal #525', collection: 'Pixseals by Sappy Seals', image: 'https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/525.png', href: 'https://opensea.io/item/polygon/0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b/525', tokenId: '525', contract: '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b' },
   { name: 'Pixseal #3600', collection: 'Pixseals by Sappy Seals', image: 'https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/3600.png', href: 'https://opensea.io/item/polygon/0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b/3600', tokenId: '3600', contract: '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b' },
   { name: 'Pixseal #9690', collection: 'Pixseals by Sappy Seals', image: 'https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/9690.png', href: 'https://opensea.io/item/polygon/0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b/9690', tokenId: '9690', contract: '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b' },
@@ -1136,6 +1136,7 @@ function NftCarousel() {
               ecosystem: 'sappy',
               name: '$PIXL',
               collection: 'Omnia ecosystem',
+              image: 'assets/pixl-logo.png',
               glyph: '$PIXL',
               tokenId: 'asset',
               amount: pixlTotal.toLocaleString('en-US', { maximumFractionDigits: 2 }),
@@ -1227,20 +1228,25 @@ function NftCarousel() {
 
   useEffect(() => {
     const track = trackRef.current;
-    if (!shouldLoop || trackPaused || !track) return undefined;
-    const step = () => {
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (!shouldLoop || trackPaused || !track || reduceMotion) return undefined;
+    let frame;
+    let lastTime;
+    const speed = isMobileCarousel ? 38 : 32;
+    const step = (time) => {
+      if (lastTime === undefined) lastTime = time;
+      const elapsed = Math.min(time - lastTime, 50);
+      lastTime = time;
       const midpoint = track.scrollWidth / 2;
       if (midpoint > 0 && track.scrollLeft >= midpoint - 8) {
         track.scrollTo({ left: track.scrollLeft - midpoint, behavior: 'auto' });
       }
-      const card = track.querySelector('.nft-card');
-      const gap = Number.parseFloat(window.getComputedStyle(track).columnGap || '18') || 18;
-      const distance = (card?.getBoundingClientRect().width || 280) + gap;
-      track.scrollBy({ left: distance, behavior: 'smooth' });
+      track.scrollLeft += speed * elapsed / 1000;
+      frame = window.requestAnimationFrame(step);
     };
-    const timer = window.setInterval(step, 2600);
-    return () => window.clearInterval(timer);
-  }, [shouldLoop, trackPaused, activeGroup?.id, visible.length]);
+    frame = window.requestAnimationFrame(step);
+    return () => window.cancelAnimationFrame(frame);
+  }, [shouldLoop, trackPaused, activeGroup?.id, visible.length, isMobileCarousel]);
 
   useEffect(() => {
     trackRef.current?.scrollTo({ left: 0, behavior: 'auto' });
@@ -3477,19 +3483,19 @@ function App() {
     const favicon = document.querySelector('link[rel="icon"]');
     if (isGameApp) {
       document.title = 'Monerge · Gerry Stephen';
-      appleIcon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-101');
-      favicon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-101');
+      appleIcon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-102');
+      favicon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-102');
       return;
     }
     if (isAgentsPage) {
       document.title = 'AI Agents · Gerry Stephen';
-      appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-101');
-      favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-101');
+      appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-102');
+      favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-102');
       return;
     }
     document.title = 'Gerry Stephen · Business, Web3, and the Iglu';
-    appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-101');
-    favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-101');
+    appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-102');
+    favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-102');
   }, [isGameApp, isAgentsPage]);
 
   useEffect(() => {

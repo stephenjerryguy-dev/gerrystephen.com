@@ -37,7 +37,7 @@ const ASSETS = [
     contract: '0x427A03fb96D9A94a6727fBCfbBA143444090dD64',
     wallet: ETH_WALLET,
     href: `https://etherscan.io/token/0x427A03fb96D9A94a6727fBCfbBA143444090dD64?a=${ETH_WALLET}`,
-    image: 'https://cdn.dexscreener.com/cms/images/df894589157dc6cba4da1b969b44944defa2c7ac291457d5fccabef0af32e017?width=800&height=800&quality=95&format=auto',
+    image: '/assets/pixl-logo.png',
   },
 ];
 
