@@ -11,7 +11,7 @@ import {
 } from './tweaks-panel.jsx';
 import './styles.css';
 
-const SITE_BUILD_VERSION = 'ecosystems-app-105';
+const SITE_BUILD_VERSION = 'ecosystems-app-106';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 function safeStorage() {
@@ -933,6 +933,10 @@ const NFT_WALLETS = [
 '0xc3ce1eb539c1cc031ecd7b95e8c00768bf324403'];
 
 const LIVE_API_ORIGIN = 'https://gerrystephen.com';
+const TOKEN_AMOUNT_FALLBACKS = {
+  '$PIXL': '1,035,060.94',
+  '$PENGU': '89,026.96',
+};
 
 function shouldUseLiveApiFallback() {
   return window.location.protocol === 'file:'
@@ -964,7 +968,7 @@ const NFT_ECOSYSTEMS = [
     keywords: ['sappy', 'pixl', 'omnia', 'pets', 'pixseals', 'sappy key', 'pixlverse items'],
     fallback: [
   { name: 'Sappy Seals ecosystem', collection: 'Owned-token images only', glyph: 'SS', tokenId: 'pending', contract: 'pending' },
-  { name: '$PIXL', collection: 'Omnia ecosystem', image: '/assets/pixl-logo.png', glyph: '$PIXL', tokenId: 'asset', amount: 'syncing', chain: 'Ethereum' },
+  { name: '$PIXL', collection: 'Omnia ecosystem', image: '/assets/pixl-logo.png', glyph: '$PIXL', tokenId: 'asset', amount: TOKEN_AMOUNT_FALLBACKS.$PIXL, chain: 'Ethereum' },
   { name: 'Pixseal #525', collection: 'Pixseals by Sappy Seals', image: 'https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/525.png', href: 'https://opensea.io/item/polygon/0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b/525', tokenId: '525', contract: '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b' },
   { name: 'Pixseal #3600', collection: 'Pixseals by Sappy Seals', image: 'https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/3600.png', href: 'https://opensea.io/item/polygon/0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b/3600', tokenId: '3600', contract: '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b' },
   { name: 'Pixseal #9690', collection: 'Pixseals by Sappy Seals', image: 'https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/9690.png', href: 'https://opensea.io/item/polygon/0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b/9690', tokenId: '9690', contract: '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b' },
@@ -983,7 +987,7 @@ const NFT_ECOSYSTEMS = [
   keywords: ['pudgy', 'penguin', 'lil pudgy', 'rod', 'pengu'],
   fallback: [
   { name: 'Pudgy Penguin', collection: 'Pudgy Penguins ecosystem', image: 'assets/pudgy-penguin.webp', tokenId: 'pending', contract: 'pending' },
-  { name: '$PENGU', collection: 'Pudgy Penguins ecosystem', glyph: '$PENGU', tokenId: 'asset', amount: 'syncing', chain: 'Abstract' },
+  { name: '$PENGU', collection: 'Pudgy Penguins ecosystem', glyph: '$PENGU', tokenId: 'asset', amount: TOKEN_AMOUNT_FALLBACKS.$PENGU, chain: 'Abstract' },
   { name: 'Lil Pudgy and Pudgy Rods', collection: 'Owned-token images only', glyph: 'PP', tokenId: 'pending', contract: 'pending' }]
 },
 {
@@ -1013,7 +1017,7 @@ const REQUIRED_ECOSYSTEM_ASSETS = [
     image: '/assets/pixl-logo.png',
     glyph: '$PIXL',
     tokenId: 'asset',
-    amount: 'syncing',
+    amount: TOKEN_AMOUNT_FALLBACKS.$PIXL,
     chain: 'Ethereum',
     contract: '0x427A03fb96D9A94a6727fBCfbBA143444090dD64',
     href: 'https://etherscan.io/token/0x427A03fb96D9A94a6727fBCfbBA143444090dD64',
@@ -1025,7 +1029,7 @@ const REQUIRED_ECOSYSTEM_ASSETS = [
     image: 'https://cdn.dexscreener.com/cms/images/527f3df62eb754a69b5d3dd14b1ee36301b506df9af455374f4e0ffb91367594?width=800&height=800&quality=95&format=auto',
     glyph: '$PENGU',
     tokenId: 'asset',
-    amount: 'syncing',
+    amount: TOKEN_AMOUNT_FALLBACKS.$PENGU,
     chain: 'Abstract',
     contract: '0x9eBe3A824Ca958e4b3Da772D2065518F009CBa62',
     href: 'https://abscan.org/token/0x9eBe3A824Ca958e4b3Da772D2065518F009CBa62?a=0x382556A543aAd855C07678E7F8e820d0d90429BB',
@@ -1088,13 +1092,23 @@ function nftIdentity(nft) {
 }
 
 function mergeEcosystemItems(items) {
-  const seen = new Set();
-  return items.filter((item) => {
+  const byId = new Map();
+  items.forEach((item) => {
     const key = nftIdentity(item);
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
+    const current = byId.get(key);
+    if (!current) {
+      byId.set(key, item);
+      return;
+    }
+    const currentAmount = String(current.amount || '').toLowerCase();
+    const nextAmount = String(item.amount || '').toLowerCase();
+    const nextHasLiveAmount = item.tokenId === 'asset' && item.amount && nextAmount !== 'syncing';
+    const currentIsSyncing = current.tokenId === 'asset' && (!current.amount || currentAmount === 'syncing');
+    if (nextHasLiveAmount && (currentIsSyncing || nextAmount !== currentAmount)) {
+      byId.set(key, { ...current, ...item });
+    }
   });
+  return [...byId.values()];
 }
 
 function buildEcosystemSlides(items) {
@@ -1269,24 +1283,33 @@ function NftCarousel() {
 
   useEffect(() => {
     const track = trackRef.current;
-    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    if (!shouldLoop || trackPaused || !track || reduceMotion) return undefined;
+    if (!shouldLoop || trackPaused || !track) return undefined;
     let frame;
+    let interval;
     let lastTime;
-    const speed = isMobileCarousel ? 38 : 32;
-    const step = (time) => {
-      if (lastTime === undefined) lastTime = time;
-      const elapsed = Math.min(time - lastTime, 50);
-      lastTime = time;
+    const advance = (elapsed) => {
       const midpoint = track.scrollWidth / 2;
       if (midpoint > 0 && track.scrollLeft >= midpoint - 8) {
         track.scrollTo({ left: track.scrollLeft - midpoint, behavior: 'auto' });
       }
       track.scrollLeft += speed * elapsed / 1000;
+    };
+    const speed = isMobileCarousel ? 38 : 32;
+    const step = (time) => {
+      if (lastTime === undefined) lastTime = time;
+      const elapsed = Math.min(time - lastTime, 50);
+      lastTime = time;
+      advance(elapsed);
       frame = window.requestAnimationFrame(step);
     };
     frame = window.requestAnimationFrame(step);
-    return () => window.cancelAnimationFrame(frame);
+    if (isMobileCarousel) {
+      interval = window.setInterval(() => advance(48), 48);
+    }
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearInterval(interval);
+    };
   }, [shouldLoop, trackPaused, activeGroup?.id, visible.length, isMobileCarousel]);
 
   useEffect(() => {
@@ -1380,7 +1403,7 @@ function NftCarousel() {
                 <strong>{nft.name}</strong>
                 <small>
                   {nft.tokenId === 'asset'
-                    ? `${nft.amount || 'syncing'} · ${nft.chain}`
+                    ? `${nft.amount || TOKEN_AMOUNT_FALLBACKS[nft.name] || 'live balance'} · ${nft.chain}`
                     : nft.tokenId === 'soon'
                       ? 'Coming soon'
                       : nft.tokenId && nft.tokenId !== 'pending'
@@ -1420,7 +1443,7 @@ function NftCarousel() {
                     <strong>{nft.name}</strong>
                     <small>
                       {nft.tokenId === 'asset'
-                        ? `${nft.amount || 'syncing'} · ${nft.chain}`
+                        ? `${nft.amount || TOKEN_AMOUNT_FALLBACKS[nft.name] || 'live balance'} · ${nft.chain}`
                         : nft.tokenId === 'soon'
                           ? 'Coming soon'
                           : nft.tokenId && nft.tokenId !== 'pending'
