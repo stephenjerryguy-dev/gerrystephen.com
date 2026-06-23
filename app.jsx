@@ -792,7 +792,7 @@ const TIMELINE = [
 { year: '2022', tag: 'The Guy standard', body: 'Fifteen years beside my dad taught me how real work gets scoped, built, and carried forward. After his passing, his legacy now lives on forever.' },
 { year: '2022', tag: 'Lil Pudgy chapter', body: 'I had a Lil Pudgy early, sold it, and kept circling the ecosystem from the outside.' },
 { year: '2023', tag: 'Community & tools', body: 'I kept showing up for Sappy Seals with constant memes across X, Instagram, TikTok, and YouTube Shorts while supporting the whole ecosystem. I still do.' },
-{ year: '2024', tag: 'IRL bridge', body: 'Fifteen years building beside my dad turned into a new chapter: hospitality, food, local operations, and community.' },
+{ year: '2024', tag: 'Zeppole Dolci Café', body: 'My wife and I launched my first venture from scratch: Zeppole Dolci Café, bringing hospitality, food, local operations, and community into one IRL home base.' },
 { year: '2025', tag: 'AI expansion', body: 'The huge uptick in AI capability changed what I could build: operations, memes, trades, and Great Terriers, a collection I started in 2022.' },
 { year: '2026', tag: 'Actual Pudgy era', body: 'This is when I became an actual Pudgy Penguin holder. The iglu finally had its mascot.' }];
 
@@ -964,7 +964,7 @@ const NFT_ECOSYSTEMS = [
     keywords: ['sappy', 'pixl', 'omnia', 'pets', 'pixseals', 'sappy key', 'pixlverse items'],
     fallback: [
   { name: 'Sappy Seals ecosystem', collection: 'Owned-token images only', glyph: 'SS', tokenId: 'pending', contract: 'pending' },
-  { name: '$PIXL', collection: 'Omnia ecosystem', image: 'assets/pixl-logo.png', glyph: '$PIXL', tokenId: 'asset', amount: 'syncing', chain: 'Ethereum' },
+  { name: '$PIXL', collection: 'Omnia ecosystem', image: '/assets/pixl-logo.png', glyph: '$PIXL', tokenId: 'asset', amount: 'syncing', chain: 'Ethereum' },
   { name: 'Pixseal #525', collection: 'Pixseals by Sappy Seals', image: 'https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/525.png', href: 'https://opensea.io/item/polygon/0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b/525', tokenId: '525', contract: '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b' },
   { name: 'Pixseal #3600', collection: 'Pixseals by Sappy Seals', image: 'https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/3600.png', href: 'https://opensea.io/item/polygon/0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b/3600', tokenId: '3600', contract: '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b' },
   { name: 'Pixseal #9690', collection: 'Pixseals by Sappy Seals', image: 'https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/9690.png', href: 'https://opensea.io/item/polygon/0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b/9690', tokenId: '9690', contract: '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b' },
@@ -1004,6 +1004,33 @@ const NFT_ECOSYSTEMS = [
   fallback: [
   { name: 'Great Terriers', collection: 'Coming soon', image: 'assets/great-terriers-coming-soon.png', tokenId: 'soon', contract: 'soon', comingSoon: true }]
 }].filter((ecosystem) => !['inkfinity', 'great-terriers'].includes(ecosystem.id));
+
+const REQUIRED_ECOSYSTEM_ASSETS = [
+  {
+    ecosystem: 'sappy',
+    name: '$PIXL',
+    collection: 'Omnia ecosystem',
+    image: '/assets/pixl-logo.png',
+    glyph: '$PIXL',
+    tokenId: 'asset',
+    amount: 'syncing',
+    chain: 'Ethereum',
+    contract: '0x427A03fb96D9A94a6727fBCfbBA143444090dD64',
+    href: 'https://etherscan.io/token/0x427A03fb96D9A94a6727fBCfbBA143444090dD64',
+  },
+  {
+    ecosystem: 'pudgy',
+    name: '$PENGU',
+    collection: 'Pudgy Penguins ecosystem',
+    image: 'https://cdn.dexscreener.com/cms/images/527f3df62eb754a69b5d3dd14b1ee36301b506df9af455374f4e0ffb91367594?width=800&height=800&quality=95&format=auto',
+    glyph: '$PENGU',
+    tokenId: 'asset',
+    amount: 'syncing',
+    chain: 'Abstract',
+    contract: '0x9eBe3A824Ca958e4b3Da772D2065518F009CBa62',
+    href: 'https://abscan.org/token/0x9eBe3A824Ca958e4b3Da772D2065518F009CBa62?a=0x382556A543aAd855C07678E7F8e820d0d90429BB',
+  }
+];
 
 function ecosystemForNft(nft) {
   if (nft?.ecosystem) return NFT_ECOSYSTEMS.find((ecosystem) => ecosystem.id === nft.ecosystem);
@@ -1099,8 +1126,11 @@ function normalizeNft(item, wallet) {
 
 function NftArt({ nft, eager = false }) {
   const [failed, setFailed] = useState(false);
-  if (nft.image && !failed) {
-    return <img src={nft.image} alt={nft.name} loading={eager ? 'eager' : 'lazy'} decoding="async" fetchPriority={eager ? 'high' : 'auto'} onError={() => setFailed(true)} />;
+  const src = typeof nft.image === 'string' && nft.image.startsWith('assets/')
+    ? `/${nft.image}`
+    : nft.image;
+  if (src && !failed) {
+    return <img src={src} alt={nft.name} loading={eager ? 'eager' : 'lazy'} decoding="async" fetchPriority={eager ? 'high' : 'auto'} onError={() => setFailed(true)} />;
   }
   return <div className="nft-glyph">{nft.glyph || nft.name?.slice(0, 2) || 'NFT'}</div>;
 }
@@ -1117,10 +1147,17 @@ function NftCarousel() {
   const trackRef = useRef(null);
   const trackResumeTimerRef = useRef(null);
 
-  const pauseTrackTemporarily = (delay = 3600) => {
+  const resumeTrackNow = () => {
+    window.clearTimeout(trackResumeTimerRef.current);
+    setTrackPaused(false);
+  };
+
+  const pauseTrackTemporarily = (delay = 0) => {
     setTrackPaused(true);
     window.clearTimeout(trackResumeTimerRef.current);
-    trackResumeTimerRef.current = window.setTimeout(() => setTrackPaused(false), delay);
+    if (delay > 0) {
+      trackResumeTimerRef.current = window.setTimeout(() => setTrackPaused(false), delay);
+    }
   };
 
   useEffect(() => {
@@ -1136,7 +1173,7 @@ function NftCarousel() {
               ecosystem: 'sappy',
               name: '$PIXL',
               collection: 'Omnia ecosystem',
-              image: 'assets/pixl-logo.png',
+              image: '/assets/pixl-logo.png',
               glyph: '$PIXL',
               tokenId: 'asset',
               amount: pixlTotal.toLocaleString('en-US', { maximumFractionDigits: 2 }),
@@ -1198,12 +1235,12 @@ function NftCarousel() {
   }, []);
 
   useEffect(() => {
-    if (groups.length <= 1 || paused || trackPaused || expanded) return undefined;
-    const timer = window.setInterval(() => {
+    if (groups.length <= 1 || paused || expanded) return undefined;
+    const timer = window.setTimeout(() => {
       setIndex((i) => (i + 1) % groups.length);
     }, 8000);
-    return () => window.clearInterval(timer);
-  }, [groups.length, paused, trackPaused, expanded]);
+    return () => window.clearTimeout(timer);
+  }, [groups.length, index, paused, expanded]);
 
   const next = () => {
     setExpanded(false);
@@ -1219,7 +1256,11 @@ function NftCarousel() {
   };
   const groupsWithAssets = groups.map((group) => ({
     ...group,
-    items: orderEcosystemItems(group, mergeEcosystemItems([...(group.items || []), ...assetData.filter((asset) => asset.ecosystem === group.id)]))
+    items: orderEcosystemItems(group, mergeEcosystemItems([
+      ...REQUIRED_ECOSYSTEM_ASSETS.filter((asset) => asset.ecosystem === group.id),
+      ...(group.items || []),
+      ...assetData.filter((asset) => asset.ecosystem === group.id)
+    ]))
   }));
   const activeGroup = groupsWithAssets[index] || groupsWithAssets[0];
   const visible = activeGroup?.items || [];
@@ -1258,9 +1299,9 @@ function NftCarousel() {
         <Chapter num="02" kicker="My community ecosystems" title="My forever communities - Pudgy & Sappy." />
       </div>
       <p className="lede nft-lede">
-        {source === 'wallet'
-          ? `A curated view of my owned collection: ${activeGroup?.note} Cards open the matching asset, collection, or explorer page.`
-          : `A curated view of my owned collection: ${activeGroup?.note} Collection details refresh automatically when the wallet feed reconnects.`}
+        A curated view of my owned Pudgy and Sappy collections: $PENGU, $PIXL,
+        Sappy Faithful Key, Sappy Seals, Omnia Pets, Omnia items, Pixseals, and
+        a Bitcoin ordinal. Cards open the matching asset, collection, or explorer page.
       </p>
       <div
         className={`ecosystem-stage ${activeGroup?.id || ''} ${expanded ? 'is-expanded' : ''}`}
@@ -1297,7 +1338,7 @@ function NftCarousel() {
             null}
           </div>
           <div className="ecosystem-status">
-            <strong>{visible.length} featured items {paused ? '· paused' : ''}</strong>
+            <strong>{visible.length} featured items</strong>
             <button type="button" className="mini-link" onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -1315,12 +1356,14 @@ function NftCarousel() {
             setTrackPaused(true);
           }}
           onPointerLeave={(event) => {
-            if (event.pointerType === 'mouse') pauseTrackTemporarily();
+            if (event.pointerType === 'mouse') resumeTrackNow();
           }}
-          onPointerDown={() => pauseTrackTemporarily(5000)}
-          onPointerUp={() => pauseTrackTemporarily()}
-          onPointerCancel={() => pauseTrackTemporarily()}
-          onWheel={() => pauseTrackTemporarily()}>
+          onPointerDown={() => pauseTrackTemporarily()}
+          onPointerUp={resumeTrackNow}
+          onPointerCancel={resumeTrackNow}
+          onLostPointerCapture={resumeTrackNow}
+          onWheel={resumeTrackNow}
+          onTouchEnd={resumeTrackNow}>
           <RailSwipeCue label="Swipe through collection" overlay />
           {smartItems.map((nft, i) =>
           <a key={`${nft.name}-${nft.tokenId}-${i}`} className={`nft-card ${nft.tokenId === 'pending' || nft.tokenId === 'soon' ? 'disabled' : ''} ${nft.tokenId === 'asset' ? 'asset-card' : ''} ${nft.comingSoon ? 'coming-soon-card' : ''}`} href={nft.href || '#nfts'} target="_blank" rel="noopener" style={{ '--i': i }}>
@@ -2857,11 +2900,6 @@ function MonadGame() {
             <strong>The game hub.</strong>
             <p>A creature-game arcade layer for what gets built next across the Monad ecosystem.</p>
           </div>
-          <div className="biome-story-stack">
-            <span>03 · Monerge</span>
-            <strong>The first playable signal.</strong>
-            <p>A wallet-connected focus game where runs, profiles, and leaderboards start to prove the loop.</p>
-          </div>
         </div>}
       </div>
       <div className="game-shell" role="application" aria-label={`${GAME_NAME} game`}>
@@ -3568,9 +3606,19 @@ function App() {
         onClick={() => setSoundEnabled((value) => !value)}
         aria-pressed={soundEnabled}
         aria-label={soundEnabled ? 'Turn sound off' : 'Turn sound on'}
+        title={soundEnabled ? 'Sound on' : 'Sound off'}
       >
-        <span>Sound</span>
-        <i>{soundEnabled ? 'On' : 'Off'}</i>
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path className="sound-icon-speaker" d="M4.75 9.25h3.3l5.2-4.05v13.6l-5.2-4.05h-3.3z" />
+          {soundEnabled ? (
+            <>
+              <path className="sound-icon-wave" d="M16.25 8.8c1 .88 1.52 1.95 1.52 3.2s-.52 2.32-1.52 3.2" />
+              <path className="sound-icon-wave" d="M18.7 6.45c1.72 1.56 2.58 3.4 2.58 5.55s-.86 3.99-2.58 5.55" />
+            </>
+          ) : (
+            <path className="sound-icon-mute" d="M16.8 9.05 21 13.25m0-4.2-4.2 4.2" />
+          )}
+        </svg>
       </button>
       <Hero y={y} mouse={mouse} intensity={tweaks.parallaxIntensity} lite={liteParallax} />
       {tweaks.snowfall && !prefersReducedMotion && <Snowfall count={isMobileViewport ? 22 : 60} intensity={(tweaks.parallaxIntensity / 100) * (isMobileViewport ? 0.62 : 1)} scrollY={y} />}
