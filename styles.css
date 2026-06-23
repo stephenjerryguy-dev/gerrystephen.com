@@ -285,7 +285,8 @@ a { color: inherit; text-decoration: none; }
 }
 .sound-toggle {
   position: fixed;
-  right: 20px;
+  right: auto;
+  left: 20px;
   bottom: 20px;
   z-index: 70;
   display: inline-flex;
@@ -388,7 +389,8 @@ a { color: inherit; text-decoration: none; }
   .top-cta.icon { width: 38px; min-width: 38px; height: 38px; }
   .top-menu-toggle { width: 38px; height: 38px; order: 3; }
   .sound-toggle {
-    right: 12px;
+    right: auto;
+    left: 12px;
     bottom: 12px;
     width: 44px;
     height: 44px;
@@ -1803,10 +1805,10 @@ a { color: inherit; text-decoration: none; }
 /* ---------- Monad Game ---------- */
 .monad-game {
   min-height: auto;
-  padding: 72px 80px 54px;
+  padding: 60px 72px 40px;
   display: grid;
-  grid-template-columns: minmax(360px, 0.92fr) minmax(500px, 1.08fr);
-  gap: clamp(30px, 4vw, 56px);
+  grid-template-columns: minmax(340px, 0.9fr) minmax(460px, 1fr);
+  gap: clamp(24px, 3.2vw, 44px);
   align-items: center;
   scroll-margin-top: 78px;
   background:
@@ -1907,14 +1909,14 @@ a { color: inherit; text-decoration: none; }
 .monad-game:not(.app-mode) .game-shell {
   justify-self: stretch;
   width: 100%;
-  max-width: 640px;
+  max-width: 600px;
 }
 .buildanything-card {
   position: relative;
   display: block;
   overflow: hidden;
-  width: min(100%, 430px);
-  margin-top: 20px;
+  width: min(100%, 380px);
+  margin-top: 16px;
   border: 1px solid rgba(238,246,251,0.2);
   border-radius: 16px;
   background:
@@ -1988,11 +1990,11 @@ a { color: inherit; text-decoration: none; }
   line-height: 1;
 }
 .buildanything-context {
-  width: min(100%, 500px);
-  margin: 14px 0 0;
+  width: min(100%, 460px);
+  margin: 12px 0 0;
   color: rgba(238,246,251,0.76);
-  font-size: 15px;
-  line-height: 1.55;
+  font-size: 14px;
+  line-height: 1.48;
 }
 .monad-game .chapter-meta {
   color: rgba(238,246,251,0.68);
@@ -2027,8 +2029,8 @@ a { color: inherit; text-decoration: none; }
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
-  width: min(100%, 640px);
-  margin-top: 22px;
+  width: min(100%, 560px);
+  margin-top: 16px;
 }
 .biome-story-stack {
   border: 1px solid rgba(238,246,251,0.14);
@@ -2036,8 +2038,8 @@ a { color: inherit; text-decoration: none; }
     linear-gradient(135deg, rgba(255,255,255,0.095), rgba(255,255,255,0.035)),
     radial-gradient(280px 140px at 100% 0%, rgba(140,247,240,0.12), transparent 70%);
   border-radius: 8px;
-  min-height: 146px;
-  padding: 16px;
+  min-height: 120px;
+  padding: 14px;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
 }
 .biome-story-stack span {
@@ -2059,8 +2061,8 @@ a { color: inherit; text-decoration: none; }
 .biome-story-stack p {
   margin: 0;
   color: rgba(220,238,247,0.72);
-  font-size: 13px;
-  line-height: 1.42;
+  font-size: 12px;
+  line-height: 1.36;
 }
 .desktop-game-details .monerge-profile.compact {
   margin-top: 16px;
@@ -3833,12 +3835,12 @@ a { color: inherit; text-decoration: none; }
 }
 @media (min-width: 761px) {
   .monad-game:not(.app-mode) {
-    min-height: min(860px, calc(100vh - 84px));
-    grid-template-columns: minmax(290px, 390px) minmax(500px, 620px);
+    min-height: min(760px, calc(100vh - 84px));
+    grid-template-columns: minmax(280px, 370px) minmax(460px, 590px);
     align-items: center;
     justify-content: center;
-    gap: clamp(32px, 5vw, 72px);
-    padding: clamp(74px, 8vw, 116px) clamp(36px, 6vw, 86px);
+    gap: clamp(26px, 4vw, 56px);
+    padding: clamp(56px, 6vw, 86px) clamp(32px, 5vw, 72px);
   }
   .monad-game:not(.app-mode) .game-copy {
     align-self: center;
@@ -3853,9 +3855,9 @@ a { color: inherit; text-decoration: none; }
     line-height: 0.88;
   }
   .monad-game:not(.app-mode) .lede {
-    max-width: 360px;
+    max-width: 350px;
     font-size: 16px;
-    line-height: 1.52;
+    line-height: 1.45;
   }
   .monad-game:not(.app-mode) .game-actions {
     display: grid;
@@ -3886,8 +3888,8 @@ a { color: inherit; text-decoration: none; }
   .monad-game:not(.app-mode) .game-shell {
     align-self: center;
     justify-self: center;
-    width: min(100%, 610px);
-    padding: 20px;
+    width: min(100%, 580px);
+    padding: 18px;
     background:
       linear-gradient(145deg, rgba(255,255,255,0.25), rgba(255,255,255,0.08)),
       radial-gradient(500px 320px at 50% -8%, rgba(166,139,255,0.46), transparent 68%),
@@ -3912,7 +3914,7 @@ a { color: inherit; text-decoration: none; }
     font-size: clamp(25px, 2.7vw, 36px);
   }
   .monad-game:not(.app-mode) .game-board {
-    width: min(100%, 444px);
+    width: min(100%, 414px);
     margin: 0 auto;
     gap: 10px;
     padding: 12px;
@@ -5945,7 +5947,7 @@ body:has(.game-app-page) {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: repeat(2, minmax(360px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   grid-auto-rows: minmax(430px, auto);
   gap: 22px;
   max-width: 1320px;
@@ -5954,7 +5956,7 @@ body:has(.game-app-page) {
 }
 .venture-mini {
   display: grid;
-  grid-template-columns: minmax(220px, 0.96fr) minmax(0, 1fr);
+  grid-template-columns: minmax(220px, 0.94fr) minmax(0, 1.06fr);
   min-height: 430px;
   height: 100%;
   min-width: 0;
@@ -6026,18 +6028,21 @@ body:has(.game-app-page) {
   margin: 0;
 }
 .venture-mini .venture-actions {
-  display: grid;
-  grid-template-columns: minmax(150px, 1.15fr) minmax(112px, 0.85fr);
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
+  align-items: center;
 }
 .venture-mini .btn {
-  width: 100%;
+  flex: 1 1 128px;
+  width: auto;
   min-width: 0;
   justify-content: center;
-  white-space: normal;
-  min-height: 54px;
-  padding: 0 18px;
+  white-space: nowrap;
+  min-height: 52px;
+  padding: 0 16px;
   text-align: center;
+  font-size: clamp(13px, 1vw, 15px);
   line-height: 1.12;
 }
 @media (max-width: 1120px) {
@@ -6056,7 +6061,14 @@ body:has(.game-app-page) {
   .bluestar-photo-logo { width: 92px; padding: 8px; }
   .zeppole-mini .venture-mini-photo img:first-child { object-position: center center; }
   .venture-mini-copy h3 { font-size: 36px; }
-  .venture-mini .venture-actions { grid-template-columns: 1fr; }
+  .venture-mini .venture-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .venture-mini .btn {
+    width: 100%;
+    flex-basis: auto;
+  }
 }
 
 /* ---------- Contact ---------- */

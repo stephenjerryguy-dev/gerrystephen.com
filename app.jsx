@@ -792,7 +792,7 @@ const TIMELINE = [
 { year: '2022', tag: 'The Guy standard', body: 'Fifteen years beside my dad taught me how real work gets scoped, built, and carried forward. After his passing, his legacy now lives on forever.' },
 { year: '2022', tag: 'Lil Pudgy chapter', body: 'I had a Lil Pudgy early, sold it, and kept circling the ecosystem from the outside.' },
 { year: '2023', tag: 'Community & tools', body: 'I kept showing up for Sappy Seals with constant memes across X, Instagram, TikTok, and YouTube Shorts while supporting the whole ecosystem. I still do.' },
-{ year: '2024', tag: 'Zeppole Dolci Café', body: 'My wife and I launched my first venture from scratch: Zeppole Dolci Café, bringing hospitality, food, local operations, and community into one IRL home base.' },
+{ year: '2024', tag: 'Zeppole Dolci Café', body: 'My wife and I launched Zeppole Dolci Café from scratch: a food, hospitality, and community layer that became a great addition to Blue Star, founded in 2018.' },
 { year: '2025', tag: 'AI expansion', body: 'The huge uptick in AI capability changed what I could build: operations, memes, trades, and Great Terriers, a collection I started in 2022.' },
 { year: '2026', tag: 'Actual Pudgy era', body: 'This is when I became an actual Pudgy Penguin holder. The iglu finally had its mascot.' }];
 
@@ -2847,7 +2847,7 @@ function MonadGame() {
         <p className="lede">
           {isGameApp
             ? 'A wallet-backed focus game for BuildAnything. Merge Monad-coded tiles, choose your difficulty, remember the hidden points, then reveal your run. Connect once; profile signing is remembered so scores can upload without another signature.'
-            : 'Biome is currently being built on Monad testnet as my game network: the home for Moncade, Monerge, and future creature games. The story is proof-of-play: connect a wallet, play, build a profile, and let each run become part of the larger Biome.'}
+            : 'Biome is currently being built on Monad testnet as my game network for Moncade, Monerge, and future creature games: proof-of-play, wallet profiles, and runs that connect back to the iglu.'}
         </p>
         {!isGameApp && <a className="buildanything-card" href="https://buildanything.so/students/gerry" target="_blank" rel="noopener" aria-label="Open Gerry on BuildAnything">
           <img src={`assets/buildanything-student-card.png?v=${SITE_BUILD_VERSION}`} alt="BuildAnything student card for Gerry" />
