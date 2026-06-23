@@ -1294,7 +1294,7 @@ function NftCarousel() {
       }
       track.scrollLeft += speed * elapsed / 1000;
     };
-    const speed = isMobileCarousel ? 38 : 32;
+    const speed = isMobileCarousel ? 76 : 32;
     const step = (time) => {
       if (lastTime === undefined) lastTime = time;
       const elapsed = Math.min(time - lastTime, 50);
