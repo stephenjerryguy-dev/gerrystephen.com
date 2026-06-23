@@ -982,7 +982,7 @@ const NFT_ECOSYSTEMS = [
   label: 'Pudgy Penguins ecosystem',
   note: 'Pudgy Penguin, Lil Pudgy, Pudgy Rods, and $PENGU.',
   links: [
-    { label: 'Pudgy Penguins', href: 'https://pudgypenguins.com' }
+    { label: 'Pudgy Penguins', href: 'https://pengu.pudgypenguins.com' }
   ],
   keywords: ['pudgy', 'penguin', 'lil pudgy', 'rod', 'pengu'],
   fallback: [
