@@ -11,7 +11,7 @@ import {
 } from './tweaks-panel.jsx';
 import './styles.css';
 
-const SITE_BUILD_VERSION = 'ecosystems-app-102';
+const SITE_BUILD_VERSION = 'ecosystems-app-105';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 function safeStorage() {
@@ -1358,10 +1358,15 @@ function NftCarousel() {
           onPointerLeave={(event) => {
             if (event.pointerType === 'mouse') resumeTrackNow();
           }}
-          onPointerDown={() => pauseTrackTemporarily()}
+          onPointerDown={(event) => pauseTrackTemporarily(event.pointerType === 'touch' ? 650 : 0)}
+          onPointerMove={(event) => {
+            if (event.pointerType === 'touch') pauseTrackTemporarily(650);
+          }}
           onPointerUp={resumeTrackNow}
           onPointerCancel={resumeTrackNow}
           onLostPointerCapture={resumeTrackNow}
+          onTouchStart={() => pauseTrackTemporarily(650)}
+          onTouchMove={() => pauseTrackTemporarily(650)}
           onWheel={resumeTrackNow}
           onTouchEnd={resumeTrackNow}>
           <RailSwipeCue label="Swipe through collection" overlay />
