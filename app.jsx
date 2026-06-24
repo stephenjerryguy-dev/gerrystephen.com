@@ -1160,6 +1160,8 @@ function NftCarousel() {
   const [isMobileCarousel, setIsMobileCarousel] = useState(() => window.matchMedia?.('(max-width: 700px)').matches || false);
   const trackRef = useRef(null);
   const trackResumeTimerRef = useRef(null);
+  const trackMomentumFrameRef = useRef(null);
+  const trackSwipeRef = useRef(null);
 
   const resumeTrackNow = () => {
     window.clearTimeout(trackResumeTimerRef.current);
@@ -1177,6 +1179,79 @@ function NftCarousel() {
     if (delay > 0) {
       trackResumeTimerRef.current = window.setTimeout(() => setTrackPaused(false), delay);
     }
+  };
+
+  const stopTrackMomentum = () => {
+    if (trackMomentumFrameRef.current) {
+      window.cancelAnimationFrame(trackMomentumFrameRef.current);
+      trackMomentumFrameRef.current = null;
+    }
+  };
+
+  const handleTrackTouchStart = (event) => {
+    const touch = event.touches?.[0];
+    if (!touch) return;
+    stopTrackMomentum();
+    const now = performance.now();
+    trackSwipeRef.current = {
+      startX: touch.clientX,
+      lastX: touch.clientX,
+      startTime: now,
+      lastTime: now
+    };
+    pauseTrackTemporarily(0);
+  };
+
+  const handleTrackTouchMove = (event) => {
+    const touch = event.touches?.[0];
+    if (!touch || !trackSwipeRef.current) return;
+    trackSwipeRef.current.lastX = touch.clientX;
+    trackSwipeRef.current.lastTime = performance.now();
+    pauseTrackTemporarily(0);
+  };
+
+  const handleTrackTouchEnd = () => {
+    const swipe = trackSwipeRef.current;
+    const track = trackRef.current;
+    trackSwipeRef.current = null;
+    if (!isMobileCarousel || !track || !swipe) {
+      resumeTrackSoon(90);
+      return;
+    }
+
+    const elapsed = Math.max(16, swipe.lastTime - swipe.startTime);
+    const deltaX = swipe.lastX - swipe.startX;
+    const velocity = deltaX / elapsed;
+    if (Math.abs(deltaX) < 18 || Math.abs(velocity) < 0.12) {
+      resumeTrackSoon(70);
+      return;
+    }
+
+    const impulse = Math.max(-940, Math.min(940, -velocity * 780));
+    const duration = Math.max(260, Math.min(720, Math.abs(impulse) * 0.78));
+    const startedAt = performance.now();
+    const startLeft = track.scrollLeft;
+    pauseTrackTemporarily(0);
+    stopTrackMomentum();
+
+    const glide = (time) => {
+      const progress = Math.min(1, (time - startedAt) / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const midpoint = track.scrollWidth / 2;
+      let nextLeft = startLeft + impulse * eased;
+      if (midpoint > 0) {
+        if (nextLeft >= midpoint - 8) nextLeft -= midpoint;
+        if (nextLeft < 0) nextLeft += midpoint;
+      }
+      track.scrollLeft = nextLeft;
+      if (progress < 1) {
+        trackMomentumFrameRef.current = window.requestAnimationFrame(glide);
+      } else {
+        trackMomentumFrameRef.current = null;
+        resumeTrackSoon(40);
+      }
+    };
+    trackMomentumFrameRef.current = window.requestAnimationFrame(glide);
   };
 
   useEffect(() => {
@@ -1234,7 +1309,10 @@ function NftCarousel() {
     return () => controller.abort();
   }, []);
 
-  useEffect(() => () => window.clearTimeout(trackResumeTimerRef.current), []);
+  useEffect(() => () => {
+    window.clearTimeout(trackResumeTimerRef.current);
+    stopTrackMomentum();
+  }, []);
 
   useEffect(() => {
     const query = window.matchMedia?.('(max-width: 700px)');
@@ -1398,10 +1476,10 @@ function NftCarousel() {
           onPointerUp={(event) => event.pointerType === 'touch' ? resumeTrackSoon(90) : resumeTrackNow()}
           onPointerCancel={(event) => event.pointerType === 'touch' ? resumeTrackSoon(90) : resumeTrackNow()}
           onLostPointerCapture={(event) => event.pointerType === 'touch' ? resumeTrackSoon(90) : resumeTrackNow()}
-          onTouchStart={() => pauseTrackTemporarily(0)}
-          onTouchMove={() => pauseTrackTemporarily(0)}
+          onTouchStart={handleTrackTouchStart}
+          onTouchMove={handleTrackTouchMove}
           onWheel={resumeTrackNow}
-          onTouchEnd={() => resumeTrackSoon(90)}>
+          onTouchEnd={handleTrackTouchEnd}>
           <RailSwipeCue label="Swipe through collection" overlay />
           {smartItems.map((nft, i) =>
           <a key={`${nft.name}-${nft.tokenId}-${i}`} className={`nft-card ${nft.tokenId === 'pending' || nft.tokenId === 'soon' ? 'disabled' : ''} ${nft.tokenId === 'asset' ? 'asset-card' : ''} ${nft.comingSoon ? 'coming-soon-card' : ''}`} href={nft.href || '#nfts'} target="_blank" rel="noopener" style={{ '--i': i }}>
