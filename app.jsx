@@ -1166,6 +1166,11 @@ function NftCarousel() {
     setTrackPaused(false);
   };
 
+  const resumeTrackSoon = (delay = 90) => {
+    window.clearTimeout(trackResumeTimerRef.current);
+    trackResumeTimerRef.current = window.setTimeout(() => setTrackPaused(false), delay);
+  };
+
   const pauseTrackTemporarily = (delay = 0) => {
     setTrackPaused(true);
     window.clearTimeout(trackResumeTimerRef.current);
@@ -1287,6 +1292,7 @@ function NftCarousel() {
     let frame;
     let interval;
     let lastTime;
+    let lastFrameAt = performance.now();
     const advance = (elapsed) => {
       const midpoint = track.scrollWidth / 2;
       if (midpoint > 0 && track.scrollLeft >= midpoint - 8) {
@@ -1299,12 +1305,16 @@ function NftCarousel() {
       if (lastTime === undefined) lastTime = time;
       const elapsed = Math.min(time - lastTime, 50);
       lastTime = time;
+      lastFrameAt = time;
       advance(elapsed);
       frame = window.requestAnimationFrame(step);
     };
     frame = window.requestAnimationFrame(step);
     if (isMobileCarousel) {
-      interval = window.setInterval(() => advance(48), 48);
+      interval = window.setInterval(() => {
+        const now = performance.now();
+        if (now - lastFrameAt > 80) advance(80);
+      }, 80);
     }
     return () => {
       window.cancelAnimationFrame(frame);
@@ -1381,17 +1391,17 @@ function NftCarousel() {
           onPointerLeave={(event) => {
             if (event.pointerType === 'mouse') resumeTrackNow();
           }}
-          onPointerDown={(event) => pauseTrackTemporarily(event.pointerType === 'touch' ? 650 : 0)}
+          onPointerDown={() => pauseTrackTemporarily(0)}
           onPointerMove={(event) => {
-            if (event.pointerType === 'touch') pauseTrackTemporarily(650);
+            if (event.pointerType === 'touch') pauseTrackTemporarily(0);
           }}
-          onPointerUp={resumeTrackNow}
-          onPointerCancel={resumeTrackNow}
-          onLostPointerCapture={resumeTrackNow}
-          onTouchStart={() => pauseTrackTemporarily(650)}
-          onTouchMove={() => pauseTrackTemporarily(650)}
+          onPointerUp={(event) => event.pointerType === 'touch' ? resumeTrackSoon(90) : resumeTrackNow()}
+          onPointerCancel={(event) => event.pointerType === 'touch' ? resumeTrackSoon(90) : resumeTrackNow()}
+          onLostPointerCapture={(event) => event.pointerType === 'touch' ? resumeTrackSoon(90) : resumeTrackNow()}
+          onTouchStart={() => pauseTrackTemporarily(0)}
+          onTouchMove={() => pauseTrackTemporarily(0)}
           onWheel={resumeTrackNow}
-          onTouchEnd={resumeTrackNow}>
+          onTouchEnd={() => resumeTrackSoon(90)}>
           <RailSwipeCue label="Swipe through collection" overlay />
           {smartItems.map((nft, i) =>
           <a key={`${nft.name}-${nft.tokenId}-${i}`} className={`nft-card ${nft.tokenId === 'pending' || nft.tokenId === 'soon' ? 'disabled' : ''} ${nft.tokenId === 'asset' ? 'asset-card' : ''} ${nft.comingSoon ? 'coming-soon-card' : ''}`} href={nft.href || '#nfts'} target="_blank" rel="noopener" style={{ '--i': i }}>
