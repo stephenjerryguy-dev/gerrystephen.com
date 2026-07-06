@@ -49,10 +49,20 @@ function walletsFilter(options = []) {
   });
 }
 
+// Route the Dynamic SDK API through the same-origin /dynamic-api proxy
+// (see vercel.json + vite.config.js rewrites). This keeps the settings/nonce
+// requests same-origin so they are never subject to Dynamic's cross-origin
+// allowlist — the apex gerrystephen.com origin is not reliably whitelisted,
+// which otherwise blocks getEnvironmentSettings and breaks wallet connect.
+const DYNAMIC_API_BASE_URL = typeof window !== 'undefined'
+  ? `${window.location.origin}/dynamic-api`
+  : 'https://gerrystephen.com/dynamic-api';
+
 const settings = {
   appName: 'Monerge',
   appLogoUrl: `${window.location.origin}/assets/monerge-icon-512.png`,
   environmentId: ENVIRONMENT_ID,
+  apiBaseUrl: DYNAMIC_API_BASE_URL,
   initialAuthenticationMode: 'connect-and-sign',
   enableVisitTrackingOnConnectOnly: true,
   theme: 'dark',
