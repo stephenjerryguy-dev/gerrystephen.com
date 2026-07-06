@@ -65,16 +65,6 @@
       "permanent": true
     },
     {
-      "source": "/monerge",
-      "destination": "https://biome.gerrystephen.com/monerge",
-      "permanent": true
-    },
-    {
-      "source": "/monerge/:path*",
-      "destination": "https://biome.gerrystephen.com/monerge",
-      "permanent": true
-    },
-    {
       "source": "/moncade",
       "destination": "https://biome.gerrystephen.com/moncade",
       "permanent": true
