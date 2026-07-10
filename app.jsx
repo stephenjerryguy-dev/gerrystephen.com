@@ -10,9 +10,10 @@ import {
   TweakSelect,
 } from './tweaks-panel.jsx';
 import { ImmersiveChapterRail } from './immersive-navigation.jsx';
+import { ImmersivePortal } from './immersive-portal.jsx';
 import './styles.css';
 
-const SITE_BUILD_VERSION = 'ecosystems-app-107';
+const SITE_BUILD_VERSION = 'ecosystems-app-108-preview';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const ImmersiveIglu = React.lazy(() => import('./immersive-iglu.jsx').then((module) => ({ default: module.ImmersiveIglu })));
 
@@ -3746,12 +3747,72 @@ function App() {
       <Hero y={y} mouse={mouse} intensity={tweaks.parallaxIntensity} lite={liteParallax} />
       {tweaks.snowfall && !prefersReducedMotion && <Snowfall count={isMobileViewport ? 22 : 60} intensity={(tweaks.parallaxIntensity / 100) * (isMobileViewport ? 0.62 : 1)} scrollY={y} />}
       <Marquee items={['gerrystephen.eth', 'inkfinity canvas', 'great terriers', 'sappy seals', 'pudgy penguins', 'web3 since 2021', 'building IRL', 'hot weather, iced coffee']} />
+      <ImmersivePortal
+        y={y}
+        mouse={mouse}
+        number="01"
+        kicker="The road here"
+        title="Collector became operator."
+        copy="A scroll through community, family legacy, hospitality, and the years that turned curiosity into work."
+        theme="sunrise"
+        image="/assets/pudgy-penguin-cutout.png"
+        imageAlt="Gerry Stephen's Pudgy Penguin"
+        target="journey"
+      />
       <Timeline y={y} intensity={tweaks.parallaxIntensity} />
+      <ImmersivePortal
+        y={y}
+        mouse={mouse}
+        number="02"
+        kicker="Community ecosystems"
+        title="Identity lives in public."
+        copy="Pudgy Penguins, Sappy Seals, Great Terriers, and the on-chain communities that made the internet feel human."
+        theme="aqua"
+        image="/assets/penguin.jpg"
+        imageAlt="Penguin artwork from Gerry's collection"
+        target="nfts"
+      />
       <NftCarousel />
+      <ImmersivePortal
+        y={y}
+        mouse={mouse}
+        number="03"
+        kicker="Family archive"
+        title="The work stays signed."
+        copy="Eric's hand-signed canvases become a permanent, navigable record of authorship and family craft."
+        theme="gold"
+        image="/assets/inkfinity-thoughts.png"
+        imageAlt="Inkfinity Canvas artwork"
+        target="inkfinity"
+      />
       <InkfinityGallery />
+      <ImmersivePortal
+        y={y}
+        mouse={mouse}
+        number="04"
+        kicker="Playable world"
+        title="The iglu becomes a game."
+        copy="Monerge turns the visual language into something you can touch, merge, connect, and play on Monad."
+        theme="violet"
+        image="/assets/monerge-icon-512.png"
+        imageAlt="Monerge game icon"
+        target="monerge"
+      />
       <MonadGame />
       <Stats />
       <NowBuilding />
+      <ImmersivePortal
+        y={y}
+        mouse={mouse}
+        number="05"
+        kicker="Built in real life"
+        title="Warm places. Real doors."
+        copy="Blue Star and Zeppole carry the same community standard into hospitality, food, and everyday gathering."
+        theme="caribbean"
+        image="/assets/bluestar-property.jpg"
+        imageAlt="Blue Star Apartments in Grenada"
+        target="ventures"
+      />
       <Ventures y={y} intensity={tweaks.parallaxIntensity} warm={tweaks.warmChapters} />
       <Contact />
       <footer className="foot">
