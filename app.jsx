@@ -9,10 +9,12 @@ import {
   TweakToggle,
   TweakSelect,
 } from './tweaks-panel.jsx';
+import { ImmersiveChapterRail } from './immersive-navigation.jsx';
 import './styles.css';
 
-const SITE_BUILD_VERSION = 'ecosystems-app-106';
+const SITE_BUILD_VERSION = 'ecosystems-app-107';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+const ImmersiveIglu = React.lazy(() => import('./immersive-iglu.jsx').then((module) => ({ default: module.ImmersiveIglu })));
 
 function safeStorage() {
   try {
@@ -694,7 +696,9 @@ function Hero({ y, mouse, intensity, lite = false }) {
 
         <div className="scene" style={{ transform: `translate3d(${px * 2}px, ${iglooY + py * 1.6}px, 0)` }}>
           <div className="igloo-wrap" style={{ transform: `scale(${iglooScale})` }}>
-            <Igloo width={620} />
+            <React.Suspense fallback={<div className="immersive-iglu-stage is-loading" role="img" aria-label="Gerry's Iglu assembling"><div className="immersive-iglu-fallback" aria-hidden="true" /></div>}>
+              <ImmersiveIglu progress={progress} mouse={mouse} lite={lite} />
+            </React.Suspense>
           </div>
           <div className="penguin-wrap" style={{ transform: `translate(-50%, ${penguinY}px) scale(${penguinScale})` }}>
             <PenguinCard size={260} float={false} />
@@ -742,6 +746,11 @@ function Hero({ y, mouse, intensity, lite = false }) {
         </div>
 
         <div className="scroll-hint"><span>scroll</span><div className="scroll-line" /></div>
+        <div className="hero-scene-readout" aria-hidden="true">
+          <span>LIVE SCENE // {String(Math.round(progress * 100)).padStart(3, '0')}</span>
+          <i style={{ transform: `scaleX(${progress})` }} />
+          <small>MOVE TO LOOK · SCROLL TO TRANSFORM</small>
+        </div>
       </div>
     </section>);
 
@@ -2442,17 +2451,16 @@ function MonadGame() {
           storageSet(PROFILE_SIGNATURE_KEY, storedSignature);
           storageSet(PROFILE_SIGNATURE_WALLET_KEY, address);
         }
-        if (!cancelled && user && !storedSignature) {
-          const dynamicSignature = `dynamic-auth:${user.userId || user.id || address}`;
+        if (!cancelled && !storedSignature) {
+          const dynamicSignature = user
+            ? `dynamic-auth:${user.userId || user.id || address}`
+            : `dynamic-wallet:${address}`;
           setProfileSignature(dynamicSignature);
           storageSet(PROFILE_SIGNATURE_KEY, dynamicSignature);
           storageSet(PROFILE_SIGNATURE_WALLET_KEY, address);
           storageSet(walletSignatureKey(address), dynamicSignature);
           pendingProfileSignRef.current = false;
-          setWalletState('Profile signed');
-        } else if (!cancelled && pendingProfileSignRef.current && !profileSignature && !storedSignature) {
-          pendingProfileSignRef.current = false;
-          setWalletState('Dynamic connected. Sign profile from the wallet menu.');
+          setWalletState('Profile ready');
         }
       } catch (_) {
         const storedSignature = readStoredProfileSignature(address);
@@ -2461,17 +2469,16 @@ function MonadGame() {
           storageSet(PROFILE_SIGNATURE_KEY, storedSignature);
           storageSet(PROFILE_SIGNATURE_WALLET_KEY, address);
         }
-        if (!cancelled && user && !storedSignature) {
-          const dynamicSignature = `dynamic-auth:${user.userId || user.id || address}`;
+        if (!cancelled && !storedSignature) {
+          const dynamicSignature = user
+            ? `dynamic-auth:${user.userId || user.id || address}`
+            : `dynamic-wallet:${address}`;
           setProfileSignature(dynamicSignature);
           storageSet(PROFILE_SIGNATURE_KEY, dynamicSignature);
           storageSet(PROFILE_SIGNATURE_WALLET_KEY, address);
           storageSet(walletSignatureKey(address), dynamicSignature);
           pendingProfileSignRef.current = false;
-          setWalletState('Profile signed');
-        } else if (!cancelled && pendingProfileSignRef.current && !profileSignature && !storedSignature) {
-          pendingProfileSignRef.current = false;
-          setWalletState('Dynamic connected. Sign profile from the wallet menu.');
+          setWalletState('Profile ready');
         }
       }
     })();
@@ -2642,17 +2649,16 @@ function MonadGame() {
           storageSet(PROFILE_SIGNATURE_WALLET_KEY, connectedAddress);
           pendingProfileSignRef.current = false;
           setWalletState('Dynamic wallet ready');
-        } else if (user) {
-          const dynamicSignature = `dynamic-auth:${user.userId || user.id || connectedAddress}`;
+        } else {
+          const dynamicSignature = user
+            ? `dynamic-auth:${user.userId || user.id || connectedAddress}`
+            : `dynamic-wallet:${connectedAddress}`;
           setProfileSignature(dynamicSignature);
           storageSet(PROFILE_SIGNATURE_KEY, dynamicSignature);
           storageSet(PROFILE_SIGNATURE_WALLET_KEY, connectedAddress);
           storageSet(walletSignatureKey(connectedAddress), dynamicSignature);
           pendingProfileSignRef.current = false;
-          setWalletState('Profile signed');
-        } else {
-          pendingProfileSignRef.current = true;
-          setWalletState('Dynamic connected. Sign profile from the wallet menu.');
+          setWalletState('Profile ready');
         }
       } catch (error) {
         setWalletState(error?.message || 'Open Dynamic to finish wallet setup.');
@@ -2660,7 +2666,7 @@ function MonadGame() {
       }
       return;
     }
-    pendingProfileSignRef.current = !readStoredProfileSignature(account);
+    pendingProfileSignRef.current = false;
     openDynamicFlow();
   }
 
@@ -3557,6 +3563,7 @@ function AgentsPage() {
   return (
     <div className="page agents-page">
       <Topbar />
+      <ImmersiveChapterRail scrollY={y} />
       <main className="agents-shell">
         <section className="agents-hero">
           <div>

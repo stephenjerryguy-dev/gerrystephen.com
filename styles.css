@@ -245,12 +245,12 @@ a { color: inherit; text-decoration: none; }
   backdrop-filter: blur(14px);
   place-items: center;
   align-content: center;
-  gap: 3px;
+  gap: 2px;
   cursor: pointer;
 }
 .top-menu-toggle span {
   display: block;
-  width: 17px;
+  width: 18px;
   height: 2px;
   border-radius: 999px;
   background: var(--sky-soft);
@@ -573,6 +573,38 @@ a { color: inherit; text-decoration: none; }
   transform-origin: 50% 80%;
   transition: none;
 }
+.immersive-iglu-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1.28;
+  min-height: 430px;
+  filter: saturate(1.08);
+}
+.immersive-iglu-canvas,
+.immersive-iglu-fallback {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.immersive-iglu-canvas {
+  opacity: 0;
+  transition: opacity 700ms ease;
+}
+.immersive-iglu-stage[data-webgl="ready"] .immersive-iglu-canvas {
+  opacity: 1;
+}
+.immersive-iglu-fallback {
+  background: url("/assets/iglu-mark.svg") center / min(72%, 620px) auto no-repeat;
+  filter: drop-shadow(0 30px 60px rgba(11,34,48,0.22));
+  opacity: 0.62;
+  transition: opacity 400ms ease;
+}
+.immersive-iglu-stage[data-webgl="ready"] .immersive-iglu-fallback {
+  opacity: 0;
+}
 .igloo-wrap svg {
   display: block;
   width: 100%;
@@ -770,6 +802,35 @@ a { color: inherit; text-decoration: none; }
   background: linear-gradient(180deg, var(--ink-soft), transparent);
   animation: scrollLine 2.4s ease-in-out infinite;
 }
+.hero-scene-readout {
+  position: absolute;
+  left: 4vw;
+  bottom: 24px;
+  z-index: 10;
+  width: min(320px, 42vw);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 7px 12px;
+  color: rgba(14,31,44,0.72);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+.hero-scene-readout > i {
+  height: 1px;
+  background: linear-gradient(90deg, var(--coral), var(--turq-deep));
+  transform-origin: left center;
+}
+.hero-scene-readout small {
+  grid-column: 1 / -1;
+  color: rgba(14,31,44,0.48);
+  font: inherit;
+  font-size: 8px;
+}
 @keyframes scrollLine {
   0%, 100% { transform: scaleY(0.4); transform-origin: top; }
   50% { transform: scaleY(1); transform-origin: top; }
@@ -780,6 +841,7 @@ a { color: inherit; text-decoration: none; }
   .hero-copy { top: 14vh; left: 6vw; right: 6vw; }
   .display { font-size: clamp(40px, 11vw, 64px) !important; }
   .scene { width: 90vw; }
+  .immersive-iglu-stage { min-height: 390px; }
   .father-note {
     display: block;
     right: 6vw;
@@ -820,6 +882,15 @@ a { color: inherit; text-decoration: none; }
   .hero-values { max-width: 320px; gap: 6px; }
   .hero-values span { font-size: 8px; padding: 6px 8px; }
   .hero-cta { margin-top: 22px; }
+  .immersive-iglu-stage {
+    min-height: 520px;
+    aspect-ratio: 0.76;
+  }
+  .hero-scene-readout {
+    left: 18px;
+    bottom: 74px;
+    width: min(240px, 66vw);
+  }
   .terminal-left {
     top: 78px;
     max-width: 150px;
@@ -846,6 +917,116 @@ a { color: inherit; text-decoration: none; }
   .pengcard img {
     filter: drop-shadow(0 20px 30px rgba(14,31,44,0.18));
   }
+}
+
+/* ---------- Immersive chapter navigation ---------- */
+.immersive-chapter-rail {
+  position: fixed;
+  z-index: 48;
+  right: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  gap: 3px;
+  width: 132px;
+  padding: 8px;
+  border: 1px solid rgba(255,255,255,0.34);
+  border-radius: 18px;
+  background: rgba(14,31,44,0.22);
+  box-shadow: 0 18px 54px rgba(14,31,44,0.14), inset 0 1px 0 rgba(255,255,255,0.22);
+  backdrop-filter: blur(18px) saturate(1.25);
+  mix-blend-mode: normal;
+}
+.immersive-chapter-rail a {
+  min-height: 32px;
+  display: grid;
+  grid-template-columns: 22px 1fr 12px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: rgba(255,255,255,0.58);
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: color 180ms ease, background 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+.immersive-chapter-rail a span {
+  color: rgba(255,255,255,0.48);
+  font-size: 8px;
+}
+.immersive-chapter-rail a b {
+  font-weight: 700;
+}
+.immersive-chapter-rail a i {
+  width: 8px;
+  height: 1px;
+  justify-self: end;
+  background: currentColor;
+  transform-origin: right center;
+  transition: transform 180ms ease;
+}
+.immersive-chapter-rail a:hover,
+.immersive-chapter-rail a.active {
+  color: #fff;
+  border-color: rgba(255,255,255,0.38);
+  background: linear-gradient(90deg, rgba(255,122,89,0.34), rgba(45,191,176,0.26));
+  transform: translateX(-2px);
+}
+.immersive-chapter-rail a.active i {
+  transform: scaleX(1.8);
+}
+.immersive-page-progress {
+  position: fixed;
+  z-index: 80;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: rgba(14,31,44,0.08);
+  pointer-events: none;
+}
+.immersive-page-progress i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: left center;
+  background: linear-gradient(90deg, var(--coral), #ffd38e 34%, var(--turq) 68%, #8c7dff);
+  box-shadow: 0 0 18px rgba(45,191,176,0.48);
+}
+
+@media (max-width: 900px) {
+  .immersive-chapter-rail {
+    top: auto;
+    right: 50%;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    transform: translateX(50%);
+    width: min(360px, calc(100vw - 116px));
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 2px;
+    padding: 5px;
+    border-radius: 15px;
+  }
+  .immersive-chapter-rail a {
+    min-height: 36px;
+    grid-template-columns: 1fr;
+    place-items: center;
+    padding: 0;
+  }
+  .immersive-chapter-rail a span { font-size: 9px; }
+  .immersive-chapter-rail a b,
+  .immersive-chapter-rail a i { display: none; }
+  .immersive-chapter-rail a:hover,
+  .immersive-chapter-rail a.active { transform: translateY(-2px); }
+  .sound-toggle { z-index: 81; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .immersive-iglu-canvas,
+  .immersive-chapter-rail a,
+  .immersive-page-progress i { transition: none; }
 }
 
 /* ---------- Snowfall ---------- */
@@ -6314,10 +6495,10 @@ body:has(.game-app-page) {
   z-index: 45;
   display: none;
   place-items: center;
-  width: 58px;
-  height: 58px;
+  width: 46px;
+  height: 46px;
   border: 1px solid rgba(238,246,251,0.28);
-  border-radius: 18px;
+  border-radius: 14px;
   background:
     radial-gradient(circle at 28% 18%, rgba(238,246,251,0.28), transparent 28%),
     linear-gradient(145deg, rgba(159,124,255,0.38), rgba(18,11,46,0.74) 56%, rgba(122,201,232,0.24));
@@ -6328,17 +6509,17 @@ body:has(.game-app-page) {
 .monad-game.app-mode .game-hamburger::after {
   content: "";
   position: absolute;
-  inset: 5px;
-  border-radius: 14px;
+  inset: 4px;
+  border-radius: 11px;
   border: 1px solid rgba(255,255,255,0.08);
   pointer-events: none;
 }
 .monad-game.app-mode .game-hamburger .hamburger-lines {
-  gap: 5px;
+  gap: 3px;
   transform: none;
 }
 .monad-game.app-mode .game-hamburger span {
-  width: 24px;
+  width: 19px;
   height: 2px;
   background: linear-gradient(90deg, #EEF6FB, #8fe8f1);
   box-shadow: 0 0 14px rgba(143,232,241,0.45);
@@ -6850,8 +7031,8 @@ body:has(.game-app-page) {
   .monad-game.app-mode .game-hamburger {
     right: max(10px, env(safe-area-inset-right));
     top: max(10px, env(safe-area-inset-top));
-    width: 46px;
-    height: 46px;
+    width: 42px;
+    height: 42px;
     border-radius: 15px;
   }
 
@@ -7051,8 +7232,8 @@ body:has(.game-app-page) {
   }
 
   .monad-game.app-mode .game-hamburger {
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
     right: max(8px, env(safe-area-inset-right));
     top: max(8px, env(safe-area-inset-top));
   }

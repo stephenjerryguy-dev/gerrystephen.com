@@ -63,8 +63,10 @@ const settings = {
   appLogoUrl: `${window.location.origin}/assets/monerge-icon-512.png`,
   environmentId: ENVIRONMENT_ID,
   apiBaseUrl: DYNAMIC_API_BASE_URL,
-  initialAuthenticationMode: 'connect-and-sign',
+  initialAuthenticationMode: 'connect-only',
   enableVisitTrackingOnConnectOnly: true,
+  mobileExperience: 'in-app-browser',
+  deepLinkPreference: 'native',
   theme: 'dark',
   defaultNumberOfWalletsToShow: 8,
   overrides: {
