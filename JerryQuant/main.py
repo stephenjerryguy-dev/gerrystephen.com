@@ -1568,9 +1568,27 @@ def main() -> int:
         action="store_true",
         help="Backtest the diversified target-allocation vs buy-&-hold. Never trades.",
     )
+    parser.add_argument(
+        "--paste-monitor",
+        action="store_true",
+        help="Read and normalize paste.trade's public feed. Monitoring only; "
+             "never connects to a broker or wallet and never trades.",
+    )
     args = parser.parse_args()
 
     cfg = load_config(args.config)
+    if args.paste_monitor:
+        from data_sources.paste_trade import fetch_best_trades, render_report
+
+        try:
+            print(render_report(fetch_best_trades()))
+            return 0
+        except Exception as exc:
+            print("# JerryQuant — paste.trade monitor")
+            print()
+            print(f"Feed unavailable: {exc}")
+            return 1
+
     # propose/execute are sub-flows of live: arm the broker (mode LIVE_APPROVED)
     # but dispatch to the split propose/execute runners rather than the prompt.
     live_sub = args.mode if args.mode in (

@@ -170,6 +170,15 @@ GITHUB_DISPATCH_TOKEN=github_pat_xxx ./scripts/trigger_live_agent.sh scan
 Running both the external trigger and GitHub's backup cron is safe: the
 per-day proposal fingerprints mean an overlapping run won't double-propose.
 
+The separate `JerryQuant paste.trade Monitor` workflow reads the public
+paste.trade board every 15 minutes and publishes a normalized, read-only run
+summary. It deliberately does not route social trades to Robinhood or a wallet.
+Run the same monitor locally with:
+
+```bash
+python main.py --paste-monitor
+```
+
 ## Approving live trades from your phone
 
 Approval must go through something that knows it's *you* — never a public web
