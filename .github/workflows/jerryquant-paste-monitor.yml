@@ -35,6 +35,17 @@ jobs:
       - name: Read public paste.trade feed
         run: python main.py --paste-monitor | tee paste-trade-report.md
 
+      - name: Build selected-source real-money review queue
+        env:
+          JERRYQUANT_NTFY_TOPIC: ${{ secrets.JERRYQUANT_NTFY_TOPIC }}
+          JERRYQUANT_PROPOSAL_DATABASE_URL: ${{ secrets.JERRYQUANT_PROPOSAL_DATABASE_URL }}
+          JERRYQUANT_PASTE_HANDLES: ${{ vars.JERRYQUANT_PASTE_HANDLES }}
+          JERRYQUANT_RH_COPY_BUDGET_USD: ${{ vars.JERRYQUANT_RH_COPY_BUDGET_USD }}
+          JERRYQUANT_HL_COPY_BUDGET_USD: ${{ vars.JERRYQUANT_HL_COPY_BUDGET_USD }}
+          JERRYQUANT_COPY_MAX_LOSS_USD: ${{ vars.JERRYQUANT_COPY_MAX_LOSS_USD }}
+          JERRYQUANT_HL_LEVERAGE_CAP: ${{ vars.JERRYQUANT_HL_LEVERAGE_CAP }}
+        run: python main.py --paste-live-tickets | tee paste-live-tickets.md
+
       - name: Publish report
         if: always()
         run: |
@@ -42,4 +53,8 @@ jobs:
             cat paste-trade-report.md >> "$GITHUB_STEP_SUMMARY"
           else
             echo "paste.trade monitor did not create a report." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -f paste-live-tickets.md ]; then
+            printf '\n---\n\n' >> "$GITHUB_STEP_SUMMARY"
+            cat paste-live-tickets.md >> "$GITHUB_STEP_SUMMARY"
           fi

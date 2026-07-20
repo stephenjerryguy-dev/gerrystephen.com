@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from datetime import datetime
 from html.parser import HTMLParser
 from typing import Iterable
 
@@ -85,6 +86,13 @@ class PasteTrade:
     leverage: int | None
     source_handle: str | None
     source_url: str
+    author_date: datetime | None = None
+    platform: str | None = None
+    instrument: str | None = None
+    venue_symbol: str | None = None
+    entry_price: float | None = None
+    current_price: float | None = None
+    thesis: str | None = None
 
 
 def _nodes(root: _Node) -> Iterable[_Node]:
@@ -161,6 +169,16 @@ def parse_board_payload(payload: dict) -> list[PasteTrade]:
         except (TypeError, ValueError):
             leverage = None
         handle = str(row.get("author_handle", "")).strip().lstrip("@")
+        author_date = None
+        if row.get("author_date"):
+            try:
+                author_date = datetime.fromisoformat(
+                    str(row["author_date"]).replace("Z", "+00:00")
+                )
+            except ValueError:
+                pass
+        current_price = row.get("price", {}).get("price") \
+            if isinstance(row.get("price"), dict) else None
         trades.append(PasteTrade(
             trade_id=trade_id,
             symbol=symbol,
@@ -170,8 +188,22 @@ def parse_board_payload(payload: dict) -> list[PasteTrade]:
             source_url=(
                 f"https://app.paste.trade/s/{source_id}#{trade_id}"
             ),
+            author_date=author_date,
+            platform=str(row.get("platform", "")).lower() or None,
+            instrument=str(row.get("instrument", "")).lower() or None,
+            venue_symbol=str(row.get("hl_ticker", "")).strip() or None,
+            entry_price=_optional_float(row.get("author_price")),
+            current_price=_optional_float(current_price),
+            thesis=str(row.get("thesis", "")).strip() or None,
         ))
     return trades
+
+
+def _optional_float(value) -> float | None:
+    try:
+        return float(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
 
 
 def fetch_best_trades(url: str = PASTE_TRADE_BOARD_URL) -> list[PasteTrade]:

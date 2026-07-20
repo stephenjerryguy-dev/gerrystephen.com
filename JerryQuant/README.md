@@ -179,6 +179,25 @@ Run the same monitor locally with:
 python main.py --paste-monitor
 ```
 
+For the selected-source, real-money **review queue** (still no order
+submission), run:
+
+```bash
+JERRYQUANT_PASTE_HANDLES=notthreadguy \
+JERRYQUANT_RH_COPY_BUDGET_USD=100 \
+JERRYQUANT_HL_COPY_BUDGET_USD=100 \
+JERRYQUANT_COPY_MAX_LOSS_USD=1 \
+python main.py --paste-live-tickets
+```
+
+The queue routes long equity-like calls to Robinhood and all shorts/crypto
+perps to Hyperliquid, rejects stale or direction-conflicted calls, caps the
+displayed Hyperliquid leverage independently of the source, and expires each
+ticket. A stop price is always an owner decision and remains a blocker until
+it is supplied. Never put a Rabby seed phrase or master private key in GitHub
+Actions. Hyperliquid automation, if later enabled outside this repository,
+must use a separately revocable API/agent wallet.
+
 ## Approving live trades from your phone
 
 Approval must go through something that knows it's *you* — never a public web
