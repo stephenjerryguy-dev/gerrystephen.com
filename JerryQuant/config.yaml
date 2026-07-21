@@ -120,6 +120,33 @@ signals:
   sentiment_max_confidence_adjust: 10      # sentiment can only nudge confidence
   prediction_market_max_confidence_adjust: 10
 
+prediction_market:
+  # Polymarket / Kalshi / weather binary-contract trading venue.
+  # Ships DISABLED and inert. Turning enabled:true wires in the data + signal
+  # layer; trades still obey JerryQuant's modes (BACKTEST/PAPER/LIVE_REVIEW/
+  # LIVE_APPROVED) and risk gates. Binary contracts size via fractional Kelly
+  # (risk/binary_sizing.py), hard-capped by code in core/config.py.
+  enabled: false
+  venues: [polymarket, kalshi]
+  strategies: [arbitrage, whale_follow, weather]
+  watchlist: []                      # curated market ids/tickers (empty = strategy discovery)
+  kelly_fraction: 0.25               # quarter Kelly (hard ceiling 0.5)
+  max_stake_pct: 5.0                 # max % equity per contract (hard ceiling 10%)
+  min_edge: 0.05                     # need a 5-point edge vs market price to trade
+  min_confidence: 70
+  arb_min_spread_pct: 2.0            # flag cross-platform arb above this
+  whale_threshold_usd: 10000         # a trade this size counts as a whale
+  # --- "full auto eventually" path: OFF until a venue earns it ---
+  auto_execute: false                # unattended execution without per-trade approval
+  auto_max_stake_usd: 25.0           # tiny ceiling on any auto trade (hard ceiling $50)
+  daily_loss_limit_usd: 50.0         # auto path halts for the day past this
+  weather:
+    enabled: false
+    provider: open-meteo
+    forecast_model: ensemble         # ensemble => a probability spread, not one number
+    min_edge: 0.08                   # weather markets are thin; demand a bigger edge
+    locations: []                    # e.g. {name: NYC, latitude: 40.78, longitude: -73.97, kalshi_series: KXHIGHNY}
+
 data:
   provider: yfinance
   history_days: 400                  # enough for a 200-day MA plus warmup

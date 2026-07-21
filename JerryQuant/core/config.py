@@ -29,6 +29,11 @@ HARD_MAX_OPEN_POSITIONS = 5
 HARD_MIN_RISK_REWARD = 1.5
 HARD_MIN_CONFIDENCE = 60
 
+# Prediction-market (binary 0–1 contract) hard ceilings. As above: code wins.
+HARD_MAX_KELLY_FRACTION = 0.5          # never full Kelly on real money
+HARD_MAX_BINARY_STAKE_PCT = 10.0       # max equity staked on one binary contract
+HARD_MAX_BINARY_AUTO_STAKE_USD = 50.0  # ceiling on any UNATTENDED auto-execution
+
 
 class AccountConfig(BaseModel):
     starting_equity_usd: float = Field(gt=0)
@@ -232,6 +237,100 @@ class SignalsConfig(BaseModel):
     prediction_market_max_confidence_adjust: int = Field(default=10, ge=0, le=15)
 
 
+class WeatherLocationConfig(BaseModel):
+    """One forecast point and the Kalshi series it feeds (e.g. NYC high temp)."""
+
+    name: str
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+    kalshi_series: str = ""          # optional: the Kalshi series ticker to match
+
+
+class WeatherConfig(BaseModel):
+    """Weather-edge venue: compare an Open-Meteo forecast-implied probability
+    against a Kalshi weather contract's price. Ships disabled and inert."""
+
+    enabled: bool = False
+    provider: str = "open-meteo"
+    locations: list[WeatherLocationConfig] = Field(default_factory=list)
+    forecast_model: str = "ensemble"  # ensemble gives a probability spread
+    min_edge: float = Field(default=0.08, ge=0, le=1)  # weather markets are thin
+
+
+class PredictionMarketConfig(BaseModel):
+    """Prediction-market trading venue (Polymarket / Kalshi binary contracts).
+
+    Ships disabled. When enabled it can emit and (in the appropriate mode)
+    execute trades sized by fractional Kelly — hard-capped by validators here
+    that config.yaml cannot loosen. Unattended auto-execution is a separate,
+    additionally-gated flag that ships OFF with a tiny dollar ceiling.
+    """
+
+    enabled: bool = False
+    venues: list[str] = Field(default_factory=lambda: ["polymarket", "kalshi"])
+    strategies: list[str] = Field(
+        default_factory=lambda: ["arbitrage", "whale_follow", "weather"]
+    )
+    watchlist: list[str] = Field(default_factory=list)  # curated market ids/tickers
+
+    # Sizing (binary contracts) — see risk/binary_sizing.py.
+    kelly_fraction: float = Field(default=0.25, gt=0)
+    max_stake_pct: float = Field(default=5.0, gt=0)   # % equity per contract
+    min_edge: float = Field(default=0.05, ge=0, le=1)
+    min_confidence: int = Field(default=70)
+
+    # Strategy thresholds.
+    arb_min_spread_pct: float = Field(default=2.0, ge=0)
+    whale_threshold_usd: float = Field(default=10_000, ge=0)
+
+    # Unattended auto-execution (the "full auto eventually" path). OFF here;
+    # graduates per-venue only after a proven recommend-only track record.
+    auto_execute: bool = False
+    auto_max_stake_usd: float = Field(default=25.0, gt=0)
+    daily_loss_limit_usd: float = Field(default=50.0, gt=0)
+
+    weather: WeatherConfig = WeatherConfig()
+
+    @field_validator("kelly_fraction")
+    @classmethod
+    def _cap_kelly(cls, v: float) -> float:
+        if v > HARD_MAX_KELLY_FRACTION:
+            raise ValueError(
+                f"kelly_fraction {v} exceeds hard ceiling {HARD_MAX_KELLY_FRACTION} "
+                f"(full Kelly is never allowed on real money)"
+            )
+        return v
+
+    @field_validator("max_stake_pct")
+    @classmethod
+    def _cap_stake_pct(cls, v: float) -> float:
+        if v > HARD_MAX_BINARY_STAKE_PCT:
+            raise ValueError(
+                f"max_stake_pct {v} exceeds hard ceiling {HARD_MAX_BINARY_STAKE_PCT}"
+            )
+        return v
+
+    @field_validator("min_confidence")
+    @classmethod
+    def _floor_confidence(cls, v: int) -> int:
+        if v < HARD_MIN_CONFIDENCE:
+            raise ValueError(
+                f"min_confidence {v} is below hard floor {HARD_MIN_CONFIDENCE}"
+            )
+        return v
+
+    @field_validator("auto_max_stake_usd")
+    @classmethod
+    def _cap_auto_stake(cls, v: float) -> float:
+        if v > HARD_MAX_BINARY_AUTO_STAKE_USD:
+            raise ValueError(
+                f"auto_max_stake_usd {v} exceeds hard ceiling "
+                f"{HARD_MAX_BINARY_AUTO_STAKE_USD} — unattended auto-execution is "
+                f"deliberately capped tiny"
+            )
+        return v
+
+
 class DataConfig(BaseModel):
     provider: str = "yfinance"
     history_days: int = Field(default=400, ge=250)
@@ -300,6 +399,7 @@ class Config(BaseModel):
     risk: RiskConfig = RiskConfig()
     strategy: StrategyConfig = StrategyConfig()
     signals: SignalsConfig = SignalsConfig()
+    prediction_market: PredictionMarketConfig = PredictionMarketConfig()
     data: DataConfig = DataConfig()
     backtest: BacktestConfig = BacktestConfig()
     paper: CostsConfig = CostsConfig()
