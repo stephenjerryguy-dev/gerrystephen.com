@@ -59,7 +59,12 @@ risk:
     lookback_days: 60                # window for measuring realized correlation
 
 strategy:
-  active: allocation                  # trend_following | rotation | allocation
+  active: rotation                    # trend_following | rotation | allocation
+  # NOTE: rotation is CONCENTRATED — it holds the single strongest of the pool
+  # (~95% in one ETF) and rotates when leadership changes, going to cash (BIL)
+  # when the whole pool is weak. That is the "sell and find the next
+  # opportunity" behavior — but it gives up the diversification of
+  # `active: allocation` (the 7-asset basket). Switching back is this one line.
   allocation:                        # diversified target allocation (LIVE)
     enabled: true
     weights:                         # must sum to ~100; rebalanced to these
