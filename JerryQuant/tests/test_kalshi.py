@@ -110,3 +110,24 @@ def test_order_placement_is_deliberately_unimplemented(tmp_path, monkeypatch):
     monkeypatch.setattr(b, "assert_armed", lambda: None)
     with pytest.raises(NotImplementedError, match="does not guess"):
         b.place_order("T", "yes", 10, 0.54, manually_approved=True)
+
+
+def test_private_key_can_come_from_a_file(tmp_path, monkeypatch):
+    """Kalshi issues a multi-line PEM — pointing at the file beats mangling
+    it into a single-line .env value."""
+    pem = tmp_path / "kalshi.pem"
+    pem.write_text("-----BEGIN RSA PRIVATE KEY-----\nabc\n-----END RSA PRIVATE KEY-----")
+    monkeypatch.delenv("KALSHI_PRIVATE_KEY", raising=False)
+    monkeypatch.setenv("KALSHI_API_KEY_ID", "key-123")
+    monkeypatch.setenv("KALSHI_PRIVATE_KEY_PATH", str(pem))
+    b = KalshiBroker(make_config(), KillSwitch(tmp_path / "HALT.txt"))
+    assert b.credentials_present() is True
+    assert "BEGIN RSA PRIVATE KEY" in b.private_key
+
+
+def test_missing_key_file_just_means_not_armed(tmp_path, monkeypatch):
+    monkeypatch.delenv("KALSHI_PRIVATE_KEY", raising=False)
+    monkeypatch.setenv("KALSHI_API_KEY_ID", "key-123")
+    monkeypatch.setenv("KALSHI_PRIVATE_KEY_PATH", str(tmp_path / "nope.pem"))
+    b = KalshiBroker(make_config(), KillSwitch(tmp_path / "HALT.txt"))
+    assert b.credentials_present() is False   # never a half-armed state

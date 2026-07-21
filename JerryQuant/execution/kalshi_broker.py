@@ -39,7 +39,17 @@ class KalshiBroker:
         self.cfg = cfg
         self.kill_switch = kill_switch
         self.api_key_id = os.environ.get("KALSHI_API_KEY_ID", "").strip()
+        # Kalshi issues a multi-line RSA PEM. Prefer pointing at the .pem file
+        # (KALSHI_PRIVATE_KEY_PATH) so the key never has to be mangled into a
+        # one-line .env value — and so it stays a gitignored file on disk.
         self.private_key = os.environ.get("KALSHI_PRIVATE_KEY", "").strip()
+        key_path = os.environ.get("KALSHI_PRIVATE_KEY_PATH", "").strip()
+        if not self.private_key and key_path:
+            try:
+                with open(os.path.expanduser(key_path)) as f:
+                    self.private_key = f.read().strip()
+            except OSError:
+                self.private_key = ""   # missing/unreadable key = simply not armed
 
     # --- arming ---
 

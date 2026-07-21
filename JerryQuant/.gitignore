@@ -11,3 +11,7 @@ HALT_TRADING.txt
 live_state.json
 live_pending.json
 live_pending.md
+
+# Kalshi private key (never commit the PEM)
+*.pem
+kalshi*.key
