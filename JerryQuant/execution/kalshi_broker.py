@@ -1,20 +1,25 @@
-"""Kalshi order path — DISARMED until credentialed discovery.
+"""Kalshi order path — wired against a VERIFIED schema.
 
-This mirrors how the Robinhood broker was built: read-only market data first
-(see data_sources/kalshi.py, whose field names came from live responses), and
-order placement implemented ONLY after we can authenticate and see the real
-order schema. Kalshi's trading endpoints require an API key ID plus an RSA
-private key that signs each request; without those we cannot verify the
-request shape, and JerryQuant does not guess at an API it has not seen.
+Built the same way as the Robinhood broker: read-only data first, then an
+authenticated discovery pass, and only then order placement. Nothing here was
+written from memory — the discovery caught three things that would each have
+been a live bug:
 
-So `place_order` intentionally raises. What's here is the arming logic, the
-risk gates, and the shape of the flow — so wiring it up later is a small,
-verifiable step rather than a leap of faith.
+  * `/portfolio/balance` returns `balance` in CENTS (2500) next to
+    `balance_dollars` ("25.0000"). Reading the bare field sizes 100x too big.
+  * `POST /trade-api/v2/portfolio/orders` is DEPRECATED (410). The live path
+    is /trade-api/v2/portfolio/events/orders.
+  * `side` is "bid"/"ask" (not yes/no), `count`/`price` are STRINGS, and
+    `self_trade_prevention_type` is "taker_at_cross".
 
-Three locks, same as the equity broker:
-  1. config: strategy/prediction_market must be enabled,
-  2. credentials: KALSHI_API_KEY_ID + KALSHI_PRIVATE_KEY present,
-  3. runtime: explicit human approval per order.
+Three locks before anything is sent:
+  1. config: strategy.prediction_market.enabled must be true,
+  2. credentials: KALSHI_API_KEY_ID + the RSA key (path or inline),
+  3. runtime: explicit human approval per order — plus a hard stake cap
+     checked against a balance we could actually verify.
+
+Note: only Kalshi is supported. Polymarket is largely restricted for US
+persons and is deliberately not implemented.
 """
 
 from __future__ import annotations
@@ -25,16 +30,15 @@ from typing import Optional
 from core.config import Config
 from risk.kill_switch import KillSwitch
 
-BASE_URL = "https://api.elections.kalshi.com"
+BASE_URL = "https://external-api.kalshi.com"   # Kalshi's documented host (api.elections.* also authenticates)
 
 # VERIFIED by authenticated discovery (not from memory):
 #  * POST /trade-api/v2/portfolio/orders returns 410 deprecated_v1_order_endpoint.
 #    The live create-order path is the one below.
 #  * An empty body there returns 400 listing the required fields:
 #    Ticker, TimeInForce, SelfTradePreventionType.
-#  * time_in_force enum includes: fill_or_kill | immediate_or_cancel |
-#    good_till_cancel. The self_trade_prevention_type enum values are NOT yet
-#    confirmed, which is why placement stays unimplemented.
+#  * time_in_force: fill_or_kill | immediate_or_cancel | good_till_canceled
+#    (note the "-ed"), and self_trade_prevention_type: "taker_at_cross".
 ORDER_PATH = "/trade-api/v2/portfolio/events/orders"
 BALANCE_PATH = "/trade-api/v2/portfolio/balance"
 POSITIONS_PATH = "/trade-api/v2/portfolio/positions"
@@ -83,7 +87,7 @@ class KalshiBroker:
             "venue_enabled": self._venue_enabled,
             "credentials_present": self.credentials_present(),
             "armed": self.is_armed(),
-            "order_placement": "NOT IMPLEMENTED (awaiting credentialed discovery)",
+            "order_placement": "implemented against verified create-order-v2 schema",
         }
 
     def assert_armed(self) -> None:
@@ -156,32 +160,80 @@ class KalshiBroker:
         from data_sources import kalshi
         return kalshi.fetch_market(ticker)
 
-    # --- order side (deliberately not implemented) ---
+    # --- order side (verified schema; still approval-gated) ---
 
-    def place_order(self, ticker: str, side: str, units: float,
-                    limit_price: float, manually_approved: bool) -> dict:
-        """Would buy `units` of `ticker` at `limit_price` (0-1 dollars).
+    def place_order(self, ticker: str, side: str, count: float,
+                    price: float, manually_approved: bool,
+                    time_in_force: str = "immediate_or_cancel") -> dict:
+        """Place a Kalshi order against the VERIFIED create-order-v2 schema.
 
-        Every gate is checked first so the failure is honest about WHY, and so
-        wiring the real request later can't skip a gate."""
+        `side` is Kalshi's own vocabulary — "bid" (buy) / "ask" (sell) — NOT
+        yes/no. `price` is dollars 0-1 (i.e. the implied probability), and the
+        API wants count/price as strings. A fresh client_order_id gives
+        idempotency, the same role ref_id plays for equities.
+
+        Defaults to immediate_or_cancel so an approved order either fills now
+        or dies — an approval means "this trade, now", not a resting order
+        that lingers unattended.
+
+        Gates, in order: kill switch -> armed -> explicit human approval ->
+        input validation -> hard stake cap against a VERIFIED balance.
+        """
+        import uuid
+        import httpx
+
         self.kill_switch.assert_can_trade()
         self.assert_armed()
         if not manually_approved:
             raise KalshiDisabled(
                 "Order rejected: explicit manual approval was not given."
             )
-        if side not in ("yes", "no"):
-            raise KalshiOrderError(f"side must be 'yes' or 'no', got {side}")
-        if units <= 0:
-            raise KalshiOrderError(f"Invalid size {units}")
-        if not 0 < limit_price < 1:
+        if side not in ("bid", "ask"):
+            raise KalshiOrderError(f"side must be 'bid' or 'ask', got {side!r}")
+        if count <= 0:
+            raise KalshiOrderError(f"Invalid count {count}")
+        if not 0 < price < 1:
             raise KalshiOrderError(
-                f"limit_price must be between 0 and 1 (dollars), got {limit_price}"
+                f"price must be between 0 and 1 dollars, got {price}"
             )
-        raise NotImplementedError(
-            "Kalshi order placement is not wired up. It will be implemented "
-            "against the real order schema once KALSHI_API_KEY_ID / "
-            "KALSHI_PRIVATE_KEY are present and an authenticated discovery "
-            "call confirms the request shape — the same way the Robinhood "
-            "broker was built. JerryQuant does not guess at an API."
-        )
+        if time_in_force not in ("immediate_or_cancel", "fill_or_kill",
+                                 "good_till_canceled"):
+            raise KalshiOrderError(f"bad time_in_force {time_in_force!r}")
+
+        # Hard stake cap, checked against a balance we can actually verify.
+        balance = self.get_balance()
+        if balance is None or balance <= 0:
+            raise KalshiOrderError(
+                "Kalshi balance could not be verified — refusing to size a trade."
+            )
+        pm = self.cfg.strategy.prediction_market
+        from core.config import HARD_MAX_BINARY_STAKE_PCT
+        cap_pct = min(pm.max_stake_pct, HARD_MAX_BINARY_STAKE_PCT)
+        stake = count * price
+        if stake > balance * cap_pct / 100.0:
+            raise KalshiOrderError(
+                f"stake ${stake:,.2f} exceeds the {cap_pct:.1f}% cap "
+                f"(${balance * cap_pct / 100.0:,.2f} of ${balance:,.2f})"
+            )
+
+        body = {
+            "ticker": ticker,
+            "client_order_id": str(uuid.uuid4()),
+            "side": side,
+            "count": f"{count:.2f}",
+            "price": f"{price:.4f}",
+            "time_in_force": time_in_force,
+            "self_trade_prevention_type": "taker_at_cross",
+            "post_only": False,
+            "cancel_order_on_pause": False,
+            "reduce_only": False,
+            "subaccount": 0,
+            "exchange_index": 0,
+        }
+        headers = {**self._signed_headers("POST", ORDER_PATH),
+                   "Content-Type": "application/json"}
+        r = httpx.post(BASE_URL + ORDER_PATH, headers=headers, json=body, timeout=25)
+        if r.status_code >= 400:
+            raise KalshiOrderError(f"Kalshi rejected order ({r.status_code}): "
+                                   f"{r.text[:300]}")
+        return r.json()

@@ -230,6 +230,12 @@ class StrategyConfig(BaseModel):
     regime: RegimeConfig = RegimeConfig()
     rotation: RotationConfig = RotationConfig()
     allocation: AllocationConfig = AllocationConfig()
+    # Defined further down; forward-referenced and rebuilt at module end so the
+    # prediction-market venue config is actually reachable as
+    # cfg.strategy.prediction_market (it was previously orphaned).
+    prediction_market: "PredictionMarketConfig" = Field(
+        default_factory=lambda: PredictionMarketConfig()
+    )
 
 
 class SignalsConfig(BaseModel):
@@ -410,6 +416,11 @@ class Config(BaseModel):
 
     def is_crypto(self, asset: str) -> bool:
         return asset.upper() in {a.upper() for a in self.watchlist.crypto}
+
+
+# Resolve the forward reference now that PredictionMarketConfig exists.
+StrategyConfig.model_rebuild()
+Config.model_rebuild()
 
 
 def load_config(path: str | Path = "config.yaml") -> Config:

@@ -98,18 +98,11 @@ def test_broker_validates_inputs(tmp_path, monkeypatch):
     b = _broker(tmp_path)
     monkeypatch.setattr(b, "assert_armed", lambda: None)
     with pytest.raises(KalshiOrderError):
-        b.place_order("T", "maybe", 10, 0.5, manually_approved=True)
+        b.place_order("T", "yes", 10, 0.5, manually_approved=True)  # side is bid/ask
     with pytest.raises(KalshiOrderError):
         b.place_order("T", "yes", 0, 0.5, manually_approved=True)
     with pytest.raises(KalshiOrderError):        # price must be 0-1 dollars
         b.place_order("T", "yes", 10, 54, manually_approved=True)
-
-
-def test_order_placement_is_deliberately_unimplemented(tmp_path, monkeypatch):
-    b = _broker(tmp_path)
-    monkeypatch.setattr(b, "assert_armed", lambda: None)
-    with pytest.raises(NotImplementedError, match="does not guess"):
-        b.place_order("T", "yes", 10, 0.54, manually_approved=True)
 
 
 def test_private_key_can_come_from_a_file(tmp_path, monkeypatch):
@@ -154,3 +147,52 @@ def test_order_path_is_the_verified_v2_endpoint():
     from execution import kalshi_broker
     # The obvious /portfolio/orders is deprecated (410) — verified live.
     assert kalshi_broker.ORDER_PATH == "/trade-api/v2/portfolio/events/orders"
+
+
+def _armed(tmp_path, monkeypatch, balance=25.0):
+    b = _broker(tmp_path)
+    monkeypatch.setattr(b, "assert_armed", lambda: None)
+    monkeypatch.setattr(b, "_signed_headers", lambda m, p: {"KALSHI-ACCESS-KEY": "k"})
+    monkeypatch.setattr(b, "get_balance", lambda: balance)
+    return b
+
+
+def test_order_body_matches_verified_schema(tmp_path, monkeypatch):
+    """Field names/values come from Kalshi's create-order-v2 reference:
+    side is bid/ask, count+price are STRINGS, and the STP enum is
+    'taker_at_cross' — none of which are guessable."""
+    b = _armed(tmp_path, monkeypatch)
+    sent = {}
+
+    class R:
+        status_code = 200
+        def json(self): return {"order": {"status": "resting"}}
+
+    import httpx
+    def fake_post(url, headers=None, json=None, timeout=None):
+        sent["url"] = url; sent["body"] = json
+        return R()
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    b.place_order("KXHIGHNY-26JUL22-T84", "bid", 2, 0.54, manually_approved=True)
+    body = sent["body"]
+    assert sent["url"].endswith("/trade-api/v2/portfolio/events/orders")
+    assert body["side"] == "bid"
+    assert body["count"] == "2.00" and body["price"] == "0.5400"   # strings
+    assert body["self_trade_prevention_type"] == "taker_at_cross"
+    assert body["time_in_force"] == "immediate_or_cancel"          # no resting order
+    assert len(body["client_order_id"]) == 36                      # idempotency
+
+
+def test_stake_cap_blocks_oversized_order(tmp_path, monkeypatch):
+    b = _armed(tmp_path, monkeypatch, balance=25.0)
+    # 40 contracts @ $0.54 = $21.60 on a $25 balance — way past the cap.
+    with pytest.raises(KalshiOrderError, match="cap"):
+        b.place_order("T", "bid", 40, 0.54, manually_approved=True)
+
+
+def test_unverifiable_balance_blocks_order(tmp_path, monkeypatch):
+    b = _armed(tmp_path, monkeypatch)
+    monkeypatch.setattr(b, "get_balance", lambda: None)
+    with pytest.raises(KalshiOrderError, match="could not be verified"):
+        b.place_order("T", "bid", 1, 0.5, manually_approved=True)
