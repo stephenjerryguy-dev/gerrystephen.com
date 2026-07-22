@@ -99,3 +99,37 @@ def test_max_loss_cap_binds_before_budget(monkeypatch):
     a = r.actions[0]
     assert a["dollar_risk"] <= 2.0 + 1e-9
     assert a["units"] * a["entry"] < 1000.0
+
+
+def test_drops_copy_whose_author_is_underwater(monkeypatch):
+    """Observed live: an AMD long sat -1.10% four hours after posting, the
+    worst idea on a board where newer names were green. Copying a thesis that
+    is already failing its author is a materially worse bet."""
+    _budget(monkeypatch)
+    monkeypatch.delenv("JERRYQUANT_COPY_MAX_ADVERSE_PCT", raising=False)
+    broker = FakeBroker({"AMD": {"tradeable": True, "fractional": True}})
+    t = T("robinhood", "AMD", "LONG", 533.34)
+    t.source_progress_pct = -1.10
+    r = paste_bridge.build_actions([t], broker, 500)
+    assert r.actions == []
+    assert any("underwater" in n for n in r.notes)
+
+
+def test_keeps_copy_that_is_working(monkeypatch):
+    _budget(monkeypatch)
+    broker = FakeBroker({"DELL": {"tradeable": True, "fractional": True}})
+    t = T("robinhood", "DELL", "LONG", 419.88)
+    t.source_progress_pct = +0.42
+    r = paste_bridge.build_actions([t], broker, 500)
+    assert len(r.actions) == 1
+    assert r.actions[0]["source_progress_pct"] == pytest.approx(0.42)
+    assert "+0.42% since entry" in r.actions[0]["reason"]
+
+
+def test_adverse_limit_is_configurable(monkeypatch):
+    _budget(monkeypatch)
+    monkeypatch.setenv("JERRYQUANT_COPY_MAX_ADVERSE_PCT", "5")
+    broker = FakeBroker({"AMD": {"tradeable": True, "fractional": True}})
+    t = T("robinhood", "AMD", "LONG", 533.34)
+    t.source_progress_pct = -1.10
+    assert len(paste_bridge.build_actions([t], broker, 500).actions) == 1

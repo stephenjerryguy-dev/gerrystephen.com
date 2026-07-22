@@ -42,6 +42,19 @@ class BridgeResult:
     notes: list[str] = field(default_factory=list)
 
 
+def max_adverse_pct() -> float:
+    """How far the SOURCE's own trade may be underwater and still be copied.
+
+    Copying is a momentum bet on someone else's read. A thesis already moving
+    against its author is a weaker setup than the same call working, and the
+    delay between their entry and our fill only widens that gap. Observed live:
+    an AMD long sat -1.10% unlevered (-11% at the author's 10x) four hours after
+    it was posted, while newer names on the board were green — it had become the
+    worst idea there, yet nothing in the sizing logic could see that.
+    """
+    return _env_float("JERRYQUANT_COPY_MAX_ADVERSE_PCT") or 0.75
+
+
 def copy_stop_pct() -> float:
     """Stop distance for copied trades. paste.trade carries no auditable stop,
     and without one you cannot bound the loss — so a configured default is
@@ -101,6 +114,15 @@ def build_actions(tickets, broker, equity: float) -> BridgeResult:
             res.notes.append(f"{sym}: no reference price on the observation — skipped")
             continue
 
+        # Drop a copy whose author is already losing on it.
+        progress = getattr(t, "source_progress_pct", None)
+        limit = max_adverse_pct()
+        if progress is not None and progress < -limit:
+            res.notes.append(
+                f"{sym}: source is {progress:+.2f}% underwater "
+                f"(limit -{limit:.2f}%) — deteriorating setup, skipped")
+            continue
+
         stop = price * (1 - stop_pct / 100.0)
         risk_per_unit = price - stop
         # Size is the SMALLER of the budget slice and the max-loss cap.
@@ -117,9 +139,12 @@ def build_actions(tickets, broker, equity: float) -> BridgeResult:
             "entry": price, "stop": stop, "target": None,
             "dollar_risk": units * risk_per_unit, "confidence": 50,
             "strategy": "paste_copy",
+            "source_progress_pct": progress,
             "reason": (f"copy of @{str(t.source_handle).lstrip('@')} LONG {sym} "
                        f"(source: {t.source_leverage or 1}x perp on Hyperliquid, "
-                       f"taken here as 1x spot; stop {stop_pct:.0f}% = ${stop:,.2f})"),
+                       f"taken here as 1x spot; stop {stop_pct:.0f}% = ${stop:,.2f}"
+                       + (f"; source {progress:+.2f}% since entry)"
+                          if progress is not None else ")")),
             "ticket": (f"BUY {sym} ~{units:.6f} @ ${price:,.2f} (~${stake:,.2f}) "
                        f"— paste.trade copy, max loss ${units * risk_per_unit:,.2f}"),
         })

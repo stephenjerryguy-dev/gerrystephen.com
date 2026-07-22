@@ -29,12 +29,26 @@ class RoutedTicket:
     entry_reference: float | None
     status: str
     blockers: tuple[str, ...] = field(default_factory=tuple)
+    # How the SOURCE's own trade is doing, signed for direction. A copy is not
+    # just a symbol and a side: a thesis already moving against its author is a
+    # materially worse setup than the same call fresh and working.
+    source_entry: float | None = None
+    source_progress_pct: float | None = None
 
 
 @dataclass(frozen=True)
 class RoutingResult:
     tickets: tuple[RoutedTicket, ...]
     skipped: tuple[str, ...]
+
+
+def _progress_pct(trade) -> float | None:
+    """Unlevered move in the SOURCE's favour since they opened, in percent."""
+    entry, current = trade.entry_price, trade.current_price
+    if not entry or entry <= 0 or current is None:
+        return None
+    move = (current - entry) / entry * 100.0
+    return -move if str(trade.direction).upper() == "SHORT" else move
 
 
 def ticket_fingerprint(ticket: RoutedTicket) -> str:
@@ -136,6 +150,8 @@ def build_live_tickets(
             source_leverage=trade.leverage,
             leverage_cap=leverage_cap,
             entry_reference=trade.current_price,
+            source_entry=trade.entry_price,
+            source_progress_pct=_progress_pct(trade),
             status="BLOCKED" if blockers else "REVIEW",
             blockers=tuple(blockers),
         ))

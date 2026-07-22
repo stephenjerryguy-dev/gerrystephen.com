@@ -22,6 +22,15 @@ on:
     #
     # Times are UTC, aligned to US daylight time (EDT). In EST (winter) the
     # US session is one hour later in UTC — shift these +1h.
+    # paste.trade's board turns over in under an hour — observed going from 2
+    # to 9 trades overnight, with a copy candidate ageing out of the router's
+    # 30-minute freshness window entirely. Two pre-open scans would freeze a
+    # hours-old snapshot, so the pre-open window is swept hourly. Minute :05
+    # because top-of-hour schedules are dropped most often.
+    - cron: "5 9 * * 1-5"     # 5:05 AM ET — pre-open sweep
+    - cron: "5 10 * * 1-5"    # 6:05 AM ET — pre-open sweep
+    - cron: "5 11 * * 1-5"    # 7:05 AM ET — pre-open sweep
+    - cron: "5 12 * * 1-5"    # 8:05 AM ET — pre-open sweep
     - cron: "45 12 * * 1-5"   # 8:45 AM ET — pre-market plan
     - cron: "25 13 * * 1-5"   # 9:25 AM ET — final pre-open re-price
     - cron: "35 13 * * 1-5"   # 9:35 AM ET — open scan
