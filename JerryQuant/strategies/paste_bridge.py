@@ -55,6 +55,18 @@ def max_adverse_pct() -> float:
     return _env_float("JERRYQUANT_COPY_MAX_ADVERSE_PCT") or 0.75
 
 
+def max_per_name_pct() -> float:
+    """Ceiling on any single copy, as a % of the whole copy budget.
+
+    Without this, "diversified" collapses whenever the board is thin: the
+    budget was split evenly across whatever routed, so a morning with one
+    eligible name handed that name 100% of the sleeve. A cap means a thin
+    board deploys LESS rather than concentrating — the undeployed remainder
+    stays cash on purpose.
+    """
+    return _env_float("JERRYQUANT_COPY_MAX_PER_NAME_PCT") or 25.0
+
+
 def copy_stop_pct() -> float:
     """Stop distance for copied trades. paste.trade carries no auditable stop,
     and without one you cannot bound the loss — so a configured default is
@@ -97,7 +109,9 @@ def build_actions(tickets, broker, equity: float) -> BridgeResult:
         return res
 
     stop_pct = copy_stop_pct()
-    per_trade_budget = budget / max(1, len(rh))
+    # Even split, but never more than the per-name ceiling.
+    per_name_cap = budget * max_per_name_pct() / 100.0
+    per_trade_budget = min(budget / max(1, len(rh)), per_name_cap)
 
     for t in rh:
         sym = t.symbol.upper()
@@ -152,9 +166,17 @@ def build_actions(tickets, broker, equity: float) -> BridgeResult:
                        f"— paste.trade copy, max loss ${units * risk_per_unit:,.2f}"),
         })
     if res.actions:
+        deployed = sum(a["units"] * a["entry"] for a in res.actions)
         res.notes.append(
             f"paste.trade sleeve: {len(res.actions)} copy ticket(s), "
-            f"budget ${budget:,.2f}, stop {stop_pct:.0f}%, leverage forced to 1x")
+            f"${deployed:,.2f} of ${budget:,.2f} budget deployed, "
+            f"stop {stop_pct:.0f}%, leverage forced to 1x")
+        if deployed < budget * 0.9:
+            res.notes.append(
+                f"${budget - deployed:,.2f} of the copy budget left as cash: "
+                f"too few eligible names to spread it at "
+                f"{max_per_name_pct():.0f}% per name — concentration is the "
+                f"worse outcome")
     return res
 
 

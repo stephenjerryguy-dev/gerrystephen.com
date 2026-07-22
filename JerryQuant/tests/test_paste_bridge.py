@@ -201,3 +201,26 @@ def test_only_manages_copy_positions():
     held = {"QQQ": {"quantity": 1.0, "sellable": 1.0}}
     r = paste_bridge.exit_actions(managed, held, [_Src(symbol="QQQ", current_pnl=-9.0)])
     assert r.actions == [] and r.notes == []
+
+
+def test_single_candidate_cannot_take_the_whole_budget(monkeypatch):
+    """A thin board must deploy LESS, not concentrate the sleeve into one name."""
+    _budget(monkeypatch, budget="80", max_loss="100", stop="8")
+    monkeypatch.delenv("JERRYQUANT_COPY_MAX_PER_NAME_PCT", raising=False)
+    broker = FakeBroker({"ORCL": {"tradeable": True, "fractional": True}})
+    r = paste_bridge.build_actions([T("robinhood", "ORCL", "LONG", 100.0)], broker, 500)
+    stake = r.actions[0]["units"] * r.actions[0]["entry"]
+    assert stake == pytest.approx(20.0)          # 25% cap, not the full $80
+    assert any("left as cash" in n for n in r.notes)
+
+
+def test_budget_spreads_across_several_names(monkeypatch):
+    _budget(monkeypatch, budget="80", max_loss="100", stop="8")
+    syms = ["ORCL", "NOK", "LDO", "PLTR"]
+    broker = FakeBroker({s: {"tradeable": True, "fractional": True} for s in syms})
+    tickets = [T("robinhood", s, "LONG", 100.0) for s in syms]
+    r = paste_bridge.build_actions(tickets, broker, 500)
+    assert len(r.actions) == 4
+    stakes = [a["units"] * a["entry"] for a in r.actions]
+    assert all(s == pytest.approx(20.0) for s in stakes)   # evenly spread
+    assert sum(stakes) == pytest.approx(80.0)              # fully deployed
