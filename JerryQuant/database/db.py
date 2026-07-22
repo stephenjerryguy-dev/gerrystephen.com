@@ -341,6 +341,45 @@ class Database:
         )
         self._conn.commit()
 
+    def get_shadow_state(self) -> Optional[dict[str, Any]]:
+        """Shadow-autonomy ledger. Returns None when the experiment has never
+        run, so the caller seeds a starting line rather than inventing one."""
+        key = "shadow_portfolio"
+        if self._proposal_pg is not None:
+            row = self._proposal_pg.execute(
+                "SELECT value FROM live_state WHERE key = %s", (key,)
+            ).fetchone()
+            if row and row["value"] is not None:
+                value = row["value"]
+                return value if isinstance(value, dict) else json.loads(value)
+            return None
+        row = self._conn.execute(
+            "SELECT value FROM live_state WHERE key = ?", (key,)
+        ).fetchone()
+        return json.loads(row["value"]) if row else None
+
+    def save_shadow_state(self, state: dict[str, Any]) -> None:
+        key = "shadow_portfolio"
+        now = datetime.now(timezone.utc)
+        if self._proposal_pg is not None:
+            self._proposal_pg.execute(
+                """INSERT INTO live_state (key, value, updated_at)
+                   VALUES (%s, %s, %s)
+                   ON CONFLICT (key) DO UPDATE
+                   SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at""",
+                (key, json.dumps(state), now),
+            )
+            self._proposal_pg.commit()
+            return
+        self._conn.execute(
+            """INSERT INTO live_state (key, value, updated_at)
+               VALUES (?, ?, ?)
+               ON CONFLICT (key) DO UPDATE
+               SET value = excluded.value, updated_at = excluded.updated_at""",
+            (key, json.dumps(state), now.isoformat()),
+        )
+        self._conn.commit()
+
     # --- durable token store (rotated refresh token survives hosted runs) ---
 
     def get_token(self, name: str) -> Optional[str]:

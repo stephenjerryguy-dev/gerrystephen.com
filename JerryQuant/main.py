@@ -1401,6 +1401,102 @@ def run_live_propose(cfg: Config, journal: TradeJournal,
     return 0
 
 
+def run_shadow(cfg: Config, journal: TradeJournal, kill_switch: KillSwitch,
+               starting_cash: float = 100.0) -> int:
+    """Full autonomy against a simulated ledger — decides AND fills, no approval.
+
+    This is the experiment that has to happen before autonomy is a real
+    conversation: identical decision code, identical sleeves (including the
+    paste.trade copy sleeve), zero human input, zero money. It answers 'what
+    would a self-driving JerryQuant actually have done?' with a track record
+    rather than an argument.
+
+    The only live calls made here are READ-ONLY: prices, and a tradability
+    lookup the simulation cannot honestly invent. Orders go to ShadowBroker,
+    which has no venue to reach.
+    """
+    from data_sources import market_data
+    from execution import shadow_broker as sb
+
+    portfolio = sb.load_portfolio(journal.db, starting_cash)
+
+    # 1) Settle anything decided on a previous run at TODAY's opening print.
+    #    Done before deciding, so the new decision sees a truthful account.
+    pending_symbols = sorted({o["symbol"] for o in portfolio.pending})
+    opens: dict[str, float] = {}
+    for symbol in pending_symbols:
+        try:
+            frame = market_data.fetch_daily(
+                symbol, history_days=cfg.data.history_days)
+            opens[symbol] = float(frame["open"].iloc[-1])
+        except market_data.DataUnavailableError:
+            continue
+
+    reference = _arm_live_broker(cfg, journal, kill_switch)
+    broker = sb.ShadowBroker(portfolio, reference_broker=reference)
+    filled, fill_notes = broker.fill_pending(opens)
+    for fill in filled:
+        print(f"SHADOW FILL {fill.side.upper()} {fill.symbol} "
+              f"{fill.units:.6f} @ ${fill.price:,.2f}")
+    for note in fill_notes:
+        print(f"  note: {note}")
+
+    # 2) Decide, with the shadow account standing in for the real one.
+    equity = portfolio.equity({s: p.get("last_price", p.get("avg_price", 0.0))
+                               for s, p in portfolio.positions.items()})
+    if cfg.strategy.active == "rotation":
+        actions, notes, equity = _decide_rotation_actions(
+            cfg, journal, kill_switch, broker)
+    elif cfg.strategy.active == "allocation":
+        actions, notes, equity = _decide_allocation_actions(
+            cfg, journal, kill_switch, broker)
+    else:
+        actions, notes, equity = _decide_live_actions(
+            cfg, journal, kill_switch, broker)
+
+    paste_actions, paste_notes = _paste_sleeve_actions(cfg, broker, equity)
+    actions = list(actions) + paste_actions
+    notes.extend(paste_notes)
+
+    # 3) Queue every decision. No approval gate — that is the entire point,
+    #    and it is only safe because ShadowBroker cannot reach a venue.
+    queued = 0
+    for action in actions:
+        try:
+            if action["kind"] == "entry":
+                signal = Signal(asset=action["symbol"], signal_type=SignalType.ENTRY,
+                                direction=Direction.LONG, entry=action["entry"],
+                                stop=action["stop"], target=action["target"],
+                                confidence=action["confidence"],
+                                strategy=action["strategy"])
+                broker.place_order(signal, action["units"], manually_approved=True)
+            else:
+                broker.sell_position(action["symbol"], action["units"],
+                                     manually_approved=True)
+            queued += 1
+        except Exception as e:      # a bad decision must not kill the run
+            notes.append(f"{action['symbol']}: shadow queue failed ({e})")
+
+    sb.save_portfolio(journal.db, portfolio)
+
+    # 4) Report the standing of the experiment.
+    marks = {s: p.get("last_price", p.get("avg_price", 0.0))
+             for s, p in portfolio.positions.items()}
+    now_equity = portfolio.equity(marks)
+    start = portfolio.starting_equity or starting_cash
+    print(f"\n--- SHADOW AUTONOMY (simulated; no money at risk) ---")
+    print(f"Started {portfolio.started_at or 'now'} at ${start:,.2f}")
+    print(f"Equity ${now_equity:,.2f} ({(now_equity / start - 1) * 100:+.2f}%) · "
+          f"cash ${portfolio.cash:,.2f} · {len(portfolio.fills)} fill(s) to date")
+    for symbol, position in sorted(portfolio.positions.items()):
+        print(f"  {symbol:<6} {position['units']:.6f} @ avg "
+              f"${position.get('avg_price', 0.0):,.2f}")
+    print(f"{queued} order(s) queued for the next opening print.")
+    for note in notes:
+        print(f"  note: {note}")
+    return 0
+
+
 def run_weather_scan(station_key: str = "nyc") -> int:
     """Compare a calibrated ensemble against Kalshi's temperature book.
 
@@ -1717,7 +1813,8 @@ def main() -> int:
     parser.add_argument(
         "--mode",
         choices=["backtest", "paper", "live_review", "live_approved",
-                 "live_plan", "live_scan", "live_propose", "live_execute"],
+                 "live_plan", "live_scan", "live_propose", "live_execute",
+                 "shadow"],
         default=None,
         help="Override mode from config.yaml. live_plan/live_scan/live_propose "
              "compute and serialize fresh tickets without placing anything; "
@@ -1850,7 +1947,7 @@ def main() -> int:
     # propose/execute are sub-flows of live: arm the broker (mode LIVE_APPROVED)
     # but dispatch to the split propose/execute runners rather than the prompt.
     live_sub = args.mode if args.mode in (
-        "live_plan", "live_scan", "live_propose", "live_execute"
+        "live_plan", "live_scan", "live_propose", "live_execute", "shadow"
     ) else None
     if live_sub:
         cfg = cfg.model_copy(update={"mode": Mode.LIVE_APPROVED})
@@ -1880,6 +1977,8 @@ def main() -> int:
             return run_live_propose(cfg, journal, kill_switch, source=live_sub)
         if live_sub == "live_execute":
             return run_live_execute(cfg, journal, kill_switch)
+        if live_sub == "shadow":
+            return run_shadow(cfg, journal, kill_switch)
         if cfg.mode == Mode.BACKTEST:
             return run_backtest_mode(cfg, journal)
         if cfg.mode == Mode.PAPER:

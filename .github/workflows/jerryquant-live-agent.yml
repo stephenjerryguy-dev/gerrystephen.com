@@ -135,6 +135,37 @@ jobs:
             JerryQuant/live_pending.md
           retention-days: 1
 
+  # Full autonomy against a simulated ledger. Deliberately NOT gated on an
+  # environment and NOT dependent on the approval job: the whole point is to
+  # record what an unattended JerryQuant would have done, every session, with
+  # no human in the loop. Safe because ShadowBroker has no venue to reach.
+  shadow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: JerryQuant/requirements.txt
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run shadow autonomy
+        env:
+          # Read-only lookups (prices, tradability) plus the durable ledger so
+          # the experiment survives ephemeral runners.
+          ROBINHOOD_MCP_URL: ${{ secrets.ROBINHOOD_MCP_URL }}
+          ROBINHOOD_MCP_API_KEY: ${{ secrets.ROBINHOOD_MCP_API_KEY }}
+          ROBINHOOD_MCP_REFRESH_TOKEN: ${{ secrets.ROBINHOOD_MCP_REFRESH_TOKEN }}
+          JERRYQUANT_PROPOSAL_DATABASE_URL: ${{ secrets.JERRYQUANT_PROPOSAL_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JERRYQUANT_RH_COPY_BUDGET_USD: ${{ secrets.JERRYQUANT_RH_COPY_BUDGET_USD }}
+          JERRYQUANT_COPY_MAX_LOSS_USD: ${{ secrets.JERRYQUANT_COPY_MAX_LOSS_USD }}
+          JERRYQUANT_COPY_STOP_PCT: ${{ secrets.JERRYQUANT_COPY_STOP_PCT }}
+          JERRYQUANT_PASTE_HANDLES: ${{ secrets.JERRYQUANT_PASTE_HANDLES }}
+        run: python main.py --mode shadow | tee -a "$GITHUB_STEP_SUMMARY"
+
   execute:
     needs: plan-or-scan
     if: ${{ needs.plan-or-scan.outputs.has_actions == 'true' || github.event.inputs.phase == 'execute' }}
