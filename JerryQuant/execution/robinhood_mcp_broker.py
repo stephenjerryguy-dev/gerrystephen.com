@@ -107,6 +107,28 @@ class RobinhoodMCPBroker:
             return False
         new_access = tok.get("access_token")
         if not new_access:
+            # The stored refresh token can go stale (rotated, or replaced by a
+            # fresh browser sign-in that only updated .env). Fall back to the
+            # env refresh token once and re-seed the store, so recovery is
+            # automatic instead of requiring manual DB surgery.
+            env_refresh = os.environ.get("ROBINHOOD_MCP_REFRESH_TOKEN", "").strip()
+            if env_refresh and env_refresh != self.refresh_token:
+                try:
+                    resp = httpx.post(
+                        "https://api.robinhood.com/oauth2/token/",
+                        data={"grant_type": "refresh_token",
+                              "client_id": self.oauth_client_id,
+                              "refresh_token": env_refresh},
+                        headers={"Content-Type": "application/x-www-form-urlencoded"},
+                        timeout=30)
+                    resp.raise_for_status()
+                    tok = resp.json()
+                    new_access = tok.get("access_token")
+                    if new_access:
+                        self.refresh_token = tok.get("refresh_token", env_refresh).strip()
+                except Exception:
+                    return False
+        if not new_access:
             return False
         self.api_key = new_access.strip()
         if tok.get("refresh_token"):
@@ -383,6 +405,30 @@ class RobinhoodMCPBroker:
                     "quantity": quantity,
                     "sellable": _f(p.get("shares_available_for_sells")),
                 }
+        return out
+
+    def get_tradability(self, symbols: list[str]) -> dict[str, dict]:
+        """Per-symbol tradability at THIS account (max 10 symbols per call).
+
+        Essential for copy-trade sources like paste.trade, which name arbitrary
+        tickers that may not be US-listed, may not be fractionable, or may be
+        halted. Never assume a symbol is tradable because someone mentioned it.
+        Returns {SYMBOL: {"tradeable": bool, "fractional": bool}}."""
+        out: dict[str, dict] = {}
+        syms = [s.upper() for s in symbols][:10]
+        if not syms:
+            return out
+        data = self.call_tool("get_equity_tradability", {
+            "account_number": self.get_account_number(), "symbols": syms})
+        for item in (data.get("results") or data if isinstance(data, list) else
+                     data.get("results", [])) or []:
+            if not isinstance(item, dict):
+                continue
+            out[str(item.get("symbol", "")).upper()] = {
+                "tradeable": bool(item.get("tradeable")),
+                "fractional": str(item.get("fractional_tradability", "")) == "tradable",
+                "state": item.get("state", ""),
+            }
         return out
 
     def get_quote(self, symbol: str) -> dict:

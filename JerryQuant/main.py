@@ -1009,7 +1009,7 @@ def _proposal_fingerprint(action: dict, day: str | None = None) -> str:
     kind = str(action.get("kind", "")).lower()
     symbol = str(action.get("symbol", "")).upper()
     strategy = str(action.get("strategy", ""))
-    if strategy in ("rotation", "allocation"):
+    if strategy in ("rotation", "allocation", "paste_copy"):
         # Rotation/allocation prices drift intraday; dedup on symbol+kind+day
         # so the same rebalance trade doesn't re-ask approval every scan.
         raw = f"{day}|{kind}|{symbol}|{strategy}"
@@ -1102,6 +1102,18 @@ def _decide_rotation_actions(cfg: Config, journal: TradeJournal,
     except OrderError as e:
         kill_switch.engage(f"Cannot read live positions: {e}")
         return [], [f"positions unreadable: {e}"], equity
+
+    # Price anything we HOLD but that isn't in the rotation pool (e.g. a
+    # leftover diversified basket). Without this those tickets render "~$0.00",
+    # which is misleading on a ticket you're being asked to approve.
+    for sym in held:
+        if sym in prices:
+            continue
+        try:
+            df = market_data.fetch_daily(sym, history_days=cfg.data.history_days)
+            prices[sym] = float(df["close"].iloc[-1])
+        except market_data.DataUnavailableError:
+            notes.append(f"{sym}: held but no fresh price — shown without a reference")
 
     actions: list[dict] = []
     selling = False
@@ -1250,6 +1262,34 @@ def _decide_allocation_actions(cfg: Config, journal: TradeJournal,
     return actions, notes, equity
 
 
+def _paste_sleeve_actions(cfg: Config, broker, equity: float):
+    """Optional copy sleeve: paste.trade observations -> approvable tickets.
+
+    Ring-fenced to its own budget and entirely optional — if the budget env
+    vars are unset, or anything at all fails, the sleeve stays silent rather
+    than disturbing the core strategy. Long-equity-at-Robinhood only, 1x, with
+    tradability verified before anything is proposed."""
+    from strategies import paste_bridge
+
+    if not os.environ.get("JERRYQUANT_RH_COPY_BUDGET_USD", "").strip():
+        return [], []          # sleeve not configured — stay quiet
+    try:
+        from data_sources.paste_trade import fetch_best_trades
+        from strategies.paste_trade_router import build_live_tickets
+
+        handles = [h.strip() for h in os.environ.get(
+            "JERRYQUANT_PASTE_HANDLES", "notthreadguy").split(",") if h.strip()]
+        routed = build_live_tickets(
+            fetch_best_trades(), handles,
+            max_age_minutes=int(os.environ.get(
+                "JERRYQUANT_PASTE_MAX_AGE_MINUTES") or "30"),
+        )
+        res = paste_bridge.build_actions(list(routed.tickets), broker, equity)
+        return res.actions, res.notes
+    except Exception as e:
+        return [], [f"paste.trade sleeve skipped ({type(e).__name__}: {str(e)[:80]})"]
+
+
 def run_live_propose(cfg: Config, journal: TradeJournal,
                      kill_switch: KillSwitch, source: str = "propose") -> int:
     """Read-only: compute the exact live actions and serialize them for an
@@ -1264,6 +1304,12 @@ def run_live_propose(cfg: Config, journal: TradeJournal,
         actions, notes, equity = _decide_allocation_actions(cfg, journal, kill_switch, broker)
     else:
         actions, notes, equity = _decide_live_actions(cfg, journal, kill_switch, broker)
+
+    # Additive copy sleeve (own budget; silent unless configured).
+    paste_actions, paste_notes = _paste_sleeve_actions(cfg, broker, equity)
+    actions = list(actions) + paste_actions
+    notes.extend(paste_notes)
+
     actions, dedupe_notes = _filter_new_live_proposals(journal, actions, source)
     notes.extend(dedupe_notes)
     payload = {
