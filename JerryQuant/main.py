@@ -1401,6 +1401,78 @@ def run_live_propose(cfg: Config, journal: TradeJournal,
     return 0
 
 
+def run_weather_scan(station_key: str = "nyc") -> int:
+    """Compare a calibrated ensemble against Kalshi's temperature book.
+
+    MONITOR ONLY, deliberately. This does not feed the approval queue and is
+    not wired into live_propose, because the edge it reports has not yet been
+    forward-tested: three separate corrections (grid-vs-station bias, the
+    ensemble/deterministic model mismatch, and temperature-dependent bias) each
+    removed most of an apparent edge that turned out to be our own error. The
+    remaining disagreement with a liquid book may be a fourth. Log it, watch it
+    settle, and only then consider letting it propose anything.
+    """
+    import datetime as dt
+    from zoneinfo import ZoneInfo
+
+    from data_sources import kalshi, weather
+    from strategies import weather_edge
+
+    station = weather.STATIONS[station_key]
+    try:
+        settled = kalshi.fetch_settled_values(station.kalshi_series)
+        official: dict[dt.date, float] = {}
+        for key, value in settled.items():
+            try:
+                official[dt.datetime.strptime(key, "%y%b%d").date()] = value
+            except ValueError:
+                continue
+        calibration = weather.calibrate(station, official)
+        target = dt.datetime.now(ZoneInfo(station.timezone)).date()
+        raw_members = weather.fetch_ensemble_members(station, target)
+        point = weather.fetch_point_forecast(station, target)
+        members = weather.calibrated_members(raw_members, point, calibration)
+        markets = [
+            m for m in kalshi.fetch_markets(series_ticker=station.kalshi_series,
+                                            status="open", limit=100)
+            if weather_edge.event_date(m, station.timezone) == target
+        ]
+    except (weather.WeatherUnavailableError, kalshi.KalshiUnavailableError) as e:
+        print(f"Weather scan unavailable: {e}")
+        return 1
+
+    centre = sum(members) / len(members)
+    print(f"\n{station.name} — high temp for {target}")
+    print(f"Calibration: {calibration.describe()}")
+    print(f"Model: point {point:.1f}°F, ensemble mean "
+          f"{sum(raw_members) / len(raw_members):.1f}°F "
+          f"({len(raw_members)} members) → calibrated centre {centre:.1f}°F\n")
+    print(f"{'market':<28}{'model':>8}{'ask':>8}{'edge':>8}")
+    total = 0.0
+    for market in sorted(markets, key=lambda m: m.ticker):
+        interval = weather_edge.strike_interval(market)
+        if interval is None:
+            continue
+        probability = weather.probability_within(members, calibration, *interval)
+        total += probability
+        ask = market.yes_ask or 0.0
+        print(f"{market.ticker:<28}{probability:>7.0%}{ask:>8.2f}"
+              f"{probability - ask:>+8.0%}")
+    # Probabilities over a complete partition must sum to ~1; a sum far from
+    # 100% means the bins were misread, not that an edge was found.
+    print(f"{'(sanity: sum over bins)':<28}{total:>7.0%}")
+
+    edges, notes = weather_edge.find_edges(
+        markets, members, calibration, min_edge=0.05)
+    print(f"\n{len(edges)} market(s) above the edge threshold "
+          f"— MONITOR ONLY, nothing proposed:")
+    for edge in edges:
+        print(f"  {edge.describe()}")
+    for note in notes:
+        print(f"  note: {note}")
+    return 0
+
+
 def run_live_execute(cfg: Config, journal: TradeJournal,
                      kill_switch: KillSwitch) -> int:
     """Apply EXACTLY the actions serialized by a prior propose run. Intended
@@ -1670,6 +1742,12 @@ def main() -> int:
         help="Backtest the diversified target-allocation vs buy-&-hold. Never trades.",
     )
     parser.add_argument(
+        "--weather-scan",
+        action="store_true",
+        help="Score Kalshi temperature markets against a calibrated ensemble. "
+             "MONITOR ONLY — prints the comparison and never proposes a trade.",
+    )
+    parser.add_argument(
         "--paste-monitor",
         action="store_true",
         help="Read and normalize paste.trade's public feed. Monitoring only; "
@@ -1684,6 +1762,9 @@ def main() -> int:
     args = parser.parse_args()
 
     cfg = load_config(args.config)
+    if args.weather_scan:
+        return run_weather_scan()
+
     if args.paste_monitor or args.paste_live_tickets:
         from data_sources.paste_trade import fetch_best_trades, render_report
 

@@ -47,6 +47,12 @@ class KalshiMarket:
     close_time: Optional[str]
     liquidity: Optional[float]
     volume: Optional[float]
+    # Strikes are encoded structurally, never parsed out of the title.
+    # 'greater' + floor_strike, 'less' + cap_strike, 'between' + both.
+    strike_type: Optional[str] = None
+    floor_strike: Optional[float] = None
+    cap_strike: Optional[float] = None
+    open_interest: Optional[float] = None
 
     @property
     def mid_price(self) -> Optional[float]:
@@ -95,6 +101,10 @@ def _parse_market(m: dict) -> KalshiMarket:
         close_time=m.get("close_time"),
         liquidity=_f(m.get("liquidity_dollars")),
         volume=_f(m.get("volume_fp")),
+        strike_type=m.get("strike_type"),
+        floor_strike=_f(m.get("floor_strike")),
+        cap_strike=_f(m.get("cap_strike")),
+        open_interest=_f(m.get("open_interest_fp")),
     )
 
 
@@ -145,3 +155,42 @@ def hours_to_close(market: KalshiMarket) -> Optional[float]:
     except ValueError:
         return None
     return (close - datetime.now(timezone.utc)).total_seconds() / 3600.0
+
+
+def fetch_settled_values(series_ticker: str, max_pages: int = 4,
+                         timeout: float = 30.0) -> dict[str, float]:
+    """Official settlement values per event date, keyed by the ticker's date
+    segment (e.g. '26JUL20' -> 84.0).
+
+    `expiration_value` is the number Kalshi actually paid out on — for weather
+    that is the NWS Climatological Report reading itself, not a proxy for it.
+    That makes it the correct ground truth for calibrating a forecast, which is
+    why this exists rather than reaching for a separate observations feed.
+    """
+    import httpx
+
+    out: dict[str, float] = {}
+    cursor = None
+    for _ in range(max_pages):
+        params = {"series_ticker": series_ticker, "status": "settled", "limit": 200}
+        if cursor:
+            params["cursor"] = cursor
+        try:
+            r = httpx.get(f"{BASE_URL}/markets", params=params, timeout=timeout)
+            r.raise_for_status()
+            payload = r.json()
+        except Exception as e:
+            raise KalshiUnavailableError(
+                f"Kalshi settled fetch failed for {series_ticker}: {e}") from e
+        for m in payload.get("markets", []):
+            value = _f(m.get("expiration_value"))
+            parts = str(m.get("ticker", "")).split("-")
+            if value is not None and len(parts) >= 2:
+                out[parts[1]] = value
+        cursor = payload.get("cursor")
+        if not cursor:
+            break
+    if not out:
+        raise KalshiUnavailableError(
+            f"No settled values found for {series_ticker}")
+    return out
