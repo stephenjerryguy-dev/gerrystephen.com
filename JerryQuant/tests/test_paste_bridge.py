@@ -224,3 +224,24 @@ def test_budget_spreads_across_several_names(monkeypatch):
     stakes = [a["units"] * a["entry"] for a in r.actions]
     assert all(s == pytest.approx(20.0) for s in stakes)   # evenly spread
     assert sum(stakes) == pytest.approx(80.0)              # fully deployed
+
+
+def test_budget_is_trimmed_to_available_buying_power(monkeypatch):
+    """Proceeds settle T+1, so a budget sized off equity would queue a basket
+    of orders against cash that does not exist yet and bounce every one."""
+    _budget(monkeypatch, budget="80", max_loss="100", stop="8")
+    broker = FakeBroker({"ORCL": {"tradeable": True, "fractional": True}})
+    r = paste_bridge.build_actions([T("robinhood", "ORCL", "LONG", 100.0)],
+                                   broker, 500, buying_power=40.0)
+    stake = r.actions[0]["units"] * r.actions[0]["entry"]
+    assert stake == pytest.approx(10.0)      # 25% of the TRIMMED $40 budget
+    assert any("trimmed" in n for n in r.notes)
+
+
+def test_no_orders_when_buying_power_is_exhausted(monkeypatch):
+    _budget(monkeypatch, budget="80", max_loss="100", stop="8")
+    broker = FakeBroker({"ORCL": {"tradeable": True, "fractional": True}})
+    r = paste_bridge.build_actions([T("robinhood", "ORCL", "LONG", 100.0)],
+                                   broker, 500, buying_power=0.50)
+    assert r.actions == []
+    assert any("no copy orders placed" in n for n in r.notes)

@@ -1332,7 +1332,12 @@ def _paste_sleeve_actions(cfg: Config, broker, equity: float, journal=None):
             max_age_minutes=int(os.environ.get(
                 "JERRYQUANT_PASTE_MAX_AGE_MINUTES") or "30"),
         )
-        res = paste_bridge.build_actions(list(routed.tickets), broker, equity)
+        try:
+            buying_power = broker.get_buying_power()
+        except Exception:
+            buying_power = None
+        res = paste_bridge.build_actions(
+            list(routed.tickets), broker, equity, buying_power=buying_power)
         actions, notes = list(res.actions), list(res.notes)
 
         # Manage copies we already hold: close the ones whose source thesis has

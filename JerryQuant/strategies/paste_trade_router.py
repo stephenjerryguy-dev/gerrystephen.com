@@ -84,12 +84,17 @@ def build_live_tickets(
 ) -> RoutingResult:
     now = now or datetime.now(timezone.utc)
     allowed = {h.lower().lstrip("@") for h in selected_handles}
+    # "*" opts out of a hand-picked author list in favour of the quality gates
+    # (freshness, direction, the source's own progress, tradability). Choosing
+    # WHOSE calls to follow is an investment decision; this makes that choice
+    # explicit and reversible rather than burying names in config.
+    any_handle = "*" in allowed
     skipped: list[str] = []
     candidates: list[PasteTrade] = []
 
     for trade in trades:
         handle = (trade.source_handle or "").lower().lstrip("@")
-        if handle not in allowed:
+        if not any_handle and handle not in allowed:
             continue
         if trade.author_date is None:
             skipped.append(f"{trade.trade_id}: missing source timestamp")

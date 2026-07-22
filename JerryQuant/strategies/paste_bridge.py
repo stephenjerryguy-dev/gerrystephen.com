@@ -74,7 +74,8 @@ def copy_stop_pct() -> float:
     return _env_float("JERRYQUANT_COPY_STOP_PCT") or 8.0
 
 
-def build_actions(tickets, broker, equity: float) -> BridgeResult:
+def build_actions(tickets, broker, equity: float,
+                  buying_power: Optional[float] = None) -> BridgeResult:
     """Turn routed robinhood tickets into standard live action dicts.
 
     `tickets` are RoutedTicket objects from paste_trade_router. Anything not
@@ -92,6 +93,20 @@ def build_actions(tickets, broker, equity: float) -> BridgeResult:
                          f"long-equity-at-Robinhood (crypto perp / short) — skipped")
     if not rh:
         return res
+
+    # Never propose more than the account can actually pay for. Sale proceeds
+    # settle T+1, so a budget set from equity would have queued a basket of
+    # orders against cash that does not exist yet and watched them all bounce.
+    if buying_power is not None and budget is not None:
+        if buying_power < budget:
+            res.notes.append(
+                f"copy budget trimmed ${budget:,.2f} -> ${buying_power:,.2f} "
+                f"by available buying power (proceeds settle T+1)")
+            budget = buying_power
+        if budget < 1.0:
+            res.notes.append(
+                f"only ${budget:,.2f} buying power — no copy orders placed")
+            return res
 
     if budget is None or max_loss is None:
         res.notes.append(
