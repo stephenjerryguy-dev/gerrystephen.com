@@ -131,3 +131,26 @@ def test_missing_key_file_just_means_not_armed(tmp_path, monkeypatch):
     monkeypatch.setenv("KALSHI_PRIVATE_KEY_PATH", str(tmp_path / "nope.pem"))
     b = KalshiBroker(make_config(), KillSwitch(tmp_path / "HALT.txt"))
     assert b.credentials_present() is False   # never a half-armed state
+
+
+def test_balance_uses_dollars_not_the_cents_field(tmp_path, monkeypatch):
+    """Discovery landmine: `balance` is CENTS (2500 == $25) while
+    `balance_dollars` is the dollar figure. Reading the wrong one would size
+    every position 100x too large."""
+    b = _broker(tmp_path)
+    monkeypatch.setattr(b, "_get", lambda path: {
+        "balance": 2500, "balance_dollars": "25.0000", "portfolio_value": 0})
+    assert b.get_balance() == 25.0
+
+
+def test_balance_returns_none_when_unverifiable(tmp_path, monkeypatch):
+    b = _broker(tmp_path)
+    def boom(path): raise RuntimeError("network down")
+    monkeypatch.setattr(b, "_get", boom)
+    assert b.get_balance() is None   # never guess a balance
+
+
+def test_order_path_is_the_verified_v2_endpoint():
+    from execution import kalshi_broker
+    # The obvious /portfolio/orders is deprecated (410) — verified live.
+    assert kalshi_broker.ORDER_PATH == "/trade-api/v2/portfolio/events/orders"

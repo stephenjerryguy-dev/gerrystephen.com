@@ -25,6 +25,20 @@ from typing import Optional
 from core.config import Config
 from risk.kill_switch import KillSwitch
 
+BASE_URL = "https://api.elections.kalshi.com"
+
+# VERIFIED by authenticated discovery (not from memory):
+#  * POST /trade-api/v2/portfolio/orders returns 410 deprecated_v1_order_endpoint.
+#    The live create-order path is the one below.
+#  * An empty body there returns 400 listing the required fields:
+#    Ticker, TimeInForce, SelfTradePreventionType.
+#  * time_in_force enum includes: fill_or_kill | immediate_or_cancel |
+#    good_till_cancel. The self_trade_prevention_type enum values are NOT yet
+#    confirmed, which is why placement stays unimplemented.
+ORDER_PATH = "/trade-api/v2/portfolio/events/orders"
+BALANCE_PATH = "/trade-api/v2/portfolio/balance"
+POSITIONS_PATH = "/trade-api/v2/portfolio/positions"
+
 
 class KalshiDisabled(Exception):
     """The Kalshi venue is not armed. This is the expected state."""
@@ -84,7 +98,59 @@ class KalshiBroker:
                 "KALSHI_PRIVATE_KEY in .env."
             )
 
-    # --- read side (works today, no credentials needed) ---
+    # --- authenticated transport (signing scheme verified against live API) ---
+
+    def _signed_headers(self, method: str, path: str) -> dict:
+        """Kalshi signs `timestamp + METHOD + path` with RSA-PSS/SHA-256."""
+        import base64
+        import time
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import padding
+
+        if not self.credentials_present():
+            raise KalshiDisabled("Kalshi credentials are not configured.")
+        key = serialization.load_pem_private_key(
+            self.private_key.encode(), password=None
+        )
+        ts = str(int(time.time() * 1000))
+        sig = key.sign(
+            (ts + method + path).encode(),
+            padding.PSS(mgf=padding.MGF1(hashes.SHA256()),
+                        salt_length=hashes.SHA256.digest_size),
+            hashes.SHA256(),
+        )
+        return {
+            "KALSHI-ACCESS-KEY": self.api_key_id,
+            "KALSHI-ACCESS-SIGNATURE": base64.b64encode(sig).decode(),
+            "KALSHI-ACCESS-TIMESTAMP": ts,
+            "Accept": "application/json",
+        }
+
+    def _get(self, path: str) -> dict:
+        import httpx
+        r = httpx.get(BASE_URL + path,
+                      headers=self._signed_headers("GET", path), timeout=25)
+        r.raise_for_status()
+        return r.json()
+
+    # --- read side ---
+
+    def get_balance(self) -> Optional[float]:
+        """Account balance in DOLLARS.
+
+        Critical unit trap found in discovery: the `balance` field is in CENTS
+        (2500 == $25) while `balance_dollars` is the dollar figure. Using the
+        raw field would size every position 100x too large, so we read
+        `balance_dollars` and never the bare `balance`."""
+        try:
+            data = self._get(BALANCE_PATH)
+            return float(data["balance_dollars"])
+        except Exception:
+            return None      # unverifiable balance must never become a trade
+
+    def get_positions(self) -> list:
+        data = self._get(POSITIONS_PATH)
+        return data.get("market_positions", []) or []
 
     def market(self, ticker: str):
         from data_sources import kalshi
