@@ -1309,7 +1309,8 @@ def _decide_allocation_actions(cfg: Config, journal: TradeJournal,
     return actions, notes, equity
 
 
-def _paste_sleeve_actions(cfg: Config, broker, equity: float, journal=None):
+def _paste_sleeve_actions(cfg: Config, broker, equity: float, journal=None,
+                          pending_exits=None):
     """Optional copy sleeve: paste.trade observations -> approvable tickets.
 
     Ring-fenced to its own budget and entirely optional — if the budget env
@@ -1336,6 +1337,15 @@ def _paste_sleeve_actions(cfg: Config, broker, equity: float, journal=None):
             buying_power = broker.get_buying_power()
         except Exception:
             buying_power = None
+        # Exits are executed before entries in the same run, so their proceeds
+        # are spendable by the time a copy order is placed. Sizing off pre-sale
+        # cash alone would zero the sleeve every morning a rotation liquidates.
+        if buying_power is not None and pending_exits:
+            proceeds = sum(
+                float(a.get("units", 0)) * float(a.get("reference_price", 0))
+                for a in pending_exits if a.get("kind") in ("exit", "scale_out"))
+            if proceeds > 0:
+                buying_power += proceeds
         res = paste_bridge.build_actions(
             list(routed.tickets), broker, equity, buying_power=buying_power)
         actions, notes = list(res.actions), list(res.notes)
@@ -1373,7 +1383,8 @@ def run_live_propose(cfg: Config, journal: TradeJournal,
         actions, notes, equity = _decide_live_actions(cfg, journal, kill_switch, broker)
 
     # Additive copy sleeve (own budget; silent unless configured).
-    paste_actions, paste_notes = _paste_sleeve_actions(cfg, broker, equity, journal)
+    paste_actions, paste_notes = _paste_sleeve_actions(
+        cfg, broker, equity, journal, pending_exits=actions)
     actions = list(actions) + paste_actions
     notes.extend(paste_notes)
 
@@ -1474,7 +1485,8 @@ def run_shadow(cfg: Config, journal: TradeJournal, kill_switch: KillSwitch,
         actions, notes, equity = _decide_live_actions(
             cfg, journal, kill_switch, broker)
 
-    paste_actions, paste_notes = _paste_sleeve_actions(cfg, broker, equity, journal)
+    paste_actions, paste_notes = _paste_sleeve_actions(
+        cfg, broker, equity, journal, pending_exits=actions)
     actions = list(actions) + paste_actions
     notes.extend(paste_notes)
 
