@@ -133,3 +133,71 @@ def test_adverse_limit_is_configurable(monkeypatch):
     t = T("robinhood", "AMD", "LONG", 533.34)
     t.source_progress_pct = -1.10
     assert len(paste_bridge.build_actions([t], broker, 500).actions) == 1
+
+
+# --- managing copies we already hold ------------------------------------
+
+class _Src:
+    def __init__(self, trade_id="t1", symbol="AMD", direction="LONG",
+                 current_pnl=0.0, peak_pct=None, current_price=100.0):
+        self.trade_id, self.symbol, self.direction = trade_id, symbol, direction
+        self.current_pnl, self.peak_pct = current_pnl, peak_pct
+        self.current_price = current_price
+
+
+_MANAGED = {"AMD": {"strategy": "paste_copy", "source_trade_id": "t1",
+                    "entry_price": 100.0}}
+_HELD = {"AMD": {"quantity": 0.02, "sellable": 0.02}}
+
+
+def test_absence_from_board_never_triggers_an_exit():
+    """The feed is a same-day rolling window with no close flag, so a name
+    dropping off means it aged out — not that the author closed. Exiting on
+    absence would liquidate healthy positions every morning."""
+    r = paste_bridge.exit_actions(_MANAGED, _HELD, [])
+    assert r.actions == []
+    assert any("absence is not a close" in n for n in r.notes)
+
+
+def test_exits_when_source_thesis_is_failing(monkeypatch):
+    monkeypatch.delenv("JERRYQUANT_COPY_EXIT_ADVERSE_PCT", raising=False)
+    r = paste_bridge.exit_actions(_MANAGED, _HELD, [_Src(current_pnl=-2.5)])
+    assert len(r.actions) == 1
+    assert r.actions[0]["kind"] == "exit" and r.actions[0]["full"] is True
+    assert r.actions[0]["units"] == 0.02          # only the settled quantity
+    assert "thesis failing" in r.actions[0]["reason"]
+
+
+def test_exits_on_give_back_from_peak():
+    """BOT peaked +2.36% and sat at +0.40% — still green, but 83% handed back."""
+    r = paste_bridge.exit_actions(
+        _MANAGED, _HELD, [_Src(current_pnl=0.40, peak_pct=2.36)])
+    assert len(r.actions) == 1
+    assert "gave back" in r.actions[0]["reason"]
+
+
+def test_small_peak_does_not_trigger_give_back():
+    """Noise around a trivial peak must not be read as deterioration."""
+    r = paste_bridge.exit_actions(
+        _MANAGED, _HELD, [_Src(current_pnl=0.05, peak_pct=0.3)])
+    assert r.actions == []
+
+
+def test_healthy_copy_is_left_alone():
+    r = paste_bridge.exit_actions(
+        _MANAGED, _HELD, [_Src(current_pnl=1.8, peak_pct=2.0)])
+    assert r.actions == []
+
+
+def test_unsettled_position_is_not_sold():
+    """T+1: proposing a sell of unsettled stock would just fail at the broker."""
+    held = {"AMD": {"quantity": 0.02, "sellable": 0.0}}
+    r = paste_bridge.exit_actions(_MANAGED, held, [_Src(current_pnl=-5.0)])
+    assert r.actions == []
+
+
+def test_only_manages_copy_positions():
+    managed = {"QQQ": {"strategy": "rotation", "source_trade_id": None}}
+    held = {"QQQ": {"quantity": 1.0, "sellable": 1.0}}
+    r = paste_bridge.exit_actions(managed, held, [_Src(symbol="QQQ", current_pnl=-9.0)])
+    assert r.actions == [] and r.notes == []

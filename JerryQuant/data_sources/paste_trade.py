@@ -93,6 +93,11 @@ class PasteTrade:
     entry_price: float | None = None
     current_price: float | None = None
     thesis: str | None = None
+    # Best unlevered move the trade has SEEN, and the board's own P&L figure.
+    # Together these expose give-back — a trade that ran and handed it back is
+    # deteriorating in a way a bare current price cannot show.
+    peak_pct: float | None = None
+    current_pnl: float | None = None
 
 
 def _nodes(root: _Node) -> Iterable[_Node]:
@@ -195,6 +200,10 @@ def parse_board_payload(payload: dict) -> list[PasteTrade]:
             entry_price=_optional_float(row.get("author_price")),
             current_price=_optional_float(current_price),
             thesis=str(row.get("thesis", "")).strip() or None,
+            peak_pct=_optional_float(
+                row.get("spot_peak") if row.get("spot_peak") is not None
+                else row.get("peak_pct")),
+            current_pnl=_optional_float(row.get("current_pnl")),
         ))
     return trades
 

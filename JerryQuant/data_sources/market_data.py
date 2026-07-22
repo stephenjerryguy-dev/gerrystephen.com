@@ -76,12 +76,47 @@ def validate(df: pd.DataFrame, symbol: str) -> None:
         raise DataUnavailableError(f"{symbol}: implausible single-day move")
 
 
-def check_freshness(df: pd.DataFrame, max_age_hours: float, symbol: str) -> None:
-    """Raise if the latest bar is older than allowed."""
-    last = df.index[-1]
+# US equity sessions close at 16:00 ET. A daily bar is stamped with its DATE
+# at midnight, but the data only exists from the close onward.
+SESSION_CLOSE_HOUR_UTC = 20
+
+
+def bar_age_hours(last, now=None) -> float:
+    """Age of a daily bar in MARKET hours.
+
+    Two corrections, both of which were silently breaking the pre-open runs:
+
+    1. A daily bar is stamped at midnight of its own date, not at the moment
+       the data appeared. Measuring from the stamp adds a phantom 20 hours, so
+       Tuesday's complete bar read as 32.7h old on Wednesday morning and every
+       pre-open scan refused to trade on "stale" data that was in fact current.
+    2. Weekends are not staleness. Friday's bar is the newest data that can
+       exist on Monday morning; counting the closed weekend against it made
+       every Monday pre-open look 64h stale.
+
+    So age runs from the session close and skips whole weekend days.
+    """
+    now = now or datetime.now(timezone.utc)
     if last.tzinfo is None:
         last = last.tz_localize(timezone.utc)
-    age_hours = (datetime.now(timezone.utc) - last).total_seconds() / 3600.0
+    # Anchor a midnight-stamped daily bar to its session close.
+    if last.hour == 0 and last.minute == 0:
+        last = last + timedelta(hours=SESSION_CLOSE_HOUR_UTC)
+    if last >= now:
+        return 0.0
+    hours = (now - last).total_seconds() / 3600.0
+    weekend_days = 0
+    day = last.date() + timedelta(days=1)
+    while day <= now.date():
+        if day.weekday() >= 5:
+            weekend_days += 1
+        day += timedelta(days=1)
+    return max(0.0, hours - 24.0 * weekend_days)
+
+
+def check_freshness(df: pd.DataFrame, max_age_hours: float, symbol: str) -> None:
+    """Raise if the latest bar is older than allowed."""
+    age_hours = bar_age_hours(df.index[-1])
     if age_hours > max_age_hours:
         raise DataUnavailableError(
             f"{symbol}: data is stale ({age_hours:.1f}h old, limit {max_age_hours}h)"

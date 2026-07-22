@@ -1309,7 +1309,7 @@ def _decide_allocation_actions(cfg: Config, journal: TradeJournal,
     return actions, notes, equity
 
 
-def _paste_sleeve_actions(cfg: Config, broker, equity: float):
+def _paste_sleeve_actions(cfg: Config, broker, equity: float, journal=None):
     """Optional copy sleeve: paste.trade observations -> approvable tickets.
 
     Ring-fenced to its own budget and entirely optional — if the budget env
@@ -1326,13 +1326,28 @@ def _paste_sleeve_actions(cfg: Config, broker, equity: float):
 
         handles = [h.strip() for h in os.environ.get(
             "JERRYQUANT_PASTE_HANDLES", "notthreadguy").split(",") if h.strip()]
+        trades = fetch_best_trades()
         routed = build_live_tickets(
-            fetch_best_trades(), handles,
+            trades, handles,
             max_age_minutes=int(os.environ.get(
                 "JERRYQUANT_PASTE_MAX_AGE_MINUTES") or "30"),
         )
         res = paste_bridge.build_actions(list(routed.tickets), broker, equity)
-        return res.actions, res.notes
+        actions, notes = list(res.actions), list(res.notes)
+
+        # Manage copies we already hold: close the ones whose source thesis has
+        # broken down, rather than leaving the 8% stop as the only exit.
+        if journal is not None:
+            managed = (_load_live_state(journal) or {}).get("positions", {})
+            if any(p.get("strategy") == "paste_copy" for p in managed.values()):
+                held = broker.get_live_positions()
+                ex = paste_bridge.exit_actions(managed, held, trades)
+                # Exits lead: never re-enter a name we are closing this cycle.
+                closing = {a["symbol"] for a in ex.actions}
+                actions = ex.actions + [a for a in actions
+                                        if a["symbol"] not in closing]
+                notes.extend(ex.notes)
+        return actions, notes
     except Exception as e:
         return [], [f"paste.trade sleeve skipped ({type(e).__name__}: {str(e)[:80]})"]
 
@@ -1353,7 +1368,7 @@ def run_live_propose(cfg: Config, journal: TradeJournal,
         actions, notes, equity = _decide_live_actions(cfg, journal, kill_switch, broker)
 
     # Additive copy sleeve (own budget; silent unless configured).
-    paste_actions, paste_notes = _paste_sleeve_actions(cfg, broker, equity)
+    paste_actions, paste_notes = _paste_sleeve_actions(cfg, broker, equity, journal)
     actions = list(actions) + paste_actions
     notes.extend(paste_notes)
 
@@ -1454,7 +1469,7 @@ def run_shadow(cfg: Config, journal: TradeJournal, kill_switch: KillSwitch,
         actions, notes, equity = _decide_live_actions(
             cfg, journal, kill_switch, broker)
 
-    paste_actions, paste_notes = _paste_sleeve_actions(cfg, broker, equity)
+    paste_actions, paste_notes = _paste_sleeve_actions(cfg, broker, equity, journal)
     actions = list(actions) + paste_actions
     notes.extend(paste_notes)
 
@@ -1617,7 +1632,8 @@ def run_live_execute(cfg: Config, journal: TradeJournal,
                     "entry_price": a["entry"], "stop": a["stop"],
                     "target": a["target"], "size": a["units"],
                     "opened_at": datetime.now(timezone.utc).isoformat(),
-                    "strategy": a["strategy"], "dollar_risk": a["dollar_risk"]}
+                    "strategy": a["strategy"], "dollar_risk": a["dollar_risk"],
+                    "source_trade_id": a.get("source_trade_id")}
                 journal.record_risk_event("live_entry", json.dumps(
                     {"symbol": sym, "units": a["units"], "result": result}, default=str)[:2000])
             elif a["kind"] == "exit":

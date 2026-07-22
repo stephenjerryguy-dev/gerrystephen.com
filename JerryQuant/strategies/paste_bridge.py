@@ -140,6 +140,9 @@ def build_actions(tickets, broker, equity: float) -> BridgeResult:
             "dollar_risk": units * risk_per_unit, "confidence": 50,
             "strategy": "paste_copy",
             "source_progress_pct": progress,
+            # Persisted so the exit manager can find the SAME source trade
+            # later, rather than re-matching loosely on symbol.
+            "source_trade_id": getattr(t, "trade_id", None),
             "reason": (f"copy of @{str(t.source_handle).lstrip('@')} LONG {sym} "
                        f"(source: {t.source_leverage or 1}x perp on Hyperliquid, "
                        f"taken here as 1x spot; stop {stop_pct:.0f}% = ${stop:,.2f}"
@@ -152,4 +155,74 @@ def build_actions(tickets, broker, equity: float) -> BridgeResult:
         res.notes.append(
             f"paste.trade sleeve: {len(res.actions)} copy ticket(s), "
             f"budget ${budget:,.2f}, stop {stop_pct:.0f}%, leverage forced to 1x")
+    return res
+
+
+def exit_thresholds() -> tuple[float, float, float]:
+    """(hard adverse %, minimum peak %, give-back fraction of peak)."""
+    return (
+        _env_float("JERRYQUANT_COPY_EXIT_ADVERSE_PCT") or 2.0,
+        _env_float("JERRYQUANT_COPY_EXIT_MIN_PEAK_PCT") or 1.0,
+        _env_float("JERRYQUANT_COPY_EXIT_GIVEBACK") or 0.6,
+    )
+
+
+def exit_actions(managed: dict, held: dict, trades) -> BridgeResult:
+    """Close copies whose SOURCE thesis has broken down.
+
+    The entry guard only screens at the moment of entry; once held, an 8% stop
+    was the sole exit, which is far looser than the horizon these trades are
+    actually taken on. This manages them on the author's own progress instead.
+
+    ONE RULE MATTERS MOST, and it is a restraint rather than a trigger: a trade
+    vanishing from the board is NOT an exit signal. The feed is a rolling
+    same-day window (observed `window: today`, 04:00Z → now), so a name drops
+    off when it ages out of that window or the day rolls — not when the author
+    closes. There is no close flag in the payload. Treating absence as a close
+    would liquidate healthy positions every morning, so an unseen source is
+    reported and held.
+    """
+    res = BridgeResult()
+    adverse_limit, min_peak, giveback = exit_thresholds()
+    by_id = {t.trade_id: t for t in trades}
+    by_symbol: dict[str, object] = {}
+    for t in trades:
+        if str(getattr(t, "direction", "")).upper() == "LONG":
+            by_symbol.setdefault(str(t.symbol).upper(), t)
+
+    for symbol, position in (managed or {}).items():
+        if position.get("strategy") != "paste_copy":
+            continue
+        sellable = float((held.get(symbol) or {}).get("sellable", 0.0))
+        if sellable <= 0:
+            continue
+        source = by_id.get(position.get("source_trade_id")) or by_symbol.get(symbol)
+        if source is None:
+            res.notes.append(
+                f"{symbol}: source not on today's board — the feed is a "
+                f"same-day window, so absence is not a close; holding")
+            continue
+
+        progress = source.current_pnl
+        if progress is None:
+            res.notes.append(f"{symbol}: source has no P&L figure — holding")
+            continue
+        peak = source.peak_pct
+
+        reason = None
+        if progress <= -adverse_limit:
+            reason = (f"source thesis failing: {progress:+.2f}% "
+                      f"(exit at -{adverse_limit:.2f}%)")
+        elif peak is not None and peak >= min_peak and progress < peak * (1 - giveback):
+            reason = (f"source gave back {(1 - progress / peak) * 100:.0f}% of a "
+                      f"{peak:+.2f}% peak (now {progress:+.2f}%)")
+        if reason is None:
+            continue
+
+        res.actions.append({
+            "kind": "exit", "symbol": symbol, "units": sellable,
+            "reference_price": source.current_price or position.get("entry_price", 0.0),
+            "reason": f"close paste.trade copy — {reason}",
+            "full": True, "strategy": "paste_copy",
+        })
     return res
