@@ -79,6 +79,12 @@ jobs:
         id: propose
         env:
           JERRYQUANT_NTFY_TOPIC: ${{ secrets.JERRYQUANT_NTFY_TOPIC }}
+          # paste.trade copy sleeve — stays silent unless the budget secrets
+          # are set, so this is safe to leave wired.
+          JERRYQUANT_RH_COPY_BUDGET_USD: ${{ secrets.JERRYQUANT_RH_COPY_BUDGET_USD }}
+          JERRYQUANT_COPY_MAX_LOSS_USD: ${{ secrets.JERRYQUANT_COPY_MAX_LOSS_USD }}
+          JERRYQUANT_COPY_STOP_PCT: ${{ secrets.JERRYQUANT_COPY_STOP_PCT }}
+          JERRYQUANT_PASTE_HANDLES: ${{ secrets.JERRYQUANT_PASTE_HANDLES }}
           ROBINHOOD_MCP_URL: ${{ secrets.ROBINHOOD_MCP_URL }}
           ROBINHOOD_MCP_API_KEY: ${{ secrets.ROBINHOOD_MCP_API_KEY }}
           ROBINHOOD_MCP_REFRESH_TOKEN: ${{ secrets.ROBINHOOD_MCP_REFRESH_TOKEN }}

@@ -117,7 +117,7 @@ def build_actions(tickets, broker, equity: float) -> BridgeResult:
             "entry": price, "stop": stop, "target": None,
             "dollar_risk": units * risk_per_unit, "confidence": 50,
             "strategy": "paste_copy",
-            "reason": (f"copy of @{t.source_handle} LONG {sym} "
+            "reason": (f"copy of @{str(t.source_handle).lstrip('@')} LONG {sym} "
                        f"(source: {t.source_leverage or 1}x perp on Hyperliquid, "
                        f"taken here as 1x spot; stop {stop_pct:.0f}% = ${stop:,.2f})"),
             "ticket": (f"BUY {sym} ~{units:.6f} @ ${price:,.2f} (~${stake:,.2f}) "

@@ -970,10 +970,16 @@ def _render_pending_md(actions, notes, equity, acct_last4) -> str:
     for i, a in enumerate(actions, 1):
         if a["kind"] == "entry":
             lines.append(f"## {i}. BUY {a['symbol']} — {a['units']:.6f} units")
-            if a.get("stop") is not None:   # trend-strategy entry has stop/target
+            if a.get("stop") is not None:   # stop-managed entry (trend, copy sleeve)
+                # A target is optional: copied trades carry a stop but no
+                # auditable price target, so never assume both are present.
+                risk_line = f"- Entry ~${a['entry']:,.2f} · stop ${a['stop']:,.2f}"
+                if a.get("target") is not None:
+                    risk_line += f" · target ${a['target']:,.2f}"
+                else:
+                    risk_line += " · no fixed target"
                 lines += [
-                    f"- Entry ~${a['entry']:,.2f} · stop ${a['stop']:,.2f} · "
-                    f"target ${a['target']:,.2f}",
+                    risk_line,
                     f"- Max loss ${a['dollar_risk']:,.2f} · confidence {a['confidence']}/100",
                 ]
             else:                           # rotation/allocation — always-invested, no fixed stop
@@ -1134,7 +1140,34 @@ def _decide_rotation_actions(cfg: Config, journal: TradeJournal,
         target in held and held[target]["quantity"] > 0
     )
     if already_holding_target:
-        notes.append(f"already holding {target} — no change")
+        # Holding the leader is NOT the same as being fully invested in it.
+        # After rotating out of other names the proceeds land as cash, so a
+        # bare "no change" here would strand that cash permanently — every
+        # later cycle would repeat it. Top the position up toward the target
+        # weight using whatever is actually settled and spendable now; the
+        # rest follows on the next cycle as T+1 proceeds settle.
+        price = prices.get(target, 0.0)
+        desired = equity * rc.max_allocation_pct / 100.0
+        current_value = held[target]["quantity"] * price
+        shortfall = desired - current_value
+        alloc = min(shortfall, buying_power)
+        if price <= 0:
+            notes.append(f"holding {target} but no fresh price — no top-up")
+        elif shortfall <= 0:
+            notes.append(f"already holding {target} at target weight — no change")
+        elif alloc < 1.0:
+            notes.append(
+                f"holding {target}, ${shortfall:,.2f} under target weight but only "
+                f"${buying_power:,.2f} settled — will top up as cash settles")
+        else:
+            actions.append({"kind": "entry", "symbol": target,
+                            "units": alloc / price, "entry": price,
+                            "stop": None, "target": None, "dollar_risk": 0.0,
+                            "confidence": 100, "strategy": "rotation",
+                            "reason": f"top up {target} toward target weight",
+                            "ticket": f"BUY {target} ~{alloc / price:.6f} @ "
+                                      f"${price:,.2f} (~${alloc:,.2f}) — top up "
+                                      f"toward {rc.max_allocation_pct:.0f}% target weight"})
     elif selling:
         # Proceeds settle T+1; buy the new leader next cycle with settled cash.
         notes.append(f"selling first; will buy {target} next cycle after settlement")

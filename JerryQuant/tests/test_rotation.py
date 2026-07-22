@@ -123,17 +123,43 @@ def test_live_rotation_proposes_buy_when_flat(monkeypatch):
     assert buys[0]["units"] > 0
 
 
-def test_live_rotation_noop_when_already_holding_target(monkeypatch):
+def test_live_rotation_tops_up_underweight_leader(monkeypatch):
+    """Holding the leader is not the same as being fully invested in it.
+
+    Regression: rotation used to short-circuit to 'already holding — no change'
+    whenever ANY quantity of the leader was held. After rotating out of other
+    names, the sale proceeds would then sit in cash forever, because every
+    later cycle repeated the same no-op. An always-invested strategy must
+    redeploy that cash.
+    """
     import main
     from risk.kill_switch import KillSwitch
     cfg = _cfg()
     _patch_data(monkeypatch, {
         "SPY": _ramp(100, 0.001, 80), "QQQ": _ramp(100, 0.004, 80),
         "BIL": _ramp(100, 0.0, 80)})
-    held = {"QQQ": {"quantity": 0.1, "sellable": 0.1}}
+    held = {"QQQ": {"quantity": 0.01, "sellable": 0.01}}   # far under weight
     actions, notes, eq = main._decide_rotation_actions(
         cfg, _FakeJournal(), KillSwitch("/tmp/_rot_halt2.txt"), _FakeBroker(held=held))
-    assert actions == []   # already in the leader, nothing to do
+    buys = [a for a in actions if a["kind"] == "entry"]
+    assert len(buys) == 1 and buys[0]["symbol"] == "QQQ"
+    assert buys[0]["units"] > 0
+
+
+def test_live_rotation_noop_when_leader_at_target_weight(monkeypatch):
+    import main
+    from risk.kill_switch import KillSwitch
+    cfg = _cfg()
+    _patch_data(monkeypatch, {
+        "SPY": _ramp(100, 0.001, 80), "QQQ": _ramp(100, 0.004, 80),
+        "BIL": _ramp(100, 0.0, 80)})
+    # Equity is 100 in the fake broker; a position already at/over the target
+    # weight must not be topped up again.
+    px = _ramp(100, 0.004, 80).iloc[-1]
+    held = {"QQQ": {"quantity": 100.0 / px, "sellable": 100.0 / px}}
+    actions, notes, eq = main._decide_rotation_actions(
+        cfg, _FakeJournal(), KillSwitch("/tmp/_rot_halt3.txt"), _FakeBroker(held=held))
+    assert [a for a in actions if a["kind"] == "entry"] == []
 
 
 def test_take_profit_flag_changes_behavior():
