@@ -273,6 +273,36 @@ class Database:
         )
         self._conn.commit()
 
+    def refresh_live_proposal(self, fingerprint: str, timestamp: datetime,
+                              action: dict, detail: str = "") -> bool:
+        """Re-price a proposal that is still awaiting a human decision.
+
+        Guarded to status='proposed' in SQL, so a proposal a human has already
+        approved/rejected/executed can never be rewritten underneath them —
+        the row simply does not match and this returns False. Returns whether
+        a row was updated.
+        """
+        payload = json.dumps(action)
+        if self._proposal_pg is not None:
+            cur = self._proposal_pg.execute(
+                """UPDATE live_proposals
+                   SET timestamp = %s, action_json = %s,
+                       detail = COALESCE(NULLIF(%s, ''), detail)
+                   WHERE fingerprint = %s AND status = 'proposed'""",
+                (timestamp, payload, detail, fingerprint),
+            )
+            self._proposal_pg.commit()
+            return bool(cur.rowcount)
+        cur = self._conn.execute(
+            """UPDATE live_proposals
+               SET timestamp = ?, action_json = ?,
+                   detail = COALESCE(NULLIF(?, ''), detail)
+               WHERE fingerprint = ? AND status = 'proposed'""",
+            (timestamp.isoformat(), payload, detail, fingerprint),
+        )
+        self._conn.commit()
+        return bool(cur.rowcount)
+
     # --- durable live position state (survives ephemeral hosted runs) ---
 
     def get_live_state(self) -> dict[str, Any]:

@@ -23,6 +23,7 @@ on:
     # Times are UTC, aligned to US daylight time (EDT). In EST (winter) the
     # US session is one hour later in UTC — shift these +1h.
     - cron: "45 12 * * 1-5"   # 8:45 AM ET — pre-market plan
+    - cron: "25 13 * * 1-5"   # 9:25 AM ET — final pre-open re-price
     - cron: "35 13 * * 1-5"   # 9:35 AM ET — open scan
     - cron: "0 16 * * 1-5"    # 12:00 PM ET — midday scan
     - cron: "45 19 * * 1-5"   # 3:45 PM ET — pre-close scan

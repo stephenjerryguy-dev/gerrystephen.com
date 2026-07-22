@@ -195,17 +195,50 @@ def test_refresh_writes_rotated_token_to_store(tmp_path, monkeypatch):
     db.close()
 
 
-def test_live_proposal_dedupe_suppresses_same_action(tmp_path):
+def _spy_action(entry=740.0):
+    return {"kind": "entry", "symbol": "SPY", "units": 0.02, "entry": entry,
+            "stop": 720.0, "target": 780.0, "dollar_risk": 0.4,
+            "confidence": 80, "strategy": "rotation", "reason": "same setup"}
+
+
+def test_unapproved_proposal_is_carried_forward_and_repriced(tmp_path):
+    """A later run must emit the CURRENT executable set, not an empty one.
+
+    Regression: an untouched proposal used to be dropped from every later run,
+    so the pre-open plan emitted zero actions and the only executable artifact
+    was the stale overnight one. Now it is re-priced and carried forward, so
+    the run closest to the open is the one carrying live prices.
+    """
     journal = FakeJournal(tmp_path)
-    action = {"kind": "entry", "symbol": "SPY", "units": 0.02, "entry": 740.0,
-              "stop": 720.0, "target": 780.0, "dollar_risk": 0.4,
-              "confidence": 80, "strategy": "trend_following_v1",
-              "reason": "same setup"}
 
-    fresh, notes = main._filter_new_live_proposals(journal, [action.copy()], "live_plan")
-    assert len(fresh) == 1
-    assert notes == []
+    fresh, notes = main._filter_new_live_proposals(
+        journal, [_spy_action(740.0)], "live_plan")
+    assert len(fresh) == 1 and not fresh[0].get("renewed")
 
-    fresh, notes = main._filter_new_live_proposals(journal, [action.copy()], "live_scan")
+    fresh, notes = main._filter_new_live_proposals(
+        journal, [_spy_action(751.5)], "live_scan")
+    assert len(fresh) == 1              # carried forward, NOT dropped
+    assert fresh[0]["renewed"] is True  # flagged so it is not re-notified
+    assert fresh[0]["entry"] == 751.5   # and it carries the fresher price
+
+    stored = json.loads(
+        journal.db.proposal_by_fingerprint(fresh[0]["fingerprint"])["action_json"])
+    assert stored["entry"] == 751.5     # durable ledger re-priced too
+
+
+def test_acted_on_proposal_is_never_rewritten(tmp_path):
+    """Once a human approves a ticket, its contents must not shift underneath."""
+    journal = FakeJournal(tmp_path)
+    fresh, _ = main._filter_new_live_proposals(
+        journal, [_spy_action(740.0)], "live_plan")
+    fp = fresh[0]["fingerprint"]
+    journal.db.update_live_proposal_status(fp, "approved")
+
+    fresh, notes = main._filter_new_live_proposals(
+        journal, [_spy_action(999.0)], "live_scan")
     assert fresh == []
     assert "already proposed today" in notes[0]
+    stored = json.loads(journal.db.proposal_by_fingerprint(fp)["action_json"])
+    assert stored["entry"] == 740.0     # untouched by the later run
+    assert journal.db.refresh_live_proposal(
+        fp, datetime.now(timezone.utc), _spy_action(999.0)) is False

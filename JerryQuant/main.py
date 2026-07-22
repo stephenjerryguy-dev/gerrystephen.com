@@ -39,7 +39,11 @@ LIVE_STATE_FILE = "live_state.json"
 LIVE_PENDING_FILE = "live_pending.json"
 LIVE_PENDING_MD = "live_pending.md"
 LIVE_PENDING_MAX_AGE_H = 18  # a proposal older than this is stale; execute refuses
-LIVE_PROPOSAL_STATUSES_SUPPRESS = {"proposed", "approved", "executed", "rejected"}
+# Statuses that mean a human (or a fill) has already acted on the proposal, so
+# it must never be re-proposed or rewritten. 'proposed' is deliberately NOT
+# here: an untouched proposal is re-priced and carried forward by each later
+# run, so the plan nearest the open is the one holding live prices.
+LIVE_PROPOSAL_STATUSES_SUPPRESS = {"approved", "executed", "rejected"}
 
 
 def setup_logging(cfg: Config) -> None:
@@ -1044,6 +1048,16 @@ def _filter_new_live_proposals(journal: TradeJournal, actions: list[dict],
                 f"today ({existing['status']})"
             )
             continue
+        if existing and existing["status"] == "proposed":
+            # Still awaiting a human decision. Do NOT drop it: each run must
+            # emit the complete, currently-executable set, so the proposal
+            # closest to the open is the one that carries live prices. Re-price
+            # in place and carry it forward, flagged so it is not re-notified.
+            action["renewed"] = True
+            journal.db.refresh_live_proposal(
+                fp, now, action, str(action.get("reason", ""))[:500])
+            fresh.append(action)
+            continue
         journal.db.insert_live_proposal(
             fingerprint=fp,
             timestamp=now,
@@ -1353,10 +1367,18 @@ def run_live_propose(cfg: Config, journal: TradeJournal,
         "actions": actions,
     }
     (BASE_DIR / LIVE_PENDING_FILE).write_text(json.dumps(payload, indent=2))
+    renewed = sum(1 for a in actions if a.get("renewed"))
+    if renewed:
+        notes.append(f"{renewed} action(s) carried over from an earlier run and "
+                     f"re-priced — figures above are current as of this run")
     md = _render_pending_md(actions, notes, equity, acct[-4:])
     (BASE_DIR / LIVE_PENDING_MD).write_text(md)
     print(md)
-    if actions:
+    # Re-priced carry-forwards are not news. Only alert when something is
+    # genuinely new, otherwise every 15-minute scan would re-buzz the phone
+    # for trades already sitting in the approval queue.
+    newly_proposed = [a for a in actions if not a.get("renewed")]
+    if actions and newly_proposed:
         from reports.daily_report import send_markdown_email
         from reports import notify
         send_markdown_email(
