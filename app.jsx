@@ -1,16 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import {
-  DynamicContextProvider,
-  dynamicEvents,
-  useDynamicContext,
-  useDynamicModals,
-  useUserWallets
-} from '@dynamic-labs/sdk-react-core';
-import { EthereumWalletConnectors } from '@dynamic-labs/ethereum';
-import { DynamicWagmiConnector } from '@dynamic-labs/wagmi-connector';
-import { WagmiProvider, createConfig, http } from 'wagmi';
 import { defineChain, encodeFunctionData, keccak256, toHex } from 'viem';
 import {
   useTweaks,
@@ -20,10 +9,12 @@ import {
   TweakToggle,
   TweakSelect,
 } from './tweaks-panel.jsx';
+import { ImmersiveChapterRail } from './immersive-navigation.jsx';
 import './styles.css';
 
-const SITE_BUILD_VERSION = 'ecosystems-app-98';
+const SITE_BUILD_VERSION = 'ecosystems-app-107';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+const ImmersiveIglu = React.lazy(() => import('./immersive-iglu.jsx').then((module) => ({ default: module.ImmersiveIglu })));
 
 function safeStorage() {
   try {
@@ -51,15 +42,6 @@ function storageRemove(key) {
   try {
     safeStorage()?.removeItem(key);
   } catch (_) {}
-}
-
-function storageKeys() {
-  try {
-    const store = safeStorage();
-    return store ? Object.keys(store) : [];
-  } catch (_) {
-    return [];
-  }
 }
 
 function safeNow() {
@@ -539,12 +521,12 @@ function Topbar() {
 
   return (
     <header className={`topbar ${menuOpen ? 'menu-open' : ''}`} data-screen-label="topbar">
-      <div className="brand">
+      <a className="brand" href="/" aria-label="Gerry Stephen home">
         <div className="brand-mark">
           <img src="assets/pudgy-penguin-cutout.png" alt="" />
         </div>
         <div className="brand-text">gerrystephen<span>.com</span></div>
-      </div>
+      </a>
       <nav className="topnav">
         {TOPBAR_LINKS.map((link) =>
           <a key={link.label} href={link.href} target={link.external ? '_blank' : undefined} rel={link.external ? 'noopener' : undefined}>{link.label}</a>
@@ -557,7 +539,7 @@ function Topbar() {
         </a>
         <a href="https://opensea.io/profile/gerrystephen" target="_blank" rel="noopener" className="top-cta opensea-cta" aria-label="Gerry Stephen on OpenSea">
           <span className="opensea-mark" aria-hidden="true">
-            <img src="/assets/opensea-logo.svg?v=ecosystems-app-98" alt="" />
+            <img src="/assets/opensea-logo.svg?v=ecosystems-app-102" alt="" />
           </span>
           <span className="top-cta-text">OpenSea</span>
         </a>
@@ -714,7 +696,9 @@ function Hero({ y, mouse, intensity, lite = false }) {
 
         <div className="scene" style={{ transform: `translate3d(${px * 2}px, ${iglooY + py * 1.6}px, 0)` }}>
           <div className="igloo-wrap" style={{ transform: `scale(${iglooScale})` }}>
-            <Igloo width={620} />
+            <React.Suspense fallback={<div className="immersive-iglu-stage is-loading" role="img" aria-label="Gerry's Iglu assembling"><div className="immersive-iglu-fallback" aria-hidden="true" /></div>}>
+              <ImmersiveIglu progress={progress} mouse={mouse} lite={lite} />
+            </React.Suspense>
           </div>
           <div className="penguin-wrap" style={{ transform: `translate(-50%, ${penguinY}px) scale(${penguinScale})` }}>
             <PenguinCard size={260} float={false} />
@@ -723,7 +707,7 @@ function Hero({ y, mouse, intensity, lite = false }) {
 
         <div className="hero-copy" style={{ opacity: copyOpacity, transform: `translate3d(0, ${copyY}px, 0)` }}>
           <h1 className="display">Welcome to<br />Gerry's<br /><em>iglu.</em></h1>
-          <p className="lede">A one-page home base for the journey: business, Web3, family legacy, and the Pudgy that made the cold internet feel warm.</p>
+          <p className="lede">A home base for the journey: business, Web3, legacy, and the Pengu that made the cold Internet feel warm.</p>
           <div className="hero-values" aria-label="Personal values">
             <span>God first</span>
             <span>Husband</span>
@@ -762,6 +746,11 @@ function Hero({ y, mouse, intensity, lite = false }) {
         </div>
 
         <div className="scroll-hint"><span>scroll</span><div className="scroll-line" /></div>
+        <div className="hero-scene-readout" aria-hidden="true">
+          <span>LIVE SCENE // {String(Math.round(progress * 100)).padStart(3, '0')}</span>
+          <i style={{ transform: `scaleX(${progress})` }} />
+          <small>MOVE TO LOOK · SCROLL TO TRANSFORM</small>
+        </div>
       </div>
     </section>);
 
@@ -795,6 +784,16 @@ function Chapter({ num, kicker, title }) {
 
 }
 
+function RailSwipeCue({ label, overlay = false }) {
+  return (
+    <div className={`rail-swipe-cue ${overlay ? 'is-overlay' : ''}`} role="img" aria-label={label}>
+      <span aria-hidden="true">‹</span>
+      <i aria-hidden="true" />
+      <span aria-hidden="true">›</span>
+    </div>
+  );
+}
+
 // ---------- Timeline ----------
 const TIMELINE = [
 { year: '2021', tag: 'First NFT purchase · Sappy Seals', body: 'The rabbit hole opened through community, identity, and the feeling that ownership could become culture.' },
@@ -802,7 +801,7 @@ const TIMELINE = [
 { year: '2022', tag: 'The Guy standard', body: 'Fifteen years beside my dad taught me how real work gets scoped, built, and carried forward. After his passing, his legacy now lives on forever.' },
 { year: '2022', tag: 'Lil Pudgy chapter', body: 'I had a Lil Pudgy early, sold it, and kept circling the ecosystem from the outside.' },
 { year: '2023', tag: 'Community & tools', body: 'I kept showing up for Sappy Seals with constant memes across X, Instagram, TikTok, and YouTube Shorts while supporting the whole ecosystem. I still do.' },
-{ year: '2024', tag: 'IRL bridge', body: 'Fifteen years building beside my dad turned into a new chapter: hospitality, food, local operations, and community.' },
+{ year: '2024', tag: 'Zeppole Dolci Café', body: 'My wife and I launched Zeppole Dolci Café from scratch: a food, hospitality, and community layer that became a great addition to Blue Star, founded in 2018.' },
 { year: '2025', tag: 'AI expansion', body: 'The huge uptick in AI capability changed what I could build: operations, memes, trades, and Great Terriers, a collection I started in 2022.' },
 { year: '2026', tag: 'Actual Pudgy era', body: 'This is when I became an actual Pudgy Penguin holder. The iglu finally had its mascot.' }];
 
@@ -943,6 +942,10 @@ const NFT_WALLETS = [
 '0xc3ce1eb539c1cc031ecd7b95e8c00768bf324403'];
 
 const LIVE_API_ORIGIN = 'https://gerrystephen.com';
+const TOKEN_AMOUNT_FALLBACKS = {
+  '$PIXL': '1,035,060.94',
+  '$PENGU': '89,026.96',
+};
 
 function shouldUseLiveApiFallback() {
   return window.location.protocol === 'file:'
@@ -974,7 +977,7 @@ const NFT_ECOSYSTEMS = [
     keywords: ['sappy', 'pixl', 'omnia', 'pets', 'pixseals', 'sappy key', 'pixlverse items'],
     fallback: [
   { name: 'Sappy Seals ecosystem', collection: 'Owned-token images only', glyph: 'SS', tokenId: 'pending', contract: 'pending' },
-  { name: '$PIXL', collection: 'Omnia ecosystem', glyph: '$PIXL', tokenId: 'asset', amount: 'syncing', chain: 'Ethereum' },
+  { name: '$PIXL', collection: 'Omnia ecosystem', image: '/assets/pixl-logo.png', glyph: '$PIXL', tokenId: 'asset', amount: TOKEN_AMOUNT_FALLBACKS.$PIXL, chain: 'Ethereum' },
   { name: 'Pixseal #525', collection: 'Pixseals by Sappy Seals', image: 'https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/525.png', href: 'https://opensea.io/item/polygon/0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b/525', tokenId: '525', contract: '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b' },
   { name: 'Pixseal #3600', collection: 'Pixseals by Sappy Seals', image: 'https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/3600.png', href: 'https://opensea.io/item/polygon/0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b/3600', tokenId: '3600', contract: '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b' },
   { name: 'Pixseal #9690', collection: 'Pixseals by Sappy Seals', image: 'https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/9690.png', href: 'https://opensea.io/item/polygon/0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b/9690', tokenId: '9690', contract: '0x9ae64ca2e16e6f14dad30f9e440f870a78fc323b' },
@@ -988,12 +991,12 @@ const NFT_ECOSYSTEMS = [
   label: 'Pudgy Penguins ecosystem',
   note: 'Pudgy Penguin, Lil Pudgy, Pudgy Rods, and $PENGU.',
   links: [
-    { label: 'Pudgy Penguins', href: 'https://pudgypenguins.com' }
+    { label: 'Pudgy Penguins', href: 'https://pengu.pudgypenguins.com' }
   ],
   keywords: ['pudgy', 'penguin', 'lil pudgy', 'rod', 'pengu'],
   fallback: [
   { name: 'Pudgy Penguin', collection: 'Pudgy Penguins ecosystem', image: 'assets/pudgy-penguin.webp', tokenId: 'pending', contract: 'pending' },
-  { name: '$PENGU', collection: 'Pudgy Penguins ecosystem', glyph: '$PENGU', tokenId: 'asset', amount: 'syncing', chain: 'Abstract' },
+  { name: '$PENGU', collection: 'Pudgy Penguins ecosystem', glyph: '$PENGU', tokenId: 'asset', amount: TOKEN_AMOUNT_FALLBACKS.$PENGU, chain: 'Abstract' },
   { name: 'Lil Pudgy and Pudgy Rods', collection: 'Owned-token images only', glyph: 'PP', tokenId: 'pending', contract: 'pending' }]
 },
 {
@@ -1014,6 +1017,33 @@ const NFT_ECOSYSTEMS = [
   fallback: [
   { name: 'Great Terriers', collection: 'Coming soon', image: 'assets/great-terriers-coming-soon.png', tokenId: 'soon', contract: 'soon', comingSoon: true }]
 }].filter((ecosystem) => !['inkfinity', 'great-terriers'].includes(ecosystem.id));
+
+const REQUIRED_ECOSYSTEM_ASSETS = [
+  {
+    ecosystem: 'sappy',
+    name: '$PIXL',
+    collection: 'Omnia ecosystem',
+    image: '/assets/pixl-logo.png',
+    glyph: '$PIXL',
+    tokenId: 'asset',
+    amount: TOKEN_AMOUNT_FALLBACKS.$PIXL,
+    chain: 'Ethereum',
+    contract: '0x427A03fb96D9A94a6727fBCfbBA143444090dD64',
+    href: 'https://etherscan.io/token/0x427A03fb96D9A94a6727fBCfbBA143444090dD64',
+  },
+  {
+    ecosystem: 'pudgy',
+    name: '$PENGU',
+    collection: 'Pudgy Penguins ecosystem',
+    image: 'https://cdn.dexscreener.com/cms/images/527f3df62eb754a69b5d3dd14b1ee36301b506df9af455374f4e0ffb91367594?width=800&height=800&quality=95&format=auto',
+    glyph: '$PENGU',
+    tokenId: 'asset',
+    amount: TOKEN_AMOUNT_FALLBACKS.$PENGU,
+    chain: 'Abstract',
+    contract: '0x9eBe3A824Ca958e4b3Da772D2065518F009CBa62',
+    href: 'https://abscan.org/token/0x9eBe3A824Ca958e4b3Da772D2065518F009CBa62?a=0x382556A543aAd855C07678E7F8e820d0d90429BB',
+  }
+];
 
 function ecosystemForNft(nft) {
   if (nft?.ecosystem) return NFT_ECOSYSTEMS.find((ecosystem) => ecosystem.id === nft.ecosystem);
@@ -1071,13 +1101,23 @@ function nftIdentity(nft) {
 }
 
 function mergeEcosystemItems(items) {
-  const seen = new Set();
-  return items.filter((item) => {
+  const byId = new Map();
+  items.forEach((item) => {
     const key = nftIdentity(item);
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
+    const current = byId.get(key);
+    if (!current) {
+      byId.set(key, item);
+      return;
+    }
+    const currentAmount = String(current.amount || '').toLowerCase();
+    const nextAmount = String(item.amount || '').toLowerCase();
+    const nextHasLiveAmount = item.tokenId === 'asset' && item.amount && nextAmount !== 'syncing';
+    const currentIsSyncing = current.tokenId === 'asset' && (!current.amount || currentAmount === 'syncing');
+    if (nextHasLiveAmount && (currentIsSyncing || nextAmount !== currentAmount)) {
+      byId.set(key, { ...current, ...item });
+    }
   });
+  return [...byId.values()];
 }
 
 function buildEcosystemSlides(items) {
@@ -1109,8 +1149,11 @@ function normalizeNft(item, wallet) {
 
 function NftArt({ nft, eager = false }) {
   const [failed, setFailed] = useState(false);
-  if (nft.image && !failed) {
-    return <img src={nft.image} alt={nft.name} loading={eager ? 'eager' : 'lazy'} decoding="async" fetchPriority={eager ? 'high' : 'auto'} onError={() => setFailed(true)} />;
+  const src = typeof nft.image === 'string' && nft.image.startsWith('assets/')
+    ? `/${nft.image}`
+    : nft.image;
+  if (src && !failed) {
+    return <img src={src} alt={nft.name} loading={eager ? 'eager' : 'lazy'} decoding="async" fetchPriority={eager ? 'high' : 'auto'} onError={() => setFailed(true)} />;
   }
   return <div className="nft-glyph">{nft.glyph || nft.name?.slice(0, 2) || 'NFT'}</div>;
 }
@@ -1125,6 +1168,100 @@ function NftCarousel() {
   const [expanded, setExpanded] = useState(false);
   const [isMobileCarousel, setIsMobileCarousel] = useState(() => window.matchMedia?.('(max-width: 700px)').matches || false);
   const trackRef = useRef(null);
+  const trackResumeTimerRef = useRef(null);
+  const trackMomentumFrameRef = useRef(null);
+  const trackSwipeRef = useRef(null);
+
+  const resumeTrackNow = () => {
+    window.clearTimeout(trackResumeTimerRef.current);
+    setTrackPaused(false);
+  };
+
+  const resumeTrackSoon = (delay = 90) => {
+    window.clearTimeout(trackResumeTimerRef.current);
+    trackResumeTimerRef.current = window.setTimeout(() => setTrackPaused(false), delay);
+  };
+
+  const pauseTrackTemporarily = (delay = 0) => {
+    setTrackPaused(true);
+    window.clearTimeout(trackResumeTimerRef.current);
+    if (delay > 0) {
+      trackResumeTimerRef.current = window.setTimeout(() => setTrackPaused(false), delay);
+    }
+  };
+
+  const stopTrackMomentum = () => {
+    if (trackMomentumFrameRef.current) {
+      window.cancelAnimationFrame(trackMomentumFrameRef.current);
+      trackMomentumFrameRef.current = null;
+    }
+  };
+
+  const handleTrackTouchStart = (event) => {
+    const touch = event.touches?.[0];
+    if (!touch) return;
+    stopTrackMomentum();
+    const now = performance.now();
+    trackSwipeRef.current = {
+      startX: touch.clientX,
+      lastX: touch.clientX,
+      startTime: now,
+      lastTime: now
+    };
+    pauseTrackTemporarily(0);
+  };
+
+  const handleTrackTouchMove = (event) => {
+    const touch = event.touches?.[0];
+    if (!touch || !trackSwipeRef.current) return;
+    trackSwipeRef.current.lastX = touch.clientX;
+    trackSwipeRef.current.lastTime = performance.now();
+    pauseTrackTemporarily(0);
+  };
+
+  const handleTrackTouchEnd = () => {
+    const swipe = trackSwipeRef.current;
+    const track = trackRef.current;
+    trackSwipeRef.current = null;
+    if (!isMobileCarousel || !track || !swipe) {
+      resumeTrackSoon(90);
+      return;
+    }
+
+    const elapsed = Math.max(16, swipe.lastTime - swipe.startTime);
+    const deltaX = swipe.lastX - swipe.startX;
+    const velocity = deltaX / elapsed;
+    if (Math.abs(deltaX) < 18 || Math.abs(velocity) < 0.12) {
+      resumeTrackSoon(70);
+      return;
+    }
+
+    const impulse = Math.max(-940, Math.min(940, -velocity * 780));
+    const duration = Math.max(260, Math.min(720, Math.abs(impulse) * 0.78));
+    const startedAt = performance.now();
+    const startLeft = track.scrollLeft;
+    pauseTrackTemporarily(0);
+    stopTrackMomentum();
+
+    const glide = (time) => {
+      const progress = Math.min(1, (time - startedAt) / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const midpoint = track.scrollWidth / 2;
+      let nextLeft = startLeft + impulse * eased;
+      if (midpoint > 0) {
+        if (nextLeft >= midpoint - 8) nextLeft -= midpoint;
+        if (nextLeft < 0) nextLeft += midpoint;
+      }
+      track.scrollLeft = nextLeft;
+      if (progress < 1) {
+        trackMomentumFrameRef.current = window.requestAnimationFrame(glide);
+      } else {
+        trackMomentumFrameRef.current = null;
+        resumeTrackSoon(40);
+      }
+    };
+    trackMomentumFrameRef.current = window.requestAnimationFrame(glide);
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -1139,6 +1276,7 @@ function NftCarousel() {
               ecosystem: 'sappy',
               name: '$PIXL',
               collection: 'Omnia ecosystem',
+              image: '/assets/pixl-logo.png',
               glyph: '$PIXL',
               tokenId: 'asset',
               amount: pixlTotal.toLocaleString('en-US', { maximumFractionDigits: 2 }),
@@ -1180,6 +1318,11 @@ function NftCarousel() {
     return () => controller.abort();
   }, []);
 
+  useEffect(() => () => {
+    window.clearTimeout(trackResumeTimerRef.current);
+    stopTrackMomentum();
+  }, []);
+
   useEffect(() => {
     const query = window.matchMedia?.('(max-width: 700px)');
     if (!query) return undefined;
@@ -1199,11 +1342,11 @@ function NftCarousel() {
 
   useEffect(() => {
     if (groups.length <= 1 || paused || expanded) return undefined;
-    const timer = window.setInterval(() => {
+    const timer = window.setTimeout(() => {
       setIndex((i) => (i + 1) % groups.length);
     }, 8000);
-    return () => window.clearInterval(timer);
-  }, [groups.length, paused, expanded]);
+    return () => window.clearTimeout(timer);
+  }, [groups.length, index, paused, expanded]);
 
   const next = () => {
     setExpanded(false);
@@ -1219,7 +1362,11 @@ function NftCarousel() {
   };
   const groupsWithAssets = groups.map((group) => ({
     ...group,
-    items: orderEcosystemItems(group, mergeEcosystemItems([...(group.items || []), ...assetData.filter((asset) => asset.ecosystem === group.id)]))
+    items: orderEcosystemItems(group, mergeEcosystemItems([
+      ...REQUIRED_ECOSYSTEM_ASSETS.filter((asset) => asset.ecosystem === group.id),
+      ...(group.items || []),
+      ...assetData.filter((asset) => asset.ecosystem === group.id)
+    ]))
   }));
   const activeGroup = groupsWithAssets[index] || groupsWithAssets[0];
   const visible = activeGroup?.items || [];
@@ -1229,20 +1376,42 @@ function NftCarousel() {
   useEffect(() => {
     const track = trackRef.current;
     if (!shouldLoop || trackPaused || !track) return undefined;
-    let frame = 0;
-    let last = 0;
-    const step = (now) => {
-      if (!last) last = now;
-      const delta = now - last;
-      last = now;
-      track.scrollLeft += 1.36 * (delta / 16.67);
+    let frame;
+    let interval;
+    let lastTime;
+    let lastFrameAt = performance.now();
+    const advance = (elapsed) => {
       const midpoint = track.scrollWidth / 2;
-      if (midpoint > 0 && track.scrollLeft >= midpoint) track.scrollLeft -= midpoint;
-      frame = requestAnimationFrame(step);
+      if (midpoint > 0 && track.scrollLeft >= midpoint - 8) {
+        track.scrollTo({ left: track.scrollLeft - midpoint, behavior: 'auto' });
+      }
+      track.scrollLeft += speed * elapsed / 1000;
     };
-    frame = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(frame);
-  }, [shouldLoop, trackPaused, activeGroup?.id, visible.length]);
+    const speed = isMobileCarousel ? 76 : 32;
+    const step = (time) => {
+      if (lastTime === undefined) lastTime = time;
+      const elapsed = Math.min(time - lastTime, 50);
+      lastTime = time;
+      lastFrameAt = time;
+      advance(elapsed);
+      frame = window.requestAnimationFrame(step);
+    };
+    frame = window.requestAnimationFrame(step);
+    if (isMobileCarousel) {
+      interval = window.setInterval(() => {
+        const now = performance.now();
+        if (now - lastFrameAt > 80) advance(80);
+      }, 80);
+    }
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearInterval(interval);
+    };
+  }, [shouldLoop, trackPaused, activeGroup?.id, visible.length, isMobileCarousel]);
+
+  useEffect(() => {
+    trackRef.current?.scrollTo({ left: 0, behavior: 'auto' });
+  }, [activeGroup?.id]);
 
   return (
     <section className="nft-showcase" id="nfts">
@@ -1250,9 +1419,9 @@ function NftCarousel() {
         <Chapter num="02" kicker="My community ecosystems" title="My forever communities - Pudgy & Sappy." />
       </div>
       <p className="lede nft-lede">
-        {source === 'wallet'
-          ? `A curated view of my owned collection: ${activeGroup?.note} Cards open the matching asset, collection, or explorer page.`
-          : `A curated view of my owned collection: ${activeGroup?.note} Waiting on exact metadata for this ecosystem.`}
+        A curated view of my owned Pudgy and Sappy collections: $PENGU, $PIXL,
+        Sappy Faithful Key, Sappy Seals, Omnia Pets, Omnia items, Pixseals, and
+        a Bitcoin ordinal. Cards open the matching asset, collection, or explorer page.
       </p>
       <div
         className={`ecosystem-stage ${activeGroup?.id || ''} ${expanded ? 'is-expanded' : ''}`}
@@ -1289,7 +1458,7 @@ function NftCarousel() {
             null}
           </div>
           <div className="ecosystem-status">
-            <strong>{visible.length} featured items {paused ? '· paused' : ''}</strong>
+            <strong>{visible.length} featured items</strong>
             <button type="button" className="mini-link" onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -1301,12 +1470,26 @@ function NftCarousel() {
         <div
           ref={trackRef}
           className={`nft-track smart-track ${shouldLoop ? 'is-looped' : ''}`}
-          onTouchStart={() => {
+          onPointerEnter={(event) => {
+            if (event.pointerType !== 'mouse') return;
+            window.clearTimeout(trackResumeTimerRef.current);
             setTrackPaused(true);
           }}
-          onTouchEnd={() => {
-            setTrackPaused(false);
-          }}>
+          onPointerLeave={(event) => {
+            if (event.pointerType === 'mouse') resumeTrackNow();
+          }}
+          onPointerDown={() => pauseTrackTemporarily(0)}
+          onPointerMove={(event) => {
+            if (event.pointerType === 'touch') pauseTrackTemporarily(0);
+          }}
+          onPointerUp={(event) => event.pointerType === 'touch' ? resumeTrackSoon(90) : resumeTrackNow()}
+          onPointerCancel={(event) => event.pointerType === 'touch' ? resumeTrackSoon(90) : resumeTrackNow()}
+          onLostPointerCapture={(event) => event.pointerType === 'touch' ? resumeTrackSoon(90) : resumeTrackNow()}
+          onTouchStart={handleTrackTouchStart}
+          onTouchMove={handleTrackTouchMove}
+          onWheel={resumeTrackNow}
+          onTouchEnd={handleTrackTouchEnd}>
+          <RailSwipeCue label="Swipe through collection" overlay />
           {smartItems.map((nft, i) =>
           <a key={`${nft.name}-${nft.tokenId}-${i}`} className={`nft-card ${nft.tokenId === 'pending' || nft.tokenId === 'soon' ? 'disabled' : ''} ${nft.tokenId === 'asset' ? 'asset-card' : ''} ${nft.comingSoon ? 'coming-soon-card' : ''}`} href={nft.href || '#nfts'} target="_blank" rel="noopener" style={{ '--i': i }}>
               <div className="nft-art">
@@ -1317,7 +1500,7 @@ function NftCarousel() {
                 <strong>{nft.name}</strong>
                 <small>
                   {nft.tokenId === 'asset'
-                    ? `${nft.amount || 'syncing'} · ${nft.chain}`
+                    ? `${nft.amount || TOKEN_AMOUNT_FALLBACKS[nft.name] || 'live balance'} · ${nft.chain}`
                     : nft.tokenId === 'soon'
                       ? 'Coming soon'
                       : nft.tokenId && nft.tokenId !== 'pending'
@@ -1331,7 +1514,7 @@ function NftCarousel() {
       </div>
       {expanded &&
       <div className="nft-modal" role="dialog" aria-modal="true" aria-label={`${activeGroup?.label} collection preview`}>
-          <button type="button" className="nft-modal-scrim" aria-label="Close collection preview" onClick={() => {
+          <button type="button" className="nft-modal-scrim" aria-label="Close collection preview backdrop" onClick={() => {
             setExpanded(false);
             setPaused(false);
           }} />
@@ -1357,7 +1540,7 @@ function NftCarousel() {
                     <strong>{nft.name}</strong>
                     <small>
                       {nft.tokenId === 'asset'
-                        ? `${nft.amount || 'syncing'} · ${nft.chain}`
+                        ? `${nft.amount || TOKEN_AMOUNT_FALLBACKS[nft.name] || 'live balance'} · ${nft.chain}`
                         : nft.tokenId === 'soon'
                           ? 'Coming soon'
                           : nft.tokenId && nft.tokenId !== 'pending'
@@ -1417,209 +1600,18 @@ const DIFFICULTY_CHAIN_CODES = {
   Hardest: 3
 };
 const DYNAMIC_ENV_ID = '794ab3a5-8cf5-43fb-963a-9a81e4a3dae7';
-const queryClient = new QueryClient();
-const wagmiConfig = createConfig({
-  chains: [monadMainnet],
-  transports: { [monadMainnet.id]: http(MONAD_NETWORK.rpcUrls[0]) }
-});
 const MONERGE_APP_PATH = '/monerge';
 const AGENTS_APP_PATH = '/agents';
-const METAMASK_APP_LINK = `https://metamask.app.link/dapp/${window.location.host}${MONERGE_APP_PATH}`;
+let monergeWalletRuntimePromise;
 
-function monergeWalletsFilter(options = []) {
-  const list = Array.isArray(options) ? options : [];
-  return list.filter((opt) => {
-    const supported = opt?.walletConnector?.supportedChains;
-    if (Array.isArray(supported) && supported.includes('EVM')) return true;
-    const key = String(opt?.key ?? opt?.walletKey ?? '').toLowerCase();
-    const group = String(opt?.chainGroup ?? opt?.walletGroup ?? '').toLowerCase();
-    return (
-      group.includes('evm') ||
-      group.includes('eth') ||
-      /metamask|walletconnect|coinbase|rainbow|rabby|zerion|trust|okx|phantom/.test(key)
-    );
-  });
-}
-
-const DYNAMIC_SETTINGS = {
-  appName: 'Monerge',
-  appLogoUrl: `${window.location.origin}/assets/monerge-icon-512.png`,
-  environmentId: DYNAMIC_ENV_ID,
-  initialAuthenticationMode: 'connect-and-sign',
-  enableVisitTrackingOnConnectOnly: true,
-  theme: 'dark',
-  defaultNumberOfWalletsToShow: 8,
-  overrides: {
-    evmNetworks: [
-      {
-        blockExplorerUrls: MONAD_NETWORK.blockExplorerUrls,
-        chainId: 143,
-        chainName: MONAD_NETWORK.chainName,
-        key: 'monad',
-        name: MONAD_NETWORK.chainName,
-        nativeCurrency: MONAD_NETWORK.nativeCurrency,
-        networkId: 143,
-        rpcUrls: MONAD_NETWORK.rpcUrls,
-        shortName: 'monad',
-        vanityName: 'Monad'
-      }
-    ]
-  },
-  walletConnectors: [EthereumWalletConnectors],
-  walletsFilter: monergeWalletsFilter,
-  events: {
-    onAuthFlowOpen: () => window.dispatchEvent(new CustomEvent('monerge-wallet-status', { detail: { status: 'Dynamic wallet modal open' } })),
-    onAuthInit: () => window.dispatchEvent(new CustomEvent('monerge-wallet-status', { detail: { status: 'Connecting with Dynamic' } })),
-    onAuthSuccess: () => window.dispatchEvent(new CustomEvent('monerge-wallet-status', { detail: { status: 'Dynamic wallet connected' } })),
-    onAuthFailure: () => window.dispatchEvent(new CustomEvent('monerge-wallet-status', { detail: { status: 'Dynamic connect needs another try' } })),
-    onAuthCancel: () => window.dispatchEvent(new CustomEvent('monerge-wallet-status', { detail: { status: 'Wallet connect cancelled' } })),
-    onLogout: () => window.dispatchEvent(new CustomEvent('monerge-wallet', { detail: { address: '' } }))
-  },
-  cssOverrides: `
-    .dynamic-shadow-dom { --dynamic-font-family-primary: inherit; }
-    :host {
-      --dynamic-brand-primary-color: #8f6bff;
-      --dynamic-brand-secondary-color: #7fd2e7;
-      --dynamic-background-color: #160f36;
-      --dynamic-base-1: #160f36;
-      --dynamic-base-2: #24184f;
-      --dynamic-base-3: #332263;
-      --dynamic-base-4: #493078;
-      --dynamic-overlay: rgba(8,7,24,0.76);
-      --dynamic-modal-backdrop-background: rgba(8,7,24,0.76);
-      --dynamic-header-background: #160f36;
-      --dynamic-footer-background: #160f36;
-      --dynamic-wallet-list-tile-background: #24184f;
-      --dynamic-wallet-list-tile-background-hover: #332263;
-      --dynamic-wallet-list-tile-border: 1px solid rgba(127,210,231,0.22);
-      --dynamic-wallet-list-tile-border-hover: 1px solid rgba(166,139,255,0.48);
-      --dynamic-connect-button-background: linear-gradient(135deg, #8f6bff, #7fd2e7);
-      --dynamic-connect-button-background-hover: linear-gradient(135deg, #a68bff, #8cf7f0);
-      --dynamic-connect-button-color: #0e1f2c;
-      --dynamic-button-primary-background: #8f6bff;
-      --dynamic-button-secondary-background: #332263;
-      --dynamic-text-primary: #ffffff;
-      --dynamic-text-primary-color: #ffffff;
-      --dynamic-text-secondary: rgba(255,255,255,0.74);
-      --dynamic-text-secondary-color: rgba(255,255,255,0.74);
-      --dynamic-text-link: #7fd2e7;
-      --dynamic-border: rgba(255,255,255,0.12);
-      --dynamic-border-color: rgba(255,255,255,0.12);
-      --dynamic-wallet-list-tile-background: rgba(255,255,255,0.08);
-      --dynamic-wallet-list-tile-background-hover: rgba(127,210,231,0.18);
-      --dynamic-wallet-list-tile-border: 1px solid rgba(238,246,251,0.16);
-      --dynamic-wallet-list-tile-border-hover: 1px solid rgba(127,210,231,0.38);
-      --dynamic-border-radius: 16px;
-      --dynamic-shadow-down-3: 0 24px 48px rgba(0,0,0,0.55);
-    }
-  `
-};
-
-const dynamicBridgeRef = { current: null };
-const DYNAMIC_AUTH_OPTIONS = {
-  initializeWalletConnect: true,
-  clearErrors: true,
-  performMultiWalletChecks: false
-};
-
-function showMonergeAuthFlow(setShowAuthFlow) {
-  try {
-    setShowAuthFlow?.(true, DYNAMIC_AUTH_OPTIONS);
-  } catch (_) {
-    setShowAuthFlow?.(true);
-  }
-}
-
-function purgeDynamicWalletCache() {
-  try {
-    storageKeys().forEach((key) => {
-      if (/^dynamic_|^@dynamic|walletconnect|wallet-connect|wc@|appkit|w3m/i.test(key)) {
-        storageRemove(key);
-      }
+function loadMonergeWalletRuntime() {
+  if (!monergeWalletRuntimePromise) {
+    monergeWalletRuntimePromise = import('./monerge-wallet.jsx').catch((error) => {
+      monergeWalletRuntimePromise = undefined;
+      throw error;
     });
-  } catch (_) {}
-}
-
-function MonergeDynamicBridge() {
-  const ctx = useDynamicContext();
-  const { setShowAuthFlow, handleLogOut, user, primaryWallet } = ctx;
-  const { setShowLinkNewWalletModal } = useDynamicModals();
-  const wallets = useUserWallets();
-
-  useEffect(() => {
-    dynamicBridgeRef.current = {
-      open: () => {
-        const authenticated = Boolean(user || primaryWallet?.address || wallets?.length);
-        if (authenticated) {
-          try {
-            setShowLinkNewWalletModal?.(true);
-            return;
-          } catch (_) {}
-        }
-        showMonergeAuthFlow(setShowAuthFlow);
-      },
-      logout: async () => {
-        await handleLogOut?.();
-        purgeDynamicWalletCache();
-      },
-      isAuthenticated: () => Boolean(user || primaryWallet?.address || wallets?.length)
-    };
-    return () => {
-      dynamicBridgeRef.current = null;
-    };
-  }, [setShowAuthFlow, setShowLinkNewWalletModal, handleLogOut, user, primaryWallet, wallets]);
-
-  useEffect(() => {
-    const syncFromDynamic = (params) => {
-      const userWallets = Array.isArray(params?.userWallets) ? params.userWallets : Array.isArray(params) ? params : [];
-      const wallet = userWallets?.find?.((item) => /^EVM|ETH$/i.test(String(item?.chain || ''))) || userWallets?.[0] || params?.wallet || params?.primaryWallet;
-      if (wallet?.address) window.dispatchEvent(new CustomEvent('monerge-wallet', { detail: { address: wallet.address } }));
-    };
-    const onLogout = () => window.dispatchEvent(new CustomEvent('monerge-wallet', { detail: { address: '' } }));
-    const syncPrimaryWallet = (wallet) => syncFromDynamic({ wallet });
-    const syncWalletFailure = () => {
-      window.dispatchEvent(new CustomEvent('monerge-wallet-status', { detail: { status: 'Dynamic wallet connect did not finish. Please try again.' } }));
-    };
-    try { dynamicEvents.on('userWalletsChanged', syncFromDynamic); } catch (_) {}
-    try { dynamicEvents.on('userWalletsPopulated', syncFromDynamic); } catch (_) {}
-    try { dynamicEvents.on('primaryWalletChanged', syncPrimaryWallet); } catch (_) {}
-    try { dynamicEvents.on('walletAdded', (_wallet, userWallets) => syncFromDynamic({ userWallets })); } catch (_) {}
-    try { dynamicEvents.on('walletRemoved', (_wallet, userWallets) => syncFromDynamic({ userWallets })); } catch (_) {}
-    try { dynamicEvents.on('walletConnectionFailed', syncWalletFailure); } catch (_) {}
-    try { dynamicEvents.on('logout', onLogout); } catch (_) {}
-    return () => {
-      try { dynamicEvents.off('userWalletsChanged', syncFromDynamic); } catch (_) {}
-      try { dynamicEvents.off('userWalletsPopulated', syncFromDynamic); } catch (_) {}
-      try { dynamicEvents.off('primaryWalletChanged', syncPrimaryWallet); } catch (_) {}
-      try { dynamicEvents.off('walletAdded', syncFromDynamic); } catch (_) {}
-      try { dynamicEvents.off('walletRemoved', syncFromDynamic); } catch (_) {}
-      try { dynamicEvents.off('walletConnectionFailed', syncWalletFailure); } catch (_) {}
-      try { dynamicEvents.off('logout', onLogout); } catch (_) {}
-    };
-  }, []);
-
-  useEffect(() => {
-    const stripIfOrphaned = () => {
-      const html = document.documentElement;
-      const body = document.body;
-      if (!html.classList.contains('dynamic-no-scroll') && !body.classList.contains('dynamic-no-scroll')) return;
-      const host = document.querySelector('.dynamic-shadow-dom');
-      const hasModal = Boolean(host?.shadowRoot?.querySelector('[data-testid*="modal"], [data-testid*="auth"], [class*="DynamicModal"], [class*="AuthFlow"]'));
-      if (!hasModal) {
-        html.classList.remove('dynamic-no-scroll');
-        body.classList.remove('dynamic-no-scroll');
-      }
-    };
-    stripIfOrphaned();
-    window.addEventListener('focus', stripIfOrphaned);
-    document.addEventListener('visibilitychange', stripIfOrphaned);
-    return () => {
-      window.removeEventListener('focus', stripIfOrphaned);
-      document.removeEventListener('visibilitychange', stripIfOrphaned);
-    };
-  }, []);
-
-  return null;
+  }
+  return monergeWalletRuntimePromise;
 }
 
 function getAppMode() {
@@ -2238,19 +2230,18 @@ function canMove(board) {
 }
 
 function MonadGame() {
-  const dynamicContext = useDynamicContext();
-  const {
-    primaryWallet,
-    setShowAuthFlow,
-    handleLogOut,
-    user,
-    sdkHasLoaded,
-    projectSettings,
-    showAuthFlow
-  } = dynamicContext;
+  const [walletSession, setWalletSession] = useState({
+    primaryWallet: null,
+    user: null,
+    sdkHasLoaded: false,
+    projectSettings: null,
+    showAuthFlow: false
+  });
+  const { primaryWallet, user, sdkHasLoaded, projectSettings, showAuthFlow } = walletSession;
   const [account, setAccount] = useState('');
   const [chainId, setChainId] = useState('');
   const [walletState, setWalletState] = useState('Ready');
+  const [dynamicRequested, setDynamicRequested] = useState(false);
   const [dynamicTimedOut, setDynamicTimedOut] = useState(false);
   const [board, setBoard] = useState(() => makeBoard());
   const [score, setScore] = useState(0);
@@ -2295,7 +2286,7 @@ function MonadGame() {
   const timeBonus = currentDifficulty.timed ? Math.max(0, timeLeft) * 2 : 0;
   const difficultyBonus = scoreReveal?.difficultyBonus ?? 0;
   const dynamicReady = Boolean(sdkHasLoaded);
-  const dynamicStatus = dynamicReady ? 'Dynamic ready' : dynamicTimedOut ? 'Dynamic settings blocked' : 'Dynamic loading';
+  const dynamicStatus = dynamicReady ? 'Dynamic ready' : dynamicTimedOut ? 'Dynamic settings blocked' : dynamicRequested ? 'Dynamic loading' : 'Wallet loads on connect';
   const cleanPlayerProfile = cleanProfile(profile);
   const profileSigned = Boolean(account && profileSignature);
   const canPromptInstall = isGameApp
@@ -2434,13 +2425,13 @@ function MonadGame() {
   }, [account, appMode, primaryWallet, projectSettings, sdkHasLoaded, showAuthFlow]);
 
   useEffect(() => {
-    if (dynamicReady) {
+    if (!dynamicRequested || dynamicReady) {
       setDynamicTimedOut(false);
       return undefined;
     }
     const timer = window.setTimeout(() => setDynamicTimedOut(true), 4500);
     return () => window.clearTimeout(timer);
-  }, [dynamicReady]);
+  }, [dynamicReady, dynamicRequested]);
 
   useEffect(() => {
     if (!primaryWallet?.address) return;
@@ -2460,17 +2451,16 @@ function MonadGame() {
           storageSet(PROFILE_SIGNATURE_KEY, storedSignature);
           storageSet(PROFILE_SIGNATURE_WALLET_KEY, address);
         }
-        if (!cancelled && user && !storedSignature) {
-          const dynamicSignature = `dynamic-auth:${user.userId || user.id || address}`;
+        if (!cancelled && !storedSignature) {
+          const dynamicSignature = user
+            ? `dynamic-auth:${user.userId || user.id || address}`
+            : `dynamic-wallet:${address}`;
           setProfileSignature(dynamicSignature);
           storageSet(PROFILE_SIGNATURE_KEY, dynamicSignature);
           storageSet(PROFILE_SIGNATURE_WALLET_KEY, address);
           storageSet(walletSignatureKey(address), dynamicSignature);
           pendingProfileSignRef.current = false;
-          setWalletState('Profile signed');
-        } else if (!cancelled && pendingProfileSignRef.current && !profileSignature && !storedSignature) {
-          pendingProfileSignRef.current = false;
-          setWalletState('Dynamic connected. Sign profile from the wallet menu.');
+          setWalletState('Profile ready');
         }
       } catch (_) {
         const storedSignature = readStoredProfileSignature(address);
@@ -2479,17 +2469,16 @@ function MonadGame() {
           storageSet(PROFILE_SIGNATURE_KEY, storedSignature);
           storageSet(PROFILE_SIGNATURE_WALLET_KEY, address);
         }
-        if (!cancelled && user && !storedSignature) {
-          const dynamicSignature = `dynamic-auth:${user.userId || user.id || address}`;
+        if (!cancelled && !storedSignature) {
+          const dynamicSignature = user
+            ? `dynamic-auth:${user.userId || user.id || address}`
+            : `dynamic-wallet:${address}`;
           setProfileSignature(dynamicSignature);
           storageSet(PROFILE_SIGNATURE_KEY, dynamicSignature);
           storageSet(PROFILE_SIGNATURE_WALLET_KEY, address);
           storageSet(walletSignatureKey(address), dynamicSignature);
           pendingProfileSignRef.current = false;
-          setWalletState('Profile signed');
-        } else if (!cancelled && pendingProfileSignRef.current && !profileSignature && !storedSignature) {
-          pendingProfileSignRef.current = false;
-          setWalletState('Dynamic connected. Sign profile from the wallet menu.');
+          setWalletState('Profile ready');
         }
       }
     })();
@@ -2545,6 +2534,21 @@ function MonadGame() {
   useEffect(() => {
     const syncDynamicWallet = (event) => {
       const address = event.detail?.address || '';
+      setWalletSession((current) => address ? ({
+          ...current,
+          primaryWallet: event.detail?.primaryWallet ?? current.primaryWallet,
+          user: event.detail?.user ?? current.user,
+          sdkHasLoaded: event.detail?.sdkHasLoaded ?? current.sdkHasLoaded,
+          projectSettings: event.detail?.projectSettings ?? current.projectSettings,
+          showAuthFlow: event.detail?.showAuthFlow ?? current.showAuthFlow
+        }) : ({
+          ...current,
+          primaryWallet: null,
+          user: event.detail?.user ?? current.user,
+          sdkHasLoaded: event.detail?.sdkHasLoaded ?? current.sdkHasLoaded,
+          projectSettings: event.detail?.projectSettings ?? current.projectSettings,
+          showAuthFlow: event.detail?.showAuthFlow ?? current.showAuthFlow
+        }));
       setAccount(address);
       if (address) {
         unlockMonergeAudio();
@@ -2607,20 +2611,22 @@ function MonadGame() {
     return next;
   }
 
-  function openDynamicFlow(message = 'Opening Dynamic wallet connect.') {
-    if (!dynamicReady) {
-      setWalletState('Dynamic settings are not loaded for this domain yet.');
-      window.dispatchEvent(new CustomEvent('monerge-wallet-status', {
-        detail: { status: 'Dynamic settings blocked or still loading.' }
-      }));
+  async function openDynamicFlow(message = 'Opening Dynamic wallet connect.') {
+    setDynamicRequested(true);
+    setDynamicTimedOut(false);
+    setWalletState('Loading secure wallet choices...');
+    try {
+      const walletRuntime = await loadMonergeWalletRuntime();
+      await walletRuntime.openMonergeWallet();
+      setWalletState(message);
+    } catch (error) {
+      setDynamicTimedOut(true);
+      setWalletState(error?.message || 'Dynamic wallet did not load. Please try again.');
       return;
     }
-    setWalletState(sdkHasLoaded ? message : 'Loading wallet connector...');
-    if (dynamicBridgeRef.current) dynamicBridgeRef.current.open();
-    else showMonergeAuthFlow(setShowAuthFlow);
     window.setTimeout(() => {
       setWalletState((current) => (
-        current === message || current === 'Loading wallet connector...'
+        current === message || current === 'Loading secure wallet choices...'
           ? 'Dynamic did not open yet. Check allowed domains and popup blockers.'
           : current
       ));
@@ -2643,31 +2649,31 @@ function MonadGame() {
           storageSet(PROFILE_SIGNATURE_WALLET_KEY, connectedAddress);
           pendingProfileSignRef.current = false;
           setWalletState('Dynamic wallet ready');
-        } else if (user) {
-          const dynamicSignature = `dynamic-auth:${user.userId || user.id || connectedAddress}`;
+        } else {
+          const dynamicSignature = user
+            ? `dynamic-auth:${user.userId || user.id || connectedAddress}`
+            : `dynamic-wallet:${connectedAddress}`;
           setProfileSignature(dynamicSignature);
           storageSet(PROFILE_SIGNATURE_KEY, dynamicSignature);
           storageSet(PROFILE_SIGNATURE_WALLET_KEY, connectedAddress);
           storageSet(walletSignatureKey(connectedAddress), dynamicSignature);
           pendingProfileSignRef.current = false;
-          setWalletState('Profile signed');
-        } else {
-          pendingProfileSignRef.current = true;
-          setWalletState('Dynamic connected. Sign profile from the wallet menu.');
+          setWalletState('Profile ready');
         }
       } catch (error) {
         setWalletState(error?.message || 'Open Dynamic to finish wallet setup.');
-        showMonergeAuthFlow(setShowAuthFlow);
+        await openDynamicFlow();
       }
       return;
     }
-    pendingProfileSignRef.current = !readStoredProfileSignature(account);
+    pendingProfileSignRef.current = false;
     openDynamicFlow();
   }
 
   async function disconnectWallet() {
     try {
-      await handleLogOut?.();
+      const walletRuntime = await loadMonergeWalletRuntime();
+      await walletRuntime.logoutMonergeWallet();
     } catch (_) {
       // Dynamic can fail logout when the session is already gone; local state still needs to clear.
     }
@@ -2675,6 +2681,7 @@ function MonadGame() {
     setChainId('');
     setWalletState('Wallet disconnected');
     setProfileSignature('');
+    setWalletSession({ primaryWallet: null, user: null, sdkHasLoaded: false, projectSettings: null, showAuthFlow: false });
     storageRemove(PROFILE_SIGNATURE_KEY);
     storageRemove(PROFILE_SIGNATURE_WALLET_KEY);
   }
@@ -2962,7 +2969,7 @@ function MonadGame() {
         <p className="lede">
           {isGameApp
             ? 'A wallet-backed focus game for BuildAnything. Merge Monad-coded tiles, choose your difficulty, remember the hidden points, then reveal your run. Connect once; profile signing is remembered so scores can upload without another signature.'
-            : 'Biome is currently being built on Monad testnet as my game network: the home for Moncade, Monerge, and future creature games. The story is proof-of-play: connect a wallet, play, build a profile, and let each run become part of the larger Biome.'}
+            : 'Biome is currently being built on Monad testnet as my game network for Moncade, Monerge, and future creature games: proof-of-play, wallet profiles, and runs that connect back to the iglu.'}
         </p>
         {!isGameApp && <a className="buildanything-card" href="https://buildanything.so/students/gerry" target="_blank" rel="noopener" aria-label="Open Gerry on BuildAnything">
           <img src={`assets/buildanything-student-card.png?v=${SITE_BUILD_VERSION}`} alt="BuildAnything student card for Gerry" />
@@ -2985,6 +2992,9 @@ function MonadGame() {
             </span>
           </span>
         </a>}
+        {!isGameApp && <p className="buildanything-context">
+          I completed BuildAnything coursework to sharpen how I take a vibe-coded Monad app from an idea to a working public launch. Those lessons now feed directly into how I am building Biome, Moncade, and Monerge.
+        </p>}
         <div className="monanimal-strip" aria-label="Monad character inspirations">
           {MONAD_CHARACTERS.map((character) =>
           <span key={character.name} className={`monanimal-chip tile-${character.value}`}>
@@ -3011,11 +3021,6 @@ function MonadGame() {
             <span>02 · Moncade</span>
             <strong>The game hub.</strong>
             <p>A creature-game arcade layer for what gets built next across the Monad ecosystem.</p>
-          </div>
-          <div className="biome-story-stack">
-            <span>03 · Monerge</span>
-            <strong>The first playable signal.</strong>
-            <p>A wallet-connected focus game where runs, profiles, and leaderboards start to prove the loop.</p>
           </div>
         </div>}
       </div>
@@ -3338,6 +3343,7 @@ function NowBuilding() {
   return (
     <section className="now-building" id="now">
       <Chapter num="05" kicker="Now" title="Currently building the next layer." />
+      <RailSwipeCue label="Swipe through current projects" />
       <div className="nb-grid">
         {NOW.map((n, i) =>
         <Reveal key={n.title} delay={i * 80}>
@@ -3445,6 +3451,7 @@ function Ventures({ y, intensity, warm }) {
     <section className={`ventures-combo ${warm ? 'warm' : ''}`} id="ventures">
       <div className="ventures-bg" style={{ transform: `translate3d(0, ${y * 0.025 * k}px, 0)` }} />
       <Chapter num="06" kicker="IRL ventures" title="Stay, eat, and build from the same standard." />
+      <RailSwipeCue label="Swipe through ventures" />
       <div className="ventures-panel">
         <Reveal>
           <article className="venture-mini bluestar-mini" id="bluestar">
@@ -3504,6 +3511,7 @@ function Contact() {
   return (
     <section className="contact" id="contact">
       <Chapter num="08" kicker="Hello" title="Come through the iglu." />
+      <RailSwipeCue label="Swipe through links" />
       <div className="contact-grid">
         {cards.map((c, i) =>
         <Reveal key={c.kind} delay={i * 80}>
@@ -3555,6 +3563,7 @@ function AgentsPage() {
   return (
     <div className="page agents-page">
       <Topbar />
+      <ImmersiveChapterRail scrollY={y} />
       <main className="agents-shell">
         <section className="agents-hero">
           <div>
@@ -3635,19 +3644,19 @@ function App() {
     const favicon = document.querySelector('link[rel="icon"]');
     if (isGameApp) {
       document.title = 'Monerge · Gerry Stephen';
-      appleIcon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-97');
-      favicon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-97');
+      appleIcon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-102');
+      favicon?.setAttribute('href', '/assets/monerge-icon-512.png?v=ecosystems-app-102');
       return;
     }
     if (isAgentsPage) {
       document.title = 'AI Agents · Gerry Stephen';
-      appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-97');
-      favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-97');
+      appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-102');
+      favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-102');
       return;
     }
     document.title = 'Gerry Stephen · Business, Web3, and the Iglu';
-    appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-97');
-    favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-97');
+    appleIcon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-102');
+    favicon?.setAttribute('href', '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-102');
   }, [isGameApp, isAgentsPage]);
 
   useEffect(() => {
@@ -3720,9 +3729,19 @@ function App() {
         onClick={() => setSoundEnabled((value) => !value)}
         aria-pressed={soundEnabled}
         aria-label={soundEnabled ? 'Turn sound off' : 'Turn sound on'}
+        title={soundEnabled ? 'Sound on' : 'Sound off'}
       >
-        <span>Sound</span>
-        <i>{soundReady && soundEnabled ? 'On' : 'Off'}</i>
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path className="sound-icon-speaker" d="M4.75 9.25h3.3l5.2-4.05v13.6l-5.2-4.05h-3.3z" />
+          {soundEnabled ? (
+            <>
+              <path className="sound-icon-wave" d="M16.25 8.8c1 .88 1.52 1.95 1.52 3.2s-.52 2.32-1.52 3.2" />
+              <path className="sound-icon-wave" d="M18.7 6.45c1.72 1.56 2.58 3.4 2.58 5.55s-.86 3.99-2.58 5.55" />
+            </>
+          ) : (
+            <path className="sound-icon-mute" d="M16.8 9.05 21 13.25m0-4.2-4.2 4.2" />
+          )}
+        </svg>
       </button>
       <Hero y={y} mouse={mouse} intensity={tweaks.parallaxIntensity} lite={liteParallax} />
       {tweaks.snowfall && !prefersReducedMotion && <Snowfall count={isMobileViewport ? 22 : 60} intensity={(tweaks.parallaxIntensity / 100) * (isMobileViewport ? 0.62 : 1)} scrollY={y} />}
@@ -3772,17 +3791,8 @@ function mountApp() {
   if (!root) return;
   createRoot(root).render(
     <AppErrorBoundary>
-      <DynamicContextProvider settings={DYNAMIC_SETTINGS}>
-          <WagmiProvider config={wagmiConfig}>
-            <QueryClientProvider client={queryClient}>
-              <DynamicWagmiConnector>
-                <span className="build-version" aria-hidden="true">{SITE_BUILD_VERSION}</span>
-                <MonergeDynamicBridge />
-                <App />
-              </DynamicWagmiConnector>
-          </QueryClientProvider>
-        </WagmiProvider>
-      </DynamicContextProvider>
+      <span className="build-version" aria-hidden="true">{SITE_BUILD_VERSION}</span>
+      <App />
     </AppErrorBoundary>
   );
 }

@@ -170,6 +170,34 @@ GITHUB_DISPATCH_TOKEN=github_pat_xxx ./scripts/trigger_live_agent.sh scan
 Running both the external trigger and GitHub's backup cron is safe: the
 per-day proposal fingerprints mean an overlapping run won't double-propose.
 
+The separate `JerryQuant paste.trade Monitor` workflow reads the public
+paste.trade board every 15 minutes and publishes a normalized, read-only run
+summary. It deliberately does not route social trades to Robinhood or a wallet.
+Run the same monitor locally with:
+
+```bash
+python main.py --paste-monitor
+```
+
+For the selected-source, real-money **review queue** (still no order
+submission), run:
+
+```bash
+JERRYQUANT_PASTE_HANDLES=notthreadguy \
+JERRYQUANT_RH_COPY_BUDGET_USD=100 \
+JERRYQUANT_HL_COPY_BUDGET_USD=100 \
+JERRYQUANT_COPY_MAX_LOSS_USD=1 \
+python main.py --paste-live-tickets
+```
+
+The queue routes long equity-like calls to Robinhood and all shorts/crypto
+perps to Hyperliquid, rejects stale or direction-conflicted calls, caps the
+displayed Hyperliquid leverage independently of the source, and expires each
+ticket. A stop price is always an owner decision and remains a blocker until
+it is supplied. Never put a Rabby seed phrase or master private key in GitHub
+Actions. Hyperliquid automation, if later enabled outside this repository,
+must use a separately revocable API/agent wallet.
+
 ## Approving live trades from your phone
 
 Approval must go through something that knows it's *you* — never a public web

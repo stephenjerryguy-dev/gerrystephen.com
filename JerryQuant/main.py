@@ -1568,9 +1568,103 @@ def main() -> int:
         action="store_true",
         help="Backtest the diversified target-allocation vs buy-&-hold. Never trades.",
     )
+    parser.add_argument(
+        "--paste-monitor",
+        action="store_true",
+        help="Read and normalize paste.trade's public feed. Monitoring only; "
+             "never connects to a broker or wallet and never trades.",
+    )
+    parser.add_argument(
+        "--paste-live-tickets",
+        action="store_true",
+        help="Build expiring, non-executing Robinhood/Hyperliquid review "
+             "tickets for selected paste.trade sources.",
+    )
     args = parser.parse_args()
 
     cfg = load_config(args.config)
+    if args.paste_monitor or args.paste_live_tickets:
+        from data_sources.paste_trade import fetch_best_trades, render_report
+
+        try:
+            trades = fetch_best_trades()
+            if args.paste_live_tickets:
+                from strategies.paste_trade_router import (
+                    build_live_tickets,
+                    render_live_tickets,
+                    ticket_fingerprint,
+                )
+                handle_csv = (
+                    os.environ.get("JERRYQUANT_PASTE_HANDLES", "").strip()
+                    or "notthreadguy"
+                )
+                handles = [h.strip() for h in handle_csv.split(",") if h.strip()]
+                routed = build_live_tickets(
+                    trades,
+                    handles,
+                    max_age_minutes=int(os.environ.get(
+                        "JERRYQUANT_PASTE_MAX_AGE_MINUTES"
+                    ) or "30"),
+                    approval_window_minutes=int(os.environ.get(
+                        "JERRYQUANT_APPROVAL_WINDOW_MINUTES"
+                    ) or "10"),
+                    hyperliquid_leverage_cap=int(os.environ.get(
+                        "JERRYQUANT_HL_LEVERAGE_CAP"
+                    ) or "2"),
+                )
+                rendered = render_live_tickets(routed)
+                print(rendered)
+                notify_tickets = list(routed.tickets)
+                if routed.tickets:
+                    # Reuse JerryQuant's durable proposal ledger so the same
+                    # social post does not notify on every 15-minute poll.
+                    ticket_db = Database(BASE_DIR / cfg.database.path)
+                    try:
+                        notify_tickets = []
+                        for ticket in routed.tickets:
+                            fingerprint = ticket_fingerprint(ticket)
+                            if ticket_db.proposal_by_fingerprint(fingerprint):
+                                continue
+                            ticket_db.insert_live_proposal(
+                                fingerprint=fingerprint,
+                                timestamp=ticket.observed_at,
+                                source="paste.trade",
+                                symbol=ticket.symbol,
+                                kind=f"{ticket.venue}_{ticket.direction.lower()}",
+                                action={
+                                    "trade_id": ticket.trade_id,
+                                    "venue": ticket.venue,
+                                    "symbol": ticket.symbol,
+                                    "direction": ticket.direction,
+                                    "source_url": ticket.source_url,
+                                    "status": ticket.status,
+                                    "expires_at": ticket.expires_at.isoformat(),
+                                },
+                                detail="; ".join(ticket.blockers)[:500],
+                            )
+                            notify_tickets.append(ticket)
+                    finally:
+                        ticket_db.close()
+                if notify_tickets:
+                    from reports import notify
+
+                    notify.push_ticket(
+                        title=f"JerryQuant — {len(notify_tickets)} fresh social ticket(s)",
+                        message="\n".join(
+                            f"{t.venue}: {t.direction} {t.symbol} "
+                            f"({t.status}, expires {t.expires_at:%H:%M} UTC)"
+                            for t in notify_tickets
+                        ),
+                    )
+            else:
+                print(render_report(trades))
+            return 0
+        except Exception as exc:
+            print("# JerryQuant — paste.trade monitor")
+            print()
+            print(f"Feed unavailable: {exc}")
+            return 1
+
     # propose/execute are sub-flows of live: arm the broker (mode LIVE_APPROVED)
     # but dispatch to the split propose/execute runners rather than the prompt.
     live_sub = args.mode if args.mode in (

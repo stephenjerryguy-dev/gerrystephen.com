@@ -31,9 +31,10 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: jerryquant-live-agent
-  cancel-in-progress: false
+# Do not serialize whole workflow runs. The execute job can wait for a human
+# approval for hours; a workflow-wide concurrency group made that wait block
+# every later market scan. Proposal fingerprints in the durable ledger provide
+# the required duplicate protection without starving the scanner.
 
 defaults:
   run:
