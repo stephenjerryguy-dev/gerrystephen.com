@@ -13,7 +13,7 @@ import { ImmersiveChapterRail } from './immersive-navigation.jsx';
 import { ImmersivePortal } from './immersive-portal.jsx';
 import './styles.css';
 
-const SITE_BUILD_VERSION = 'ecosystems-app-108-preview';
+const SITE_BUILD_VERSION = 'ecosystems-app-109-iglu-switch';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const ImmersiveIglu = React.lazy(() => import('./immersive-iglu.jsx').then((module) => ({ default: module.ImmersiveIglu })));
 
@@ -557,6 +557,21 @@ function Topbar() {
       </div>}
     </header>);
 
+}
+
+function IgluSwitch() {
+  return (
+    <a
+      className="iglu-site-switch"
+      href="https://iglu.gerrystephen.com/"
+      aria-label="Switch from the standard Gerry Stephen site to the Iglu experience"
+      title="Enter the Iglu"
+    >
+      <img src="/assets/iglu-mark.svg" alt="" aria-hidden="true" />
+      <span><small>SWITCH SITE</small><strong>ENTER IGLU</strong></span>
+      <b aria-hidden="true">↗</b>
+    </a>
+  );
 }
 
 // ---------- Igloo SVG ----------
@@ -3724,6 +3739,7 @@ function App() {
   return (
     <div className={`page ${isGameApp ? 'game-app-page' : ''}`} data-warm={tweaks.warmChapters}>
       <Topbar />
+      <IgluSwitch />
       <button
         type="button"
         className={`sound-toggle ${soundEnabled ? 'on' : 'off'}`}
