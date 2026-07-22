@@ -1337,15 +1337,16 @@ def _paste_sleeve_actions(cfg: Config, broker, equity: float, journal=None,
             buying_power = broker.get_buying_power()
         except Exception:
             buying_power = None
-        # Exits are executed before entries in the same run, so their proceeds
-        # are spendable by the time a copy order is placed. Sizing off pre-sale
-        # cash alone would zero the sleeve every morning a rotation liquidates.
-        if buying_power is not None and pending_exits:
-            proceeds = sum(
-                float(a.get("units", 0)) * float(a.get("reference_price", 0))
-                for a in pending_exits if a.get("kind") in ("exit", "scale_out"))
-            if proceeds > 0:
-                buying_power += proceeds
+        # NOTE: an earlier version added this run's expected sale proceeds to
+        # buying power, on the theory that exits fill before entries. The live
+        # account disproved it: after the 2026-07-22 open the five sells filled
+        # and cash went 6.57 -> 80.19 while BUYING POWER STAYED AT 6.57.
+        # Proceeds land as unsettled cash and are not spendable the same day,
+        # so counting them would size orders against money that does not exist
+        # and, where partially allowed, would buy with unsettled funds and risk
+        # a Good Faith Violation. Settled buying power is the only honest input.
+        if pending_exits:
+            pass
         res = paste_bridge.build_actions(
             list(routed.tickets), broker, equity, buying_power=buying_power)
         actions, notes = list(res.actions), list(res.notes)
