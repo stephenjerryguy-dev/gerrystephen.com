@@ -86,7 +86,8 @@ def run_rotation_backtest(
         d = index[i]
         # Rebalance using info available at yesterday's close (no lookahead).
         if index[i - 1] in rebal or i == start:
-            decision = momentum_rotation.decide_target(series, cfg, asof=i - 1)
+            decision = momentum_rotation.decide_target(
+                series, cfg, asof=i - 1, incumbent=held)
             target = decision.target
             if target != held:
                 eq *= (1 - cost_pct)

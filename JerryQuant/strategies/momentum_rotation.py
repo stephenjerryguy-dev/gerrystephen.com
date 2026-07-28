@@ -45,7 +45,7 @@ class RotationDecision:
 
 
 def decide_target(closes: dict[str, pd.Series], cfg: Config,
-                  asof: int = -1) -> RotationDecision:
+                  asof: int = -1, incumbent: str | None = None) -> RotationDecision:
     """Pick what to hold from the rotation pool given price history.
 
     Rank the pool by trailing momentum; hold the strongest — UNLESS its
@@ -73,6 +73,21 @@ def decide_target(closes: dict[str, pd.Series], cfg: Config,
 
     best, best_mom = ranking[0]
     if best_mom > defensive_mom:
+        # HYSTERESIS. Switching costs a full round trip (two spreads, plus a
+        # settlement gap in a cash account), so a challenger must clear the
+        # incumbent by a real margin — not merely tie it. Ranking by raw order
+        # alone made the strategy trade hardest when the two assets converged,
+        # which is precisely when the signal carries least information.
+        if incumbent and incumbent != best and incumbent in dict(ranking):
+            incumbent_mom = dict(ranking)[incumbent]
+            edge_pp = (best_mom - incumbent_mom) * 100.0
+            if edge_pp < rc.min_switch_edge_pct and incumbent_mom > defensive_mom:
+                return RotationDecision(
+                    target=incumbent, risk_on=True, ranking=ranking,
+                    reasons=[f"holding {incumbent}: {best} leads by only "
+                             f"{edge_pp:.2f}pp, under the {rc.min_switch_edge_pct:.2f}pp "
+                             f"switch threshold — not worth the round trip"],
+                )
         return RotationDecision(
             target=best, risk_on=True, ranking=ranking,
             reasons=[f"{best} strongest ({best_mom * 100:+.1f}% over "

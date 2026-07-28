@@ -777,6 +777,29 @@ def _save_live_state(journal: TradeJournal, state: dict) -> None:
     (BASE_DIR / LIVE_STATE_FILE).write_text(json.dumps(state, indent=2))
 
 
+def _is_transient_connection_error(exc: Exception) -> bool:
+    """True for network-layer failures that a later run can simply retry.
+
+    Deliberately narrow: DNS/socket/timeout/connection faults only. An auth
+    failure or a missing-tool mismatch is NOT transient — those mean the
+    integration is genuinely wrong and should still halt.
+    """
+    import socket
+    if isinstance(exc, (socket.gaierror, socket.timeout, ConnectionError, TimeoutError)):
+        return True
+    text = str(exc).lower()
+    markers = (
+        "nodename nor servname",     # macOS DNS failure
+        "name or service not known",  # linux DNS failure
+        "temporary failure in name resolution",
+        "connection reset", "connection refused", "connection aborted",
+        "timed out", "read timeout", "connect timeout",
+        "network is unreachable", "no route to host",
+        "server disconnected", "remote end closed",
+    )
+    return any(m in text for m in markers)
+
+
 def _arm_live_broker(cfg: Config, journal: TradeJournal, kill_switch: KillSwitch):
     """Arm the live broker and confirm Robinhood still exposes the tools we
     place orders against. Returns the broker, or None on any blocker."""
@@ -793,6 +816,19 @@ def _arm_live_broker(cfg: Config, journal: TradeJournal, kill_switch: KillSwitch
     try:
         tools = {t.get("name") for t in broker.discover()}
     except Exception as e:
+        # A TRANSIENT network failure must not engage the kill switch. The
+        # switch is persistent by design and clearing it is manual, so a DNS
+        # blip used to silently stop all trading until someone noticed — it
+        # cost 9 days from 2026-07-13, then happened again on 2026-07-27.
+        # Aborting this run gives identical protection (no orders are placed
+        # before discovery succeeds) without the sticky flag; the next
+        # scheduled scan simply retries. Genuine risk conditions — an
+        # unverifiable balance, a breached limit — still engage it.
+        if _is_transient_connection_error(e):
+            journal.record_risk_event("mcp_connection_transient", str(e))
+            print(f"MCP connection failed ({e}) — transient, not halting. "
+                  f"The next scheduled run will retry.")
+            return None
         kill_switch.engage(f"Robinhood MCP connection failed: {e}")
         journal.record_risk_event("mcp_connection_failed", str(e))
         print(f"MCP connection failed ({e}).")
@@ -1095,6 +1131,26 @@ def _decide_rotation_actions(cfg: Config, journal: TradeJournal,
     buying_power = broker.get_buying_power() or 0.0
     journal.record_equity(equity, cfg.mode.value)
 
+    # Ring-fence the copy sleeve's budget. Rotation deploys up to
+    # max_allocation_pct (95%) of equity into one asset, which consumed every
+    # dollar of buying power and left the paste.trade sleeve permanently
+    # unable to place anything — the sleeve would look configured and simply
+    # never fire. Reserving it here is what makes the two coexist.
+    copy_reserve = 0.0
+    if os.environ.get("JERRYQUANT_RH_COPY_BUDGET_USD", "").strip():
+        try:
+            copy_reserve = max(0.0, float(
+                os.environ["JERRYQUANT_RH_COPY_BUDGET_USD"]))
+        except ValueError:
+            copy_reserve = 0.0
+    if copy_reserve > 0:
+        usable = max(0.0, buying_power - copy_reserve)
+        if usable < buying_power:
+            notes.append(
+                f"reserving ${min(copy_reserve, buying_power):,.2f} of buying "
+                f"power for the paste.trade copy sleeve")
+        buying_power = usable
+
     if not kill_switch.can_trade():
         return [], ["Kill switch engaged — no rotation."], equity
 
@@ -1110,7 +1166,44 @@ def _decide_rotation_actions(cfg: Config, journal: TradeJournal,
         except market_data.DataUnavailableError as e:
             notes.append(f"{s}: {e}")
 
-    decision = momentum_rotation.decide_target(closes, cfg)
+    # The incumbent is the largest rotation-pool position actually held, so
+    # hysteresis is measured against what we own rather than nothing.
+    held = broker.get_live_positions()
+    pool = set(rc.rotation_assets) | {rc.defensive_asset}
+    incumbent = None
+    if held:
+        pool_held = {s: v for s, v in held.items()
+                     if s in pool and float(v.get("quantity", 0)) > 0}
+        if pool_held:
+            incumbent = max(
+                pool_held,
+                key=lambda s: float(pool_held[s]["quantity"]) * prices.get(s, 0.0))
+
+    decision = momentum_rotation.decide_target(closes, cfg, incumbent=incumbent)
+
+    # CADENCE. The backtest only ever rotates on scheduled rebalance dates, so
+    # a live path that re-evaluates on every scan was never the strategy that
+    # was validated — it rotated 5 days after the previous rotation, and even
+    # bought and sold QQQ 14 minutes apart on 2026-07-27. Defensive moves are
+    # exempt: stepping to cash when the pool breaks down is risk reduction and
+    # should never wait for a calendar date.
+    if incumbent and decision.target != incumbent and decision.risk_on:
+        last_rot = (_load_live_state(journal) or {}).get("last_rotation_at")
+        min_days = 28 if rc.rebalance == "monthly" else 7
+        if last_rot:
+            try:
+                since = (datetime.now(timezone.utc)
+                         - datetime.fromisoformat(last_rot)).days
+            except ValueError:
+                since = min_days
+            if since < min_days:
+                notes.append(
+                    f"holding {incumbent}: last rotation was {since}d ago, "
+                    f"{rc.rebalance} cadence needs {min_days}d — "
+                    f"{decision.target} deferred")
+                decision = momentum_rotation.RotationDecision(
+                    target=incumbent, risk_on=True, ranking=decision.ranking,
+                    reasons=[f"{rc.rebalance} cadence: holding {incumbent}"])
     journal.record_risk_event("rotation_decision", decision.render())
     notes.append(decision.render())
     target = decision.target
@@ -1137,8 +1230,24 @@ def _decide_rotation_actions(cfg: Config, journal: TradeJournal,
 
     actions: list[dict] = []
     selling = False
+    # Positions opened today, from our own managed state. Selling one of these
+    # is a same-day round trip: in a cash account that is the Good Faith
+    # Violation pattern (three in 12 months = 90 days settled-cash-only), and
+    # it happened for real on 2026-07-27 when a top-up filled at the open and
+    # the whole position was sold 14 minutes later.
+    opened_today = set()
+    if rc.block_same_day_roundtrip:
+        today = datetime.now(timezone.utc).date().isoformat()
+        for psym, pstate in (_load_live_state(journal) or {}).get("positions", {}).items():
+            if str(pstate.get("opened_at", ""))[:10] == today:
+                opened_today.add(psym)
+
     for sym, pos in held.items():
         if sym == target:
+            continue
+        if sym in opened_today:
+            notes.append(f"{sym}: opened today — not selling same-day "
+                         f"(Good Faith Violation guard)")
             continue
         if pos["sellable"] > 0:
             actions.append({"kind": "exit", "symbol": sym, "units": pos["sellable"],
@@ -1672,6 +1781,11 @@ def run_live_execute(cfg: Config, journal: TradeJournal,
                         st["stop"] = max(st["stop"], st["entry_price"])
                 journal.record_risk_event("live_scale_out", json.dumps(
                     {"symbol": sym, "units": a["units"], "result": result}, default=str)[:2000])
+            # Stamp the rotation clock so the cadence gate can enforce the
+            # rebalance interval. Only a real rotation counts — a top-up of the
+            # incumbent must not restart the clock.
+            if a.get("strategy") == "rotation" and a["kind"] == "exit":
+                state["last_rotation_at"] = datetime.now(timezone.utc).isoformat()
             _save_live_state(journal, state)
             if a.get("fingerprint"):
                 journal.db.update_live_proposal_status(a["fingerprint"], "executed")

@@ -101,15 +101,25 @@ def test_max_loss_cap_binds_before_budget(monkeypatch):
     assert a["units"] * a["entry"] < 1000.0
 
 
-def test_drops_copy_whose_author_is_underwater(monkeypatch):
-    """Observed live: an AMD long sat -1.10% four hours after posting, the
-    worst idea on a board where newer names were green. Copying a thesis that
-    is already failing its author is a materially worse bet."""
+def test_small_adverse_move_is_NOT_treated_as_a_failed_thesis(monkeypatch):
+    """Regression on my own bad guard. A 0.75% threshold built from one
+    pre-market reading went 0-for-7 that afternoon — AMD at -1.10% closed
+    +2.49%. Small negative readings are pre-market noise in thin synthetic
+    perps, not evidence, so they must not veto a copy."""
     _budget(monkeypatch)
     monkeypatch.delenv("JERRYQUANT_COPY_MAX_ADVERSE_PCT", raising=False)
     broker = FakeBroker({"AMD": {"tradeable": True, "fractional": True}})
     t = T("robinhood", "AMD", "LONG", 533.34)
     t.source_progress_pct = -1.10
+    assert len(paste_bridge.build_actions([t], broker, 500).actions) == 1
+
+
+def test_badly_broken_thesis_is_still_dropped(monkeypatch):
+    _budget(monkeypatch)
+    monkeypatch.delenv("JERRYQUANT_COPY_MAX_ADVERSE_PCT", raising=False)
+    broker = FakeBroker({"AMD": {"tradeable": True, "fractional": True}})
+    t = T("robinhood", "AMD", "LONG", 533.34)
+    t.source_progress_pct = -8.0
     r = paste_bridge.build_actions([t], broker, 500)
     assert r.actions == []
     assert any("underwater" in n for n in r.notes)

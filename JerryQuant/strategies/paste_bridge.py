@@ -45,14 +45,19 @@ class BridgeResult:
 def max_adverse_pct() -> float:
     """How far the SOURCE's own trade may be underwater and still be copied.
 
-    Copying is a momentum bet on someone else's read. A thesis already moving
-    against its author is a weaker setup than the same call working, and the
-    delay between their entry and our fill only widens that gap. Observed live:
-    an AMD long sat -1.10% unlevered (-11% at the author's 10x) four hours after
-    it was posted, while newer names on the board were green — it had become the
-    worst idea there, yet nothing in the sizing logic could see that.
+    The default is deliberately LOOSE, and that is a correction. This guard was
+    first set at 0.75% from a single pre-market observation (an AMD long at
+    -1.10%). Checked against the same board that afternoon it went 0-for-7:
+    AMD closed +2.49%, and DELL/MRVL/NBIS/INTC/SNDK/MU all recovered from
+    negative to strongly positive. The morning readings were measuring
+    pre-market illiquidity in thin `xyz:` synthetic perps, not a failing thesis
+    — so a tight guard would have skipped every winner on the board.
+
+    What survives is a wide backstop against genuinely broken ideas, with the
+    stop doing the real work. Tighten only with evidence, and only for readings
+    taken during market hours.
     """
-    return _env_float("JERRYQUANT_COPY_MAX_ADVERSE_PCT") or 0.75
+    return _env_float("JERRYQUANT_COPY_MAX_ADVERSE_PCT") or 5.0
 
 
 def max_per_name_pct() -> float:

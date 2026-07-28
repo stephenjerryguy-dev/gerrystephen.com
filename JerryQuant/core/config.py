@@ -194,6 +194,15 @@ class RotationConfig(BaseModel):
     lookback_days: int = Field(default=63, ge=20)   # ~3-month momentum
     top_n: int = Field(default=1, ge=1)
     rebalance: str = "monthly"          # monthly | weekly
+    # A challenger must beat the INCUMBENT by this margin before we pay to
+    # switch. Without it, rotation trades hardest exactly when the signal is
+    # weakest: on 2026-07-27 a 0.93pp gap between SPY and QQQ liquidated and
+    # rebuilt the whole account, and the round trip cost more than the edge.
+    min_switch_edge_pct: float = Field(default=2.0, ge=0.0, le=25.0)
+    # Refuse to sell a position opened the same day. In a cash account that
+    # round trip is the Good Faith Violation pattern; three in 12 months means
+    # 90 days of settled-cash-only.
+    block_same_day_roundtrip: bool = True
     max_allocation_pct: float = Field(default=95.0, gt=0, le=100)  # deploy this much of equity into the leader
     use_stop_loss: bool = False
     stop_loss_pct: float = Field(default=10.0, gt=0, le=50)
