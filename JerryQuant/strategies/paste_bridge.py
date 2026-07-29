@@ -25,6 +25,18 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 
+def _cfg_get(sleeve, field, env_name):
+    """Config value, overridden by env when present.
+
+    Config is the source of truth so the sleeve works on a fresh hosted
+    checkout; env stays available for retuning a single run without a commit.
+    """
+    override = _env_float(env_name)
+    if override is not None:
+        return override
+    return getattr(sleeve, field) if sleeve is not None else None
+
+
 def _env_float(name: str) -> Optional[float]:
     raw = os.environ.get(name, "").strip()
     if not raw:
@@ -42,7 +54,7 @@ class BridgeResult:
     notes: list[str] = field(default_factory=list)
 
 
-def max_adverse_pct() -> float:
+def max_adverse_pct(sleeve=None) -> float:
     """How far the SOURCE's own trade may be underwater and still be copied.
 
     The default is deliberately LOOSE, and that is a correction. This guard was
@@ -57,10 +69,11 @@ def max_adverse_pct() -> float:
     stop doing the real work. Tighten only with evidence, and only for readings
     taken during market hours.
     """
-    return _env_float("JERRYQUANT_COPY_MAX_ADVERSE_PCT") or 5.0
+    return _cfg_get(sleeve, "max_adverse_pct",
+                    "JERRYQUANT_COPY_MAX_ADVERSE_PCT") or 5.0
 
 
-def max_per_name_pct() -> float:
+def max_per_name_pct(sleeve=None) -> float:
     """Ceiling on any single copy, as a % of the whole copy budget.
 
     Without this, "diversified" collapses whenever the board is thin: the
@@ -69,26 +82,30 @@ def max_per_name_pct() -> float:
     board deploys LESS rather than concentrating — the undeployed remainder
     stays cash on purpose.
     """
-    return _env_float("JERRYQUANT_COPY_MAX_PER_NAME_PCT") or 25.0
+    return _cfg_get(sleeve, "max_per_name_pct",
+                    "JERRYQUANT_COPY_MAX_PER_NAME_PCT") or 25.0
 
 
-def copy_stop_pct() -> float:
+def copy_stop_pct(sleeve=None) -> float:
     """Stop distance for copied trades. paste.trade carries no auditable stop,
     and without one you cannot bound the loss — so a configured default is
     used and disclosed on the ticket."""
-    return _env_float("JERRYQUANT_COPY_STOP_PCT") or 8.0
+    return _cfg_get(sleeve, "stop_pct", "JERRYQUANT_COPY_STOP_PCT") or 8.0
 
 
 def build_actions(tickets, broker, equity: float,
-                  buying_power: Optional[float] = None) -> BridgeResult:
+                  buying_power: Optional[float] = None,
+                  sleeve=None) -> BridgeResult:
     """Turn routed robinhood tickets into standard live action dicts.
 
     `tickets` are RoutedTicket objects from paste_trade_router. Anything not
     long-equity-at-robinhood is dropped with a note explaining why.
     """
     res = BridgeResult()
-    budget = _env_float("JERRYQUANT_RH_COPY_BUDGET_USD")
-    max_loss = _env_float("JERRYQUANT_COPY_MAX_LOSS_USD")
+    budget = _cfg_get(sleeve, "budget_usd", "JERRYQUANT_RH_COPY_BUDGET_USD")
+    max_loss = _cfg_get(sleeve, "max_loss_usd", "JERRYQUANT_COPY_MAX_LOSS_USD")
+    if budget is not None and budget <= 0:
+        budget = None
 
     rh = [t for t in tickets if getattr(t, "venue", "") == "robinhood"
           and str(getattr(t, "direction", "")).upper() == "LONG"]
@@ -115,8 +132,8 @@ def build_actions(tickets, broker, equity: float,
 
     if budget is None or max_loss is None:
         res.notes.append(
-            "paste.trade sleeve idle: set JERRYQUANT_RH_COPY_BUDGET_USD and "
-            "JERRYQUANT_COPY_MAX_LOSS_USD to enable copy sizing")
+            "paste.trade sleeve idle: set strategy.copy_sleeve.budget_usd / "
+            "max_loss_usd in config.yaml (or the matching env vars)")
         return res
 
     # Verify the symbols are actually tradable HERE before proposing anything.
@@ -128,9 +145,9 @@ def build_actions(tickets, broker, equity: float,
                          f"skipping sleeve rather than assuming")
         return res
 
-    stop_pct = copy_stop_pct()
+    stop_pct = copy_stop_pct(sleeve)
     # Even split, but never more than the per-name ceiling.
-    per_name_cap = budget * max_per_name_pct() / 100.0
+    per_name_cap = budget * max_per_name_pct(sleeve) / 100.0
     per_trade_budget = min(budget / max(1, len(rh)), per_name_cap)
 
     for t in rh:
@@ -150,7 +167,7 @@ def build_actions(tickets, broker, equity: float,
 
         # Drop a copy whose author is already losing on it.
         progress = getattr(t, "source_progress_pct", None)
-        limit = max_adverse_pct()
+        limit = max_adverse_pct(sleeve)
         if progress is not None and progress < -limit:
             res.notes.append(
                 f"{sym}: source is {progress:+.2f}% underwater "
@@ -195,7 +212,7 @@ def build_actions(tickets, broker, equity: float,
             res.notes.append(
                 f"${budget - deployed:,.2f} of the copy budget left as cash: "
                 f"too few eligible names to spread it at "
-                f"{max_per_name_pct():.0f}% per name — concentration is the "
+                f"{max_per_name_pct(sleeve):.0f}% per name — concentration is the "
                 f"worse outcome")
     return res
 

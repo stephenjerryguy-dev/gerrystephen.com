@@ -1137,12 +1137,15 @@ def _decide_rotation_actions(cfg: Config, journal: TradeJournal,
     # unable to place anything — the sleeve would look configured and simply
     # never fire. Reserving it here is what makes the two coexist.
     copy_reserve = 0.0
-    if os.environ.get("JERRYQUANT_RH_COPY_BUDGET_USD", "").strip():
+    _sleeve = getattr(cfg.strategy, "copy_sleeve", None)
+    _env_budget = os.environ.get("JERRYQUANT_RH_COPY_BUDGET_USD", "").strip()
+    if _env_budget:
         try:
-            copy_reserve = max(0.0, float(
-                os.environ["JERRYQUANT_RH_COPY_BUDGET_USD"]))
+            copy_reserve = max(0.0, float(_env_budget))
         except ValueError:
             copy_reserve = 0.0
+    elif _sleeve is not None and _sleeve.enabled:
+        copy_reserve = max(0.0, float(_sleeve.budget_usd))
     if copy_reserve > 0:
         usable = max(0.0, buying_power - copy_reserve)
         if usable < buying_power:
@@ -1428,19 +1431,30 @@ def _paste_sleeve_actions(cfg: Config, broker, equity: float, journal=None,
     tradability verified before anything is proposed."""
     from strategies import paste_bridge
 
-    if not os.environ.get("JERRYQUANT_RH_COPY_BUDGET_USD", "").strip():
+    sleeve = getattr(cfg.strategy, "copy_sleeve", None)
+    env_budget = os.environ.get("JERRYQUANT_RH_COPY_BUDGET_USD", "").strip()
+    enabled = bool(env_budget) or (sleeve is not None and sleeve.enabled
+                                   and sleeve.budget_usd > 0)
+    if not enabled:
         return [], []          # sleeve not configured — stay quiet
     try:
         from data_sources.paste_trade import fetch_best_trades
         from strategies.paste_trade_router import build_live_tickets
 
-        handles = [h.strip() for h in os.environ.get(
-            "JERRYQUANT_PASTE_HANDLES", "notthreadguy").split(",") if h.strip()]
+        env_handles = os.environ.get("JERRYQUANT_PASTE_HANDLES", "").strip()
+        if env_handles:
+            handles = [h.strip() for h in env_handles.split(",") if h.strip()]
+        else:
+            handles = list(getattr(sleeve, "handles", None) or [])
+        # An enabled sleeve with no named handles follows the whole board and
+        # leans on the quality gates, rather than silently following nobody.
+        if not handles:
+            handles = ["*"]
         trades = fetch_best_trades()
         routed = build_live_tickets(
             trades, handles,
-            max_age_minutes=int(os.environ.get(
-                "JERRYQUANT_PASTE_MAX_AGE_MINUTES") or "30"),
+            max_age_minutes=int(os.environ.get("JERRYQUANT_PASTE_MAX_AGE_MINUTES")
+                                or getattr(sleeve, "max_age_minutes", 30)),
         )
         try:
             buying_power = broker.get_buying_power()
@@ -1457,7 +1471,8 @@ def _paste_sleeve_actions(cfg: Config, broker, equity: float, journal=None,
         if pending_exits:
             pass
         res = paste_bridge.build_actions(
-            list(routed.tickets), broker, equity, buying_power=buying_power)
+            list(routed.tickets), broker, equity,
+            buying_power=buying_power, sleeve=sleeve)
         actions, notes = list(res.actions), list(res.notes)
 
         # Manage copies we already hold: close the ones whose source thesis has

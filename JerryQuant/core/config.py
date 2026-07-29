@@ -210,6 +210,29 @@ class RotationConfig(BaseModel):
     take_profit_pct: float = Field(default=15.0, gt=0, le=100)
 
 
+class CopySleeveConfig(BaseModel):
+    """paste.trade copy sleeve.
+
+    These live in CONFIG, not in secrets. A budget, a stop distance and a list
+    of public handles are not credentials, and treating them as secrets is what
+    kept the sleeve inert: the values existed only in a local .env, GitHub never
+    saw them, so every hosted run returned at the first check and no copy trade
+    could ever be placed. Only the broker tokens belong in secrets.
+
+    Environment variables still override every field, so a run can be retuned
+    without a commit.
+    """
+
+    enabled: bool = False
+    budget_usd: float = Field(default=10.0, ge=0.0)
+    max_loss_usd: float = Field(default=2.0, gt=0.0)
+    stop_pct: float = Field(default=8.0, gt=0.0, le=50.0)
+    max_per_name_pct: float = Field(default=25.0, gt=0.0, le=100.0)
+    max_adverse_pct: float = Field(default=5.0, gt=0.0, le=50.0)
+    max_age_minutes: int = Field(default=30, ge=1, le=1440)
+    handles: list[str] = Field(default_factory=list)   # empty + enabled = "*"
+
+
 class AllocationConfig(BaseModel):
     """Diversified, always-invested target allocation (robo-advisor style):
     hold a fixed multi-asset mix and rebalance back to targets when holdings
@@ -239,6 +262,7 @@ class StrategyConfig(BaseModel):
     regime: RegimeConfig = RegimeConfig()
     rotation: RotationConfig = RotationConfig()
     allocation: AllocationConfig = AllocationConfig()
+    copy_sleeve: CopySleeveConfig = CopySleeveConfig()
     # Defined further down; forward-referenced and rebuilt at module end so the
     # prediction-market venue config is actually reachable as
     # cfg.strategy.prediction_market (it was previously orphaned).

@@ -121,6 +121,20 @@ strategy:
     breadth_ma: 200
     max_benchmark_atr_pct: 0.0       # 0 disables the volatility-regime gate
 
+  # paste.trade copy sleeve. These are CONFIG, not secrets — a budget, a stop
+  # distance and public handles are not credentials, and keeping them in a
+  # local .env is what made the sleeve inert on every hosted run. Env vars of
+  # the same name still override, for retuning without a commit.
+  copy_sleeve:
+    enabled: true
+    budget_usd: 10.0          # ring-fenced; rotation reserves this before sizing
+    max_loss_usd: 2.0         # hard cap on loss per copy
+    stop_pct: 8.0             # paste.trade supplies no stop; this is derived
+    max_per_name_pct: 25.0    # a thin board deploys less, never concentrates
+    max_adverse_pct: 5.0      # wide backstop; see paste_bridge.max_adverse_pct
+    max_age_minutes: 30
+    handles: []               # empty = follow the whole board via quality gates
+
 signals:
   sentiment_max_confidence_adjust: 10      # sentiment can only nudge confidence
   prediction_market_max_confidence_adjust: 10
@@ -151,7 +165,6 @@ prediction_market:
     forecast_model: ensemble         # ensemble => a probability spread, not one number
     min_edge: 0.08                   # weather markets are thin; demand a bigger edge
     locations: []                    # e.g. {name: NYC, latitude: 40.78, longitude: -73.97, kalshi_series: KXHIGHNY}
-
 data:
   provider: yfinance
   history_days: 400                  # enough for a 200-day MA plus warmup
