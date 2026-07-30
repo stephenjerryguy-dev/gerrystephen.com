@@ -1146,6 +1146,7 @@ def _decide_rotation_actions(cfg: Config, journal: TradeJournal,
             copy_reserve = 0.0
     elif _sleeve is not None and _sleeve.enabled:
         copy_reserve = max(0.0, float(_sleeve.budget_usd))
+    investable_equity = max(0.0, equity - copy_reserve)
     if copy_reserve > 0:
         usable = max(0.0, buying_power - copy_reserve)
         if usable < buying_power:
@@ -1273,7 +1274,12 @@ def _decide_rotation_actions(cfg: Config, journal: TradeJournal,
         # weight using whatever is actually settled and spendable now; the
         # rest follows on the next cycle as T+1 proceeds settle.
         price = prices.get(target, 0.0)
-        desired = equity * rc.max_allocation_pct / 100.0
+        # Target weight is measured against INVESTABLE equity — total equity
+        # less the copy sleeve's ring-fenced budget. Sizing off total equity
+        # meant rotation kept topping the leader back up to 95% of everything,
+        # so the sleeve's reservation was re-consumed on the next scan and it
+        # could never accumulate the cash it was promised.
+        desired = investable_equity * rc.max_allocation_pct / 100.0
         current_value = held[target]["quantity"] * price
         shortfall = desired - current_value
         alloc = min(shortfall, buying_power)
@@ -1298,7 +1304,7 @@ def _decide_rotation_actions(cfg: Config, journal: TradeJournal,
         # Proceeds settle T+1; buy the new leader next cycle with settled cash.
         notes.append(f"selling first; will buy {target} next cycle after settlement")
     else:
-        alloc = min(equity * rc.max_allocation_pct / 100.0, buying_power)
+        alloc = min(investable_equity * rc.max_allocation_pct / 100.0, buying_power)
         price = prices[target]
         units = alloc / price if price > 0 else 0.0
         if alloc < 1.0 or units <= 0:

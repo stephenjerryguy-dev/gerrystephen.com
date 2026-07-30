@@ -74,3 +74,32 @@ def test_rotation_reserves_the_copy_sleeve_budget(monkeypatch):
     # Broker reports $100 buying power; $20 is reserved, so at most $80 deploys.
     assert buys and buys[0]["units"] * buys[0]["entry"] <= 80.0 + 1e-6
     assert any("reserving" in n for n in notes)
+
+
+def test_reserve_comes_out_of_target_weight_not_just_spare_cash(monkeypatch):
+    """The sleeve must be able to ACCUMULATE its budget.
+
+    Reserving only from spare buying power was not enough: rotation still
+    targeted 95% of TOTAL equity, so every scan topped the leader back up and
+    re-consumed the reservation. The target must be measured against equity
+    minus the ring-fenced budget.
+    """
+    import main
+    from risk.kill_switch import KillSwitch
+    from tests.test_rotation import _FakeBroker, _FakeJournal, _patch_data, _ramp, _cfg as _rotcfg
+
+    _patch_data(monkeypatch, {"SPY": _ramp(100, 0.001, 80),
+                              "QQQ": _ramp(100, 0.004, 80),
+                              "BIL": _ramp(100, 0.0, 80)})
+    monkeypatch.setenv("JERRYQUANT_RH_COPY_BUDGET_USD", "30")
+    # Broker reports equity 100 and already holds the leader at ~$70, which is
+    # under 95% of total equity but AT 95% of investable equity (100-30=70).
+    px = _ramp(100, 0.004, 80).iloc[-1]
+    held = {"QQQ": {"quantity": 66.5 / px, "sellable": 66.5 / px}}
+    actions, notes, _ = main._decide_rotation_actions(
+        _rotcfg(), _FakeJournal(), KillSwitch("/tmp/_rot_inv.txt"),
+        _FakeBroker(held=held))
+    buys = [a for a in actions if a["kind"] == "entry"]
+    # Any top-up must respect the investable ceiling, never claw back the reserve.
+    for b in buys:
+        assert 66.5 + b["units"] * b["entry"] <= 70.0 + 1e-6

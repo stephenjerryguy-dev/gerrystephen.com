@@ -127,7 +127,7 @@ strategy:
   # the same name still override, for retuning without a commit.
   copy_sleeve:
     enabled: true
-    budget_usd: 10.0          # ring-fenced; rotation reserves this before sizing
+    budget_usd: 30.0          # ring-fenced; rotation targets equity MINUS this
     max_loss_usd: 2.0         # hard cap on loss per copy
     stop_pct: 8.0             # paste.trade supplies no stop; this is derived
     max_per_name_pct: 25.0    # a thin board deploys less, never concentrates
