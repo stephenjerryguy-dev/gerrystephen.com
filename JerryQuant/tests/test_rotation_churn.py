@@ -103,3 +103,59 @@ def test_reserve_comes_out_of_target_weight_not_just_spare_cash(monkeypatch):
     # Any top-up must respect the investable ceiling, never claw back the reserve.
     for b in buys:
         assert 66.5 + b["units"] * b["entry"] <= 70.0 + 1e-6
+
+
+def _trim_cfg(**over):
+    from tests.test_rotation import _cfg as _rotcfg
+    c = _rotcfg()
+    sl = c.strategy.copy_sleeve.model_copy(update={
+        "enabled": True, "budget_usd": 30.0, "fund_by_trimming": True, **over})
+    return c.model_copy(update={"strategy": c.strategy.model_copy(
+        update={"copy_sleeve": sl})})
+
+
+def _run_trim(monkeypatch, cfg, held_value, buying_power=0.0):
+    import main
+    from risk.kill_switch import KillSwitch
+    from tests.test_rotation import _FakeBroker, _FakeJournal, _patch_data, _ramp
+
+    _patch_data(monkeypatch, {"SPY": _ramp(100, 0.001, 80),
+                              "QQQ": _ramp(100, 0.004, 80),
+                              "BIL": _ramp(100, 0.0, 80)})
+    px = _ramp(100, 0.004, 80).iloc[-1]
+    qty = held_value / px
+
+    class B(_FakeBroker):
+        def get_buying_power(self): return buying_power
+    b = B(held={"QQQ": {"quantity": qty, "sellable": qty}})
+    return main._decide_rotation_actions(
+        cfg, _FakeJournal(), KillSwitch("/tmp/_rot_trim.txt"), b)
+
+
+def test_overweight_leader_is_trimmed_to_fund_the_sleeve(monkeypatch):
+    """Equity 100, budget 30 -> investable 70, target 95% = 66.5. Holding 95
+    of the leader with no cash means the sleeve can never be funded unless
+    the excess is sold."""
+    actions, notes, _ = _run_trim(monkeypatch, _trim_cfg(), held_value=95.0)
+    exits = [a for a in actions if a["kind"] == "exit"]
+    assert len(exits) == 1
+    assert exits[0]["full"] is False              # a trim, never a liquidation
+    assert "fund the paste.trade sleeve" in exits[0]["reason"]
+    # Never sells more than the sleeve actually needs.
+    assert exits[0]["units"] * exits[0]["reference_price"] <= 30.0 + 1e-6
+
+
+def test_no_trim_once_the_float_is_funded(monkeypatch):
+    """Cash already covers the reserve — selling more would be pure churn."""
+    actions, _, _ = _run_trim(monkeypatch, _trim_cfg(), held_value=95.0,
+                              buying_power=30.0)
+    assert [a for a in actions if a["kind"] == "exit"] == []
+
+
+def test_trimming_stays_off_unless_explicitly_enabled(monkeypatch):
+    """Selling part of the core position must never be inherited silently."""
+    actions, notes, _ = _run_trim(monkeypatch,
+                                  _trim_cfg(fund_by_trimming=False),
+                                  held_value=95.0)
+    assert [a for a in actions if a["kind"] == "exit"] == []
+    assert any("no change" in n for n in notes)

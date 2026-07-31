@@ -1146,6 +1146,9 @@ def _decide_rotation_actions(cfg: Config, journal: TradeJournal,
             copy_reserve = 0.0
     elif _sleeve is not None and _sleeve.enabled:
         copy_reserve = max(0.0, float(_sleeve.budget_usd))
+    raw_buying_power = buying_power
+    sleeve_trims = bool(_sleeve is not None and _sleeve.enabled
+                        and _sleeve.fund_by_trimming)
     investable_equity = max(0.0, equity - copy_reserve)
     if copy_reserve > 0:
         usable = max(0.0, buying_power - copy_reserve)
@@ -1286,7 +1289,38 @@ def _decide_rotation_actions(cfg: Config, journal: TradeJournal,
         if price <= 0:
             notes.append(f"holding {target} but no fresh price — no top-up")
         elif shortfall <= 0:
-            notes.append(f"already holding {target} at target weight — no change")
+            # The leader is at or above its investable target. If the sleeve is
+            # underfunded, trim the excess so the reserve becomes real cash.
+            #
+            # This is deliberately NOT gated on "the board has a name right
+            # now". Proceeds settle T+1 while copy tickets expire in 30
+            # minutes, so cash raised today can never buy today's idea — gating
+            # on a live name would trim for a trade that has already expired by
+            # the time the money arrives. What the sleeve needs is a standing
+            # float, established once and then recycled as copies close.
+            trimmed = False
+            if copy_reserve > 0 and sleeve_trims and price > 0:
+                excess = -shortfall
+                cash_gap = max(0.0, copy_reserve - raw_buying_power)
+                trim_value = min(excess, cash_gap)
+                sellable = float(held[target].get("sellable", 0.0))
+                units = min(trim_value / price, sellable)
+                if target in opened_today:
+                    notes.append(
+                        f"{target}: opened today — not trimming same-day "
+                        f"(Good Faith Violation guard)")
+                elif units * price >= 1.0:
+                    actions.append({
+                        "kind": "exit", "symbol": target, "units": units,
+                        "reference_price": price, "full": False,
+                        "strategy": "rotation",
+                        "reason": (f"trim {target} to fund the paste.trade "
+                                   f"sleeve (${units * price:,.2f} toward a "
+                                   f"${copy_reserve:,.2f} float; settles T+1)")})
+                    trimmed = True
+            if not trimmed:
+                notes.append(
+                    f"already holding {target} at target weight — no change")
         elif alloc < 1.0:
             notes.append(
                 f"holding {target}, ${shortfall:,.2f} under target weight but only "

@@ -231,6 +231,10 @@ class CopySleeveConfig(BaseModel):
     max_adverse_pct: float = Field(default=5.0, gt=0.0, le=50.0)
     max_age_minutes: int = Field(default=30, ge=1, le=1440)
     handles: list[str] = Field(default_factory=list)   # empty + enabled = "*"
+    # Let rotation trim the leader to establish the sleeve's cash float.
+    # Off by default: this SELLS part of the core position, which is a real
+    # allocation decision and not something to inherit silently.
+    fund_by_trimming: bool = False
 
 
 class AllocationConfig(BaseModel):

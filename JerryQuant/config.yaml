@@ -134,6 +134,7 @@ strategy:
     max_adverse_pct: 5.0      # wide backstop; see paste_bridge.max_adverse_pct
     max_age_minutes: 30
     handles: []               # empty = follow the whole board via quality gates
+    fund_by_trimming: true    # trim the leader once to establish the cash float
 
 signals:
   sentiment_max_confidence_adjust: 10      # sentiment can only nudge confidence
