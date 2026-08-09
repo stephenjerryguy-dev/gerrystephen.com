@@ -132,7 +132,11 @@ strategy:
     stop_pct: 8.0             # paste.trade supplies no stop; this is derived
     max_per_name_pct: 25.0    # a thin board deploys less, never concentrates
     max_adverse_pct: 5.0      # wide backstop; see paste_bridge.max_adverse_pct
-    max_age_minutes: 30
+    # 30m was far too tight for the scan cadence: scans are 30-60min apart, so
+    # an idea posted just after one is already expired by the next. Of 31 long
+    # ideas on the board on 2026-08-07 only 2 were inside the window, which is
+    # why a funded sleeve placed nothing for a week.
+    max_age_minutes: 120
     handles: []               # empty = follow the whole board via quality gates
     fund_by_trimming: true    # trim the leader once to establish the cash float
 
