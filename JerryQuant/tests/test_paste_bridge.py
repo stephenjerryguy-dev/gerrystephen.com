@@ -255,3 +255,39 @@ def test_no_orders_when_buying_power_is_exhausted(monkeypatch):
                                    broker, 500, buying_power=0.50)
     assert r.actions == []
     assert any("no copy orders placed" in n for n in r.notes)
+
+
+# --- ticker collision -----------------------------------------------------
+
+def test_rejects_ticker_collision(monkeypatch):
+    """paste.trade's WTI is crude oil (~$77); the listed WTI is W&T Offshore
+    (~$3.43). Same string, different instrument. Sizing off the source price
+    would buy a small-cap oil company believing it was crude."""
+    _budget(monkeypatch, budget="30", max_loss="10", stop="8")
+    broker = FakeBroker({"WTI": {"tradeable": True, "fractional": True}})
+    r = paste_bridge.build_actions([T("robinhood", "WTI", "LONG", 77.31)],
+                                   broker, 500, price_lookup=lambda s: 3.43)
+    assert r.actions == []
+    assert any("different instrument sharing a ticker" in n for n in r.notes)
+
+
+def test_sizes_from_the_real_quote_not_the_source(monkeypatch):
+    """Even within tolerance, we buy at OUR price — that is what we own."""
+    _budget(monkeypatch, budget="30", max_loss="10", stop="8")
+    broker = FakeBroker({"MU": {"tradeable": True, "fractional": True}})
+    r = paste_bridge.build_actions([T("robinhood", "MU", "LONG", 880.0)],
+                                   broker, 500, price_lookup=lambda s: 877.57)
+    assert len(r.actions) == 1
+    assert r.actions[0]["entry"] == pytest.approx(877.57)
+    assert r.actions[0]["stop"] == pytest.approx(877.57 * 0.92)
+
+
+def test_unpriceable_symbol_is_skipped(monkeypatch):
+    """Without an independent quote the mapping cannot be verified at all."""
+    _budget(monkeypatch, budget="30", max_loss="10", stop="8")
+    broker = FakeBroker({"LYTE": {"tradeable": True, "fractional": True}})
+    r = paste_bridge.build_actions([T("robinhood", "LYTE", "LONG", 27.47)],
+                                   broker, 500,
+                                   price_lookup=lambda s: (_ for _ in ()).throw(RuntimeError("no data")))
+    assert r.actions == []
+    assert any("cannot verify the ticker" in n for n in r.notes)

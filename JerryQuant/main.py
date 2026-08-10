@@ -1510,9 +1510,16 @@ def _paste_sleeve_actions(cfg: Config, broker, equity: float, journal=None,
         # a Good Faith Violation. Settled buying power is the only honest input.
         if pending_exits:
             pass
+        def _real_price(symbol):
+            from data_sources import market_data
+            frame = market_data.fetch_daily(
+                symbol, history_days=cfg.data.history_days)
+            return float(frame["close"].iloc[-1])
+
         res = paste_bridge.build_actions(
             list(routed.tickets), broker, equity,
-            buying_power=buying_power, sleeve=sleeve)
+            buying_power=buying_power, sleeve=sleeve,
+            price_lookup=_real_price)
         actions, notes = list(res.actions), list(res.notes)
 
         # Manage copies we already hold: close the ones whose source thesis has

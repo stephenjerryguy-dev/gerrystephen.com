@@ -95,7 +95,7 @@ def copy_stop_pct(sleeve=None) -> float:
 
 def build_actions(tickets, broker, equity: float,
                   buying_power: Optional[float] = None,
-                  sleeve=None) -> BridgeResult:
+                  sleeve=None, price_lookup=None) -> BridgeResult:
     """Turn routed robinhood tickets into standard live action dicts.
 
     `tickets` are RoutedTicket objects from paste_trade_router. Anything not
@@ -160,10 +160,40 @@ def build_actions(tickets, broker, equity: float,
             res.notes.append(f"{sym}: not fractionable; a whole share may "
                              f"exceed the copy budget — skipped")
             continue
-        price = getattr(t, "entry_reference", None)
-        if not price or price <= 0:
+        source_price = getattr(t, "entry_reference", None)
+        if not source_price or source_price <= 0:
             res.notes.append(f"{sym}: no reference price on the observation — skipped")
             continue
+
+        # TICKER COLLISION GUARD. paste.trade quotes the Hyperliquid synthetic,
+        # which can be an entirely different asset from the US-listed ticker of
+        # the same name — "WTI" is crude oil there (~$77) and W&T Offshore here
+        # (~$3), a 2154% gap. Buying on the source price would size the position
+        # from a price that has nothing to do with what we would actually own.
+        # So: paste.trade decides WHAT to buy, our own market data decides the
+        # PRICE, and a wide disagreement between them means the mapping is wrong.
+        price = source_price
+        if price_lookup is not None:
+            real = None
+            try:
+                real = price_lookup(sym)
+            except Exception:
+                real = None
+            if not real or real <= 0:
+                res.notes.append(
+                    f"{sym}: no independent quote — cannot verify the ticker "
+                    f"maps to this instrument, skipped")
+                continue
+            divergence = abs(source_price - real) / real * 100.0
+            max_div = _cfg_get(sleeve, "max_price_divergence_pct",
+                               "JERRYQUANT_COPY_MAX_PRICE_DIVERGENCE_PCT") or 10.0
+            if divergence > max_div:
+                res.notes.append(
+                    f"{sym}: source quotes ${source_price:,.2f} but the listed "
+                    f"security trades at ${real:,.2f} ({divergence:,.0f}% apart) "
+                    f"— different instrument sharing a ticker, skipped")
+                continue
+            price = real       # size and stop from what we actually buy
 
         # Drop a copy whose author is already losing on it.
         progress = getattr(t, "source_progress_pct", None)

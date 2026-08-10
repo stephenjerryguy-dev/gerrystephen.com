@@ -139,6 +139,7 @@ strategy:
     max_age_minutes: 120
     handles: []               # empty = follow the whole board via quality gates
     fund_by_trimming: true    # trim the leader once to establish the cash float
+    max_price_divergence_pct: 10.0  # reject ticker collisions (paste WTI != listed WTI)
 
 signals:
   sentiment_max_confidence_adjust: 10      # sentiment can only nudge confidence

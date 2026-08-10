@@ -235,6 +235,12 @@ class CopySleeveConfig(BaseModel):
     # Off by default: this SELLS part of the core position, which is a real
     # allocation decision and not something to inherit silently.
     fund_by_trimming: bool = False
+    # A Hyperliquid synthetic ticker can collide with a DIFFERENT US-listed
+    # ticker: paste.trade's "WTI" is crude oil near $77, while WTI on
+    # Robinhood is W&T Offshore near $3. Reject a candidate whose source price
+    # disagrees with the real quote by more than this, because that disagreement
+    # means the two are not the same instrument.
+    max_price_divergence_pct: float = Field(default=10.0, gt=0.0, le=100.0)
 
 
 class AllocationConfig(BaseModel):
