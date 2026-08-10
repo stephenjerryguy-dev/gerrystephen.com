@@ -1511,6 +1511,24 @@ def _paste_sleeve_actions(cfg: Config, broker, equity: float, journal=None,
         if pending_exits:
             pass
         def _real_price(symbol):
+            """Live quote first, yesterday's close only as a fallback.
+
+            This is not cosmetic. The broker refuses any buy whose live price
+            differs from the ticket's reference by more than
+            max_buy_deviation_pct (1.5%), and a copy priced off yesterday's
+            CLOSE fails that check whenever the name gaps overnight — routine
+            for the small caps paste.trade surfaces, and the reason every copy
+            order was rejected while SPY rotations sailed through. Quoting the
+            ticket at the live ask makes the deviation check measure real
+            slippage between propose and execute instead of an overnight gap.
+            """
+            try:
+                quote = broker.get_quote(symbol)
+                live = float(quote.get("ask") or 0) or float(quote.get("last") or 0)
+                if live > 0:
+                    return live
+            except Exception:
+                pass
             from data_sources import market_data
             frame = market_data.fetch_daily(
                 symbol, history_days=cfg.data.history_days)
@@ -1773,6 +1791,33 @@ def run_weather_scan(station_key: str = "nyc") -> int:
     return 0
 
 
+def _report_execution_failures(cfg: Config, failures: list[str], done: int) -> None:
+    """Surface execute failures where a human will actually see them.
+
+    A red cross in the Actions tab is not a notification. These write into the
+    job summary (readable without log access) and push to the phone, so a
+    rejected order announces itself instead of quietly stopping all trading.
+    """
+    lines = [f"## JerryQuant: {len(failures)} order(s) FAILED",
+             f"{done} succeeded.", ""] + [f"- {f}" for f in failures]
+    body = "\n".join(lines)
+    summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if summary_path:
+        try:
+            with open(summary_path, "a") as fh:
+                fh.write(body + "\n")
+        except OSError:
+            pass
+    try:
+        from reports import notify
+        notify.push_ticket(
+            title=f"JerryQuant — {len(failures)} order(s) failed",
+            message="\n".join(failures)[:400],
+        )
+    except Exception:
+        pass   # a broken notifier must never mask the original failure
+
+
 def run_live_execute(cfg: Config, journal: TradeJournal,
                      kill_switch: KillSwitch) -> int:
     """Apply EXACTLY the actions serialized by a prior propose run. Intended
@@ -1808,6 +1853,7 @@ def run_live_execute(cfg: Config, journal: TradeJournal,
     state = _load_live_state(journal)
     tf = cfg.strategy.trend_following
     done, failed = 0, 0
+    failures: list[str] = []
     for a in payload["actions"]:
         sym = a["symbol"]
         try:
@@ -1853,14 +1899,26 @@ def run_live_execute(cfg: Config, journal: TradeJournal,
                 journal.db.update_live_proposal_status(a["fingerprint"], "executed")
             print(f"Executed {a['kind']} {sym} ({a['units']:.6f}).")
             done += 1
-        except (BrokerDisabled, OrderError) as e:
+        except Exception as e:
+            # Catch broadly and on purpose. A non-broker exception used to
+            # escape this loop and kill the job, leaving the reason only in a
+            # CI log nobody reads — the execute step failed every session from
+            # 2026-08-06 and the account simply stopped trading, which took
+            # nine days and a direct question to notice. An unattended agent
+            # must report why it could not act, and must still attempt the
+            # remaining tickets rather than abandoning them.
             failed += 1
+            detail = f"{type(e).__name__}: {e}"
+            failures.append(f"{a['kind']} {sym}: {detail}")
             if a.get("fingerprint"):
-                journal.db.update_live_proposal_status(a["fingerprint"], "failed", str(e))
-            journal.record_risk_event(f"live_{a['kind']}_failed", f"{sym}: {e}")
-            print(f"FAILED {a['kind']} {sym}: {e}")
+                journal.db.update_live_proposal_status(
+                    a["fingerprint"], "failed", detail)
+            journal.record_risk_event(f"live_{a['kind']}_failed", f"{sym}: {detail}")
+            print(f"FAILED {a['kind']} {sym}: {detail}")
     pending_path.unlink()  # consume the proposal so it can't be replayed
     print(f"\nExecuted {done} action(s), {failed} failed. Proposal consumed.")
+    if failures:
+        _report_execution_failures(cfg, failures, done)
     return 0 if failed == 0 else 1
 
 
