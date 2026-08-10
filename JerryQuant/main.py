@@ -812,6 +812,7 @@ def _arm_live_broker(cfg: Config, journal: TradeJournal, kill_switch: KillSwitch
         broker.assert_armed()
     except BrokerDisabled as e:
         print(f"Refusing to run live: {e}")
+        _report_arm_failure(f"Broker disabled: {e}")
         return None
     try:
         tools = {t.get("name") for t in broker.discover()}
@@ -828,10 +829,13 @@ def _arm_live_broker(cfg: Config, journal: TradeJournal, kill_switch: KillSwitch
             journal.record_risk_event("mcp_connection_transient", str(e))
             print(f"MCP connection failed ({e}) — transient, not halting. "
                   f"The next scheduled run will retry.")
+            _report_arm_failure(f"Transient connection failure (will retry): {e}")
             return None
         kill_switch.engage(f"Robinhood MCP connection failed: {e}")
         journal.record_risk_event("mcp_connection_failed", str(e))
         print(f"MCP connection failed ({e}).")
+        _report_arm_failure(
+            f"Connection/auth failure — kill switch engaged: {type(e).__name__}: {e}")
         return None
     required = {"get_accounts", "get_portfolio", "get_equity_positions",
                 "review_equity_order", "place_equity_order"}
@@ -839,6 +843,7 @@ def _arm_live_broker(cfg: Config, journal: TradeJournal, kill_switch: KillSwitch
         kill_switch.engage(f"Robinhood MCP missing tools: {required - tools}")
         journal.record_risk_event("mcp_tools_missing", str(required - tools))
         print(f"Robinhood no longer exposes {required - tools}. Halting.")
+        _report_arm_failure(f"Missing MCP tools: {required - tools}")
         return None
     return broker
 
@@ -1791,6 +1796,35 @@ def run_weather_scan(station_key: str = "nyc") -> int:
     return 0
 
 
+def _write_job_summary(text: str) -> None:
+    """Append to the CI job summary, readable without log access.
+
+    CI logs need an authenticated token to fetch, so a failure whose only
+    record is a log line is effectively invisible — which is how the execute
+    step failed silently for days. Anything that stops the agent trading
+    belongs here.
+    """
+    path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not path:
+        return
+    try:
+        with open(path, "a") as fh:
+            fh.write(text + "\n")
+    except OSError:
+        pass
+
+
+def _report_arm_failure(reason: str) -> None:
+    """Say why the agent could not even connect, where a human can see it."""
+    _write_job_summary(f"## JerryQuant could not arm the broker\n\n{reason}\n")
+    try:
+        from reports import notify
+        notify.push_ticket(title="JerryQuant — broker unavailable",
+                           message=reason[:400])
+    except Exception:
+        pass
+
+
 def _report_execution_failures(cfg: Config, failures: list[str], done: int) -> None:
     """Surface execute failures where a human will actually see them.
 
@@ -1800,14 +1834,7 @@ def _report_execution_failures(cfg: Config, failures: list[str], done: int) -> N
     """
     lines = [f"## JerryQuant: {len(failures)} order(s) FAILED",
              f"{done} succeeded.", ""] + [f"- {f}" for f in failures]
-    body = "\n".join(lines)
-    summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
-    if summary_path:
-        try:
-            with open(summary_path, "a") as fh:
-                fh.write(body + "\n")
-        except OSError:
-            pass
+    _write_job_summary("\n".join(lines))
     try:
         from reports import notify
         notify.push_ticket(
