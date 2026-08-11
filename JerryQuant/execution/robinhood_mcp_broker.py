@@ -50,6 +50,8 @@ class RobinhoodMCPBroker:
     def __init__(self, cfg: Config, kill_switch: KillSwitch, token_store=None):
         self.cfg = cfg
         self.kill_switch = kill_switch
+        # Per-run memo of get_equity_tradability, keyed by symbol.
+        self._tradability_cache: dict[str, dict] = {}
         self.url = os.environ.get("ROBINHOOD_MCP_URL", "").strip()
         self.api_key = os.environ.get("ROBINHOOD_MCP_API_KEY", "").strip()
         self.refresh_token = os.environ.get("ROBINHOOD_MCP_REFRESH_TOKEN", "").strip()
@@ -454,16 +456,53 @@ class RobinhoodMCPBroker:
     # Orders
     # ------------------------------------------------------------------
 
-    def _tradable_symbol(self, asset: str) -> str:
+    def _tradability_at_account(self, symbol: str) -> dict:
+        """Cached per-run get_equity_tradability for one symbol. Cached
+        because a basket of copies would otherwise re-ask per order."""
+        if symbol not in self._tradability_cache:
+            self._tradability_cache.update(self.get_tradability([symbol]))
+            self._tradability_cache.setdefault(symbol, {})
+        return self._tradability_cache[symbol]
+
+    def _tradable_symbol(self, asset: str, verify: bool = True) -> str:
         """Live trading is equities-only: Robinhood's agentic MCP exposes
-        no crypto order tools. Crypto stays paper/backtest by design."""
-        equities = {a.upper() for a in self.cfg.watchlist.equities}
+        no crypto order tools. Crypto stays paper/backtest by design.
+
+        Equities are deliberately NOT gated on `watchlist.equities`. That
+        list is the STRATEGY'S DATA UNIVERSE — it drives the daily-bar fetch
+        and the regime breadth filter — and using it as an order allowlist
+        rejected every paste.trade copy, a sleeve whose whole job is naming
+        arbitrary tickers. Worse, it also sat on `sell_position`, so a copy
+        opened while a ticker was listed would have become unsellable the
+        moment the list changed. The authority on whether we can trade a
+        symbol *here* is the account itself, which `get_equity_tradability`
+        already answers (and which paste_bridge checks at proposal time).
+
+        `verify=False` skips that live lookup for exits: a failed network
+        call must never be the reason we cannot get out of a position.
+        Robinhood's own `review_equity_order` still gates the sell."""
         symbol = asset.upper().replace("-USD", "")
-        if symbol not in equities:
+        if self.cfg.is_crypto(asset) or self.cfg.is_crypto(symbol):
             raise OrderError(
                 f"{asset} is not live-tradable: Robinhood's agentic MCP "
-                f"only exposes equity order tools, and {symbol} is not in "
-                f"the equities watchlist."
+                f"only exposes equity order tools, so crypto is "
+                f"paper/backtest only."
+            )
+        if not verify:
+            return symbol
+        try:
+            info = self._tradability_at_account(symbol)
+        except OrderError:
+            raise
+        except Exception as e:
+            raise OrderError(
+                f"Could not verify {symbol} is tradable at this account "
+                f"({e}) — refusing to buy on an unchecked symbol."
+            ) from e
+        if not info.get("tradeable"):
+            raise OrderError(
+                f"{symbol} is not tradable at this account "
+                f"(state: {info.get('state') or 'unknown'})."
             )
         return symbol
 
@@ -608,7 +647,7 @@ class RobinhoodMCPBroker:
             raise BrokerDisabled(
                 "Order rejected: explicit manual approval was not given."
             )
-        symbol = self._tradable_symbol(symbol)
+        symbol = self._tradable_symbol(symbol, verify=False)
         if quantity <= 0:
             raise OrderError(f"Invalid sell quantity {quantity}")
         review = self.review_order(symbol, "sell", quantity)

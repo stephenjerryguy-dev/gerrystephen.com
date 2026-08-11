@@ -60,22 +60,65 @@ def test_crypto_is_never_live_tradable(broker, monkeypatch):
 def test_blocking_review_alert_stops_order(broker, monkeypatch):
     monkeypatch.setattr(broker, "assert_armed", lambda: None)
     monkeypatch.setattr(broker, "get_account_number", lambda: "TEST123")
-    monkeypatch.setattr(
-        broker, "call_tool",
-        lambda name, args: {"alerts": [{"severity": "blocking",
-                                        "message": "insufficient buying power"}]},
-    )
+    def _call(name, args):
+        if name == "get_equity_tradability":
+            return _TRADABLE
+        return {"alerts": [{"severity": "blocking",
+                            "message": "insufficient buying power"}]}
+    monkeypatch.setattr(broker, "call_tool", _call)
     with pytest.raises(OrderError, match="insufficient buying power"):
         broker.place_order(_signal(), 0.1, manually_approved=True)
 
 
-def _faker(calls, ask=100.5, bid=99.5, last=100.0):
+# The order path asks the ACCOUNT whether a symbol is tradable rather than
+# consulting watchlist.equities, so every buy stub must answer this tool.
+_TRADABLE = {"results": [{"symbol": "SPY", "tradeable": True,
+                          "fractional_tradability": "tradable",
+                          "state": "active"}]}
+
+
+def test_untradable_symbol_is_refused(broker, monkeypatch):
+    monkeypatch.setattr(broker, "assert_armed", lambda: None)
+    monkeypatch.setattr(broker, "get_account_number", lambda: "TEST123")
+    monkeypatch.setattr(broker, "call_tool", lambda name, args: {
+        "results": [{"symbol": "SPY", "tradeable": False, "state": "halted"}]})
+    with pytest.raises(OrderError, match="not tradable at this account"):
+        broker.place_order(_signal(), 0.1, manually_approved=True)
+
+
+def test_offwatchlist_equity_is_tradable(broker, monkeypatch):
+    """INTC is not in watchlist.equities — the copy sleeve names arbitrary
+    tickers on purpose, and the account, not the list, is the authority."""
+    monkeypatch.setattr(broker, "assert_armed", lambda: None)
+    monkeypatch.setattr(broker, "get_account_number", lambda: "TEST123")
+    calls = []
+    monkeypatch.setattr(broker, "call_tool", _faker(calls, symbol="INTC"))
+    broker.place_order(_signal("INTC"), 0.5, manually_approved=True)
+    assert calls[-1][0] == "place_equity_order"
+    assert calls[-1][1]["symbol"] == "INTC"
+
+
+def test_sell_does_not_need_a_tradability_lookup(broker, monkeypatch):
+    """An exit must never be blocked by a failed tradability call."""
+    monkeypatch.setattr(broker, "assert_armed", lambda: None)
+    monkeypatch.setattr(broker, "get_account_number", lambda: "TEST123")
+    calls = []
+    monkeypatch.setattr(broker, "call_tool", _faker(calls, symbol="INTC"))
+    broker.sell_position("INTC", 0.5, manually_approved=True)
+    assert "get_equity_tradability" not in [c[0] for c in calls]
+
+
+def _faker(calls, ask=100.5, bid=99.5, last=100.0, symbol="SPY"):
     def fake_call(name, args):
         calls.append((name, args))
         if name == "get_equity_quotes":
             return {"results": [{"quote": {
                 "ask_price": str(ask), "bid_price": str(bid),
                 "last_trade_price": str(last)}}]}
+        if name == "get_equity_tradability":
+            return {"results": [{"symbol": symbol, "tradeable": True,
+                                 "fractional_tradability": "tradable",
+                                 "state": "active"}]}
         return {"alerts": [], "status": "ok"}
     return fake_call
 
@@ -87,7 +130,8 @@ def test_fractional_buy_reviews_quotes_then_market_order(broker, monkeypatch):
     monkeypatch.setattr(broker, "call_tool", _faker(calls))
     broker.place_order(_signal(), 0.123456, manually_approved=True)
     assert [c[0] for c in calls] == [
-        "review_equity_order", "get_equity_quotes", "place_equity_order"]
+        "get_equity_tradability", "review_equity_order",
+        "get_equity_quotes", "place_equity_order"]
     place_args = calls[-1][1]
     assert place_args["type"] == "market"        # fractional requires market
     assert place_args["quantity"] == "0.123456"
