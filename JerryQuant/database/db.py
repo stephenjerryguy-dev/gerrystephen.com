@@ -214,12 +214,24 @@ class Database:
         detail: str = "",
         status: str = "proposed",
     ) -> int:
+        # Idempotent on fingerprint. The ledger is a dedup convenience; it must
+        # never be the thing that takes the agent down. A plain INSERT raised
+        # UniqueViolation and killed the whole scan whenever a fingerprint came
+        # back in a status the caller did not special-case (see the retryable
+        # set in main), so every scan for the rest of that day died before
+        # proposing anything.
         if self._proposal_pg is not None:
             cur = self._proposal_pg.execute(
                 """INSERT INTO live_proposals
                    (fingerprint, timestamp, source, status, symbol, kind,
                     action_json, detail)
                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                   ON CONFLICT (fingerprint) DO UPDATE
+                     SET timestamp = EXCLUDED.timestamp,
+                         source = EXCLUDED.source,
+                         status = EXCLUDED.status,
+                         action_json = EXCLUDED.action_json,
+                         detail = EXCLUDED.detail
                    RETURNING id""",
                 (
                     fingerprint,
@@ -239,7 +251,13 @@ class Database:
             """INSERT INTO live_proposals
                (fingerprint, timestamp, source, status, symbol, kind,
                 action_json, detail)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT(fingerprint) DO UPDATE
+                 SET timestamp = excluded.timestamp,
+                     source = excluded.source,
+                     status = excluded.status,
+                     action_json = excluded.action_json,
+                     detail = excluded.detail""",
             (
                 fingerprint,
                 timestamp.isoformat(),
@@ -287,8 +305,10 @@ class Database:
             cur = self._proposal_pg.execute(
                 """UPDATE live_proposals
                    SET timestamp = %s, action_json = %s,
-                       detail = COALESCE(NULLIF(%s, ''), detail)
-                   WHERE fingerprint = %s AND status = 'proposed'""",
+                       detail = COALESCE(NULLIF(%s, ''), detail),
+                       status = 'proposed'
+                   WHERE fingerprint = %s
+                     AND status IN ('proposed', 'failed', 'expired')""",
                 (timestamp, payload, detail, fingerprint),
             )
             self._proposal_pg.commit()
@@ -296,8 +316,10 @@ class Database:
         cur = self._conn.execute(
             """UPDATE live_proposals
                SET timestamp = ?, action_json = ?,
-                   detail = COALESCE(NULLIF(?, ''), detail)
-               WHERE fingerprint = ? AND status = 'proposed'""",
+                   detail = COALESCE(NULLIF(?, ''), detail),
+                   status = 'proposed'
+               WHERE fingerprint = ?
+                 AND status IN ('proposed', 'failed', 'expired')""",
             (timestamp.isoformat(), payload, detail, fingerprint),
         )
         self._conn.commit()

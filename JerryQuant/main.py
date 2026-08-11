@@ -44,6 +44,10 @@ LIVE_PENDING_MAX_AGE_H = 18  # a proposal older than this is stale; execute refu
 # here: an untouched proposal is re-priced and carried forward by each later
 # run, so the plan nearest the open is the one holding live prices.
 LIVE_PROPOSAL_STATUSES_SUPPRESS = {"approved", "executed", "rejected"}
+# A human decided nothing here — the machine did, and the reason may since have
+# been fixed (a broker rejection, a stale artifact). Re-price and re-offer these
+# rather than treating them as settled; approval is still required per trade.
+LIVE_PROPOSAL_STATUSES_RETRYABLE = {"proposed", "failed", "expired"}
 
 
 def setup_logging(cfg: Config) -> None:
@@ -1089,11 +1093,12 @@ def _filter_new_live_proposals(journal: TradeJournal, actions: list[dict],
                 f"today ({existing['status']})"
             )
             continue
-        if existing and existing["status"] == "proposed":
-            # Still awaiting a human decision. Do NOT drop it: each run must
-            # emit the complete, currently-executable set, so the proposal
-            # closest to the open is the one that carries live prices. Re-price
-            # in place and carry it forward, flagged so it is not re-notified.
+        if existing and existing["status"] in LIVE_PROPOSAL_STATUSES_RETRYABLE:
+            # Still awaiting a human decision, or the machine failed/expired it.
+            # Do NOT drop it: each run must emit the complete, currently-
+            # executable set, so the proposal closest to the open is the one
+            # that carries live prices. Re-price in place and carry it forward,
+            # flagged so it is not re-notified.
             action["renewed"] = True
             journal.db.refresh_live_proposal(
                 fp, now, action, str(action.get("reason", ""))[:500])

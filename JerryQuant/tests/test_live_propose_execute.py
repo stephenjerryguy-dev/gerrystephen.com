@@ -242,3 +242,47 @@ def test_acted_on_proposal_is_never_rewritten(tmp_path):
     assert stored["entry"] == 740.0     # untouched by the later run
     assert journal.db.refresh_live_proposal(
         fp, datetime.now(timezone.utc), _spy_action(999.0)) is False
+
+
+@pytest.mark.parametrize("status", ["failed", "expired"])
+def test_machine_failed_proposal_is_retried_not_crashed(tmp_path, status):
+    """A proposal the MACHINE ended must not kill the next scan.
+
+    Regression (prod, run #285): status 'failed' (broker rejection) and
+    'expired' (stale artifact) matched neither the suppress set nor the
+    'proposed' carry-forward branch, so _filter_new_live_proposals fell
+    through to a plain INSERT on an existing fingerprint. Against Postgres
+    that raised UniqueViolation and killed the whole plan-or-scan job, so
+    every scan for the rest of that day proposed nothing at all -- one
+    failed order silently disarmed the agent until midnight rolled the
+    fingerprint. No human decided these, and the cause may since have been
+    fixed, so they are re-priced and re-offered (approval still required).
+    """
+    journal = FakeJournal(tmp_path)
+    fresh, _ = main._filter_new_live_proposals(
+        journal, [_spy_action(740.0)], "live_scan")
+    fp = fresh[0]["fingerprint"]
+    journal.db.update_live_proposal_status(fp, status, "broker said no")
+
+    fresh, notes = main._filter_new_live_proposals(
+        journal, [_spy_action(752.0)], "live_scan")
+
+    assert len(fresh) == 1                     # re-offered, and did not raise
+    assert fresh[0]["renewed"] is True
+    assert fresh[0]["entry"] == 752.0          # at the current price
+    row = journal.db.proposal_by_fingerprint(fp)
+    assert row["status"] == "proposed"         # back in the approval flow
+    assert json.loads(row["action_json"])["entry"] == 752.0
+
+
+def test_duplicate_fingerprint_insert_is_idempotent(tmp_path):
+    """The ledger is a dedup convenience; it must never be able to raise."""
+    journal = FakeJournal(tmp_path)
+    now = datetime.now(timezone.utc)
+    kw = dict(timestamp=now, source="live_scan", symbol="SPY", kind="entry")
+    journal.db.insert_live_proposal(
+        fingerprint="dupe", action=_spy_action(740.0), **kw)
+    journal.db.insert_live_proposal(          # would have raised before
+        fingerprint="dupe", action=_spy_action(752.0), **kw)
+    row = journal.db.proposal_by_fingerprint("dupe")
+    assert json.loads(row["action_json"])["entry"] == 752.0
