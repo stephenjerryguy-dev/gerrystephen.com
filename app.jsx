@@ -12,7 +12,7 @@ import {
 import { ImmersiveChapterRail } from './immersive-navigation.jsx';
 import './styles.css';
 
-const SITE_BUILD_VERSION = 'ecosystems-app-107';
+const SITE_BUILD_VERSION = 'ecosystems-app-108-iglu-layer';
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const ImmersiveIglu = React.lazy(() => import('./immersive-iglu.jsx').then((module) => ({ default: module.ImmersiveIglu })));
 
@@ -3624,6 +3624,8 @@ function AgentsPage() {
 function App() {
   const [tweaks, setTweaks] = useTweaks(TWEAK_DEFAULTS);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [igluMounted, setIgluMounted] = useState(false);
+  const [igluOpen, setIgluOpen] = useState(false);
   const y = useScrollY();
   const mouse = useMouse();
   const isMobileViewport = useMediaQuery('(max-width: 700px), (pointer: coarse)');
@@ -3633,6 +3635,33 @@ function App() {
   const isGameApp = appMode === 'monerge' || appMode === 'iglu-merge';
   const isAgentsPage = appMode === 'agents';
   const soundReady = useAmbientScrollSound(y, soundEnabled);
+
+  useEffect(() => {
+    const mountIglu = () => setIgluMounted(true);
+    if (typeof window.requestIdleCallback === 'function') {
+      const idle = window.requestIdleCallback(mountIglu, { timeout: 2400 });
+      return () => window.cancelIdleCallback?.(idle);
+    }
+    const timer = window.setTimeout(mountIglu, 1400);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const closeFromIglu = (event) => {
+      if (event.origin === 'https://iglu.gerrystephen.com' && event.data?.type === 'gerry:close-iglu') setIgluOpen(false);
+    };
+    const closeWithEscape = (event) => {
+      if (event.key === 'Escape') setIgluOpen(false);
+    };
+    window.addEventListener('message', closeFromIglu);
+    window.addEventListener('keydown', closeWithEscape);
+    document.documentElement.classList.toggle('iglu-layer-open', igluOpen);
+    return () => {
+      window.removeEventListener('message', closeFromIglu);
+      window.removeEventListener('keydown', closeWithEscape);
+      document.documentElement.classList.remove('iglu-layer-open');
+    };
+  }, [igluOpen]);
 
   useEffect(() => {
     document.documentElement.style.setProperty('--display-font', `"${tweaks.displayFont}"`);
@@ -3743,6 +3772,20 @@ function App() {
           )}
         </svg>
       </button>
+      <button
+        type="button"
+        className="iglu-toggle"
+        onClick={() => { setIgluMounted(true); setIgluOpen(true); }}
+        aria-label="Open the Iglu inside this app"
+        aria-expanded={igluOpen}
+        title="Open Iglu"
+      >
+        IGLU
+      </button>
+      {igluMounted && <div className={`iglu-app-layer ${igluOpen ? 'is-open' : ''}`} aria-hidden={!igluOpen}>
+        <iframe src="https://iglu.gerrystephen.com/" title="Gerry's interactive Iglu" tabIndex={igluOpen ? 0 : -1} allow="fullscreen; clipboard-write" />
+        <button type="button" className="iglu-layer-close" onClick={() => setIgluOpen(false)} aria-label="Return to Gerry Stephen main site">← <span>GERRY</span></button>
+      </div>}
       <Hero y={y} mouse={mouse} intensity={tweaks.parallaxIntensity} lite={liteParallax} />
       {tweaks.snowfall && !prefersReducedMotion && <Snowfall count={isMobileViewport ? 22 : 60} intensity={(tweaks.parallaxIntensity / 100) * (isMobileViewport ? 0.62 : 1)} scrollY={y} />}
       <Marquee items={['gerrystephen.eth', 'inkfinity canvas', 'great terriers', 'sappy seals', 'pudgy penguins', 'web3 since 2021', 'building IRL', 'hot weather, iced coffee']} />
