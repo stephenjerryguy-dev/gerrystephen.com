@@ -3,11 +3,20 @@
 <head>
 <meta charset="utf-8" />
 <script>
-if (window.location.hostname === 'sappy.gerrystephen.com' && (window.location.pathname === '/' || window.location.pathname === '/index.html')) {
-  window.location.replace(`/sappy${window.location.search}${window.location.hash}`);
-}
+(function () {
+  var host = window.location.hostname;
+  var path = window.location.pathname;
+  if (host === 'sappy.gerrystephen.com' && (path === '/' || path === '/index.html')) {
+    window.location.replace('/sappy' + window.location.search + window.location.hash);
+    return;
+  }
+  // The game and agents used to live behind ?app= on the homepage.
+  var app = new URLSearchParams(window.location.search).get('app');
+  if (app === 'monerge' || app === 'iglu-merge') window.location.replace('/monerge' + window.location.hash);
+  else if (app === 'agents') window.location.replace('/agents');
+})();
 </script>
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#DCEEF7" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-title" content="Gerry's Iglu" />
@@ -20,7 +29,7 @@ if (window.location.hostname === 'sappy.gerrystephen.com' && (window.location.pa
 <meta property="og:site_name" content="Gerry's Iglu" />
 <meta property="og:locale" content="en_US" />
 <meta property="og:url" content="https://gerrystephen.com/" />
-<meta property="og:updated_time" content="2026-06-19T16:00:00Z" />
+<meta property="og:updated_time" content="2026-09-29T12:00:00Z" />
 <meta property="og:title" content="Gerry's Iglu · Gerry Stephen" />
 <meta property="og:description" content="A one-page home base for business, Web3, family legacy, community ecosystems, Inkfinity Canvas, and Monerge." />
 <meta property="og:image" content="https://gerrystephen.com/assets/twitter-home-card-v92.jpg?v=ecosystems-app-102" />
@@ -42,135 +51,56 @@ if (window.location.hostname === 'sappy.gerrystephen.com' && (window.location.pa
 <title>Gerry Stephen · Business, Web3, and the Iglu</title>
 <link rel="canonical" href="https://gerrystephen.com/" />
 <link rel="manifest" href="/manifest.webmanifest?v=ecosystems-app-102" />
-<link rel="icon" type="image/png" href="/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-102" />
+<link rel="icon" type="image/png" sizes="64x64" href="/assets/opt/gerrys-iglu-icon-64.png" />
 <link rel="apple-touch-icon" href="/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-102" />
-<link rel="preload" as="image" href="/assets/pudgy-penguin-cutout.png" fetchpriority="high" />
-<link rel="preload" as="image" href="/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-102" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Inter+Tight:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Fraunces:ital,wght@0,400;0,600;1,400&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Inter+Tight:wght@500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@500;600&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Inter+Tight:wght@500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@500;600&display=swap" media="print" onload="this.media='all'" />
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Inter+Tight:wght@500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@500;600&display=swap" /></noscript>
 <script type="application/ld+json">
 {"@context":"https://schema.org","@graph":[{"@type":"Person","@id":"https://gerrystephen.com/#person","name":"Gerry Stephen","alternateName":["gerrydoteth","gerrystephen.eth"],"url":"https://gerrystephen.com/","image":"https://gerrystephen.com/assets/twitter-home-card-v92.jpg?v=ecosystems-app-102","sameAs":["https://x.com/gerrydoteth","https://opensea.io/profile/gerrystephen","https://www.instagram.com/gerrydoteth/"],"knowsAbout":["Web3","Pudgy Penguins","Sappy Seals","Hospitality","AI agents","Inkfinity Canvas","Monad"]},{"@type":"WebSite","@id":"https://gerrystephen.com/#website","name":"Gerry's Iglu","url":"https://gerrystephen.com/","image":"https://gerrystephen.com/assets/twitter-home-card-v92.jpg?v=ecosystems-app-102","publisher":{"@id":"https://gerrystephen.com/#person"}}]}
 </script>
-<script>
-function installGerryMemoryStorage(name) {
-  try {
-    if (window[name]) return;
-  } catch (_) {}
-  const memory = {};
-  try {
-    Object.defineProperty(window, name, {
-      configurable: true,
-      value: {
-        getItem: (key) => Object.prototype.hasOwnProperty.call(memory, key) ? memory[key] : null,
-        setItem: (key, value) => { memory[key] = String(value); },
-        removeItem: (key) => { delete memory[key]; },
-        clear: () => { Object.keys(memory).forEach((key) => delete memory[key]); },
-        key: (index) => Object.keys(memory)[index] || null,
-        get length() { return Object.keys(memory).length; }
-      }
-    });
-  } catch (_) {}
-}
-installGerryMemoryStorage('localStorage');
-installGerryMemoryStorage('sessionStorage');
-const bootParams = new URLSearchParams(window.location.search);
-const bootIsGame = window.location.pathname.includes('monerge') || bootParams.get('app') === 'monerge' || bootParams.get('app') === 'iglu-merge';
-document.documentElement.dataset.fileMode = window.location.protocol === 'file:' ? 'true' : 'false';
-document.documentElement.dataset.gameBoot = bootIsGame ? 'true' : 'false';
-const bootIconHref = bootIsGame ? '/assets/monerge-icon-512.png?v=ecosystems-app-102' : '/assets/gerrys-iglu-icon-512.png?v=ecosystems-app-102';
-document.querySelector('link[rel="icon"]')?.setAttribute('href', bootIconHref);
-document.querySelector('link[rel="apple-touch-icon"]')?.setAttribute('href', bootIconHref);
-if (bootIsGame) document.querySelector('link[rel="manifest"]')?.setAttribute('href', '/monerge.webmanifest?v=ecosystems-app-102');
-document.querySelector('meta[name="apple-mobile-web-app-title"]')?.setAttribute('content', bootIsGame ? 'Monerge' : "Gerry's Iglu");
-</script>
 <style>
-html, body { margin: 0; min-height: 100%; background: #d9f3f8; color: #102333; }
-.boot-splash { min-height: 100dvh; display: grid; place-items: center; padding: 24px; box-sizing: border-box; font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: radial-gradient(circle at 74% 18%, rgba(255, 188, 111, .42), transparent 30%), radial-gradient(circle at 12% 82%, rgba(129, 232, 226, .34), transparent 34%), linear-gradient(180deg, #d9f3f8 0%, #f7efd7 100%); overflow: hidden; }
-.boot-splash::before { content: ""; position: fixed; inset: 0; pointer-events: none; background-image: radial-gradient(circle, rgba(255,255,255,.55) 0 3px, transparent 4px); background-size: 72px 56px; opacity: .42; }
-.boot-splash::after { content: ""; position: fixed; left: -10vw; right: -10vw; bottom: -11vh; height: 31vh; border-radius: 50% 50% 0 0; background: linear-gradient(180deg, rgba(255,255,255,.8), rgba(247,239,215,.96)); box-shadow: 0 -26px 90px rgba(58,143,163,.16); }
-.boot-card { width: min(390px, 100%); position: relative; z-index: 1; padding: 26px; border: 1px solid rgba(16,35,51,.1); border-radius: 28px; background: rgba(255,255,255,.46); box-shadow: 0 24px 80px rgba(22, 95, 119, .18), inset 0 1px 0 rgba(255,255,255,.65); backdrop-filter: blur(16px); }
-.boot-icon { width: 104px; height: 104px; border-radius: 22px; background: url("/assets/pudgy-penguin-cutout.png") center/contain no-repeat; margin-bottom: 18px; filter: drop-shadow(0 18px 32px rgba(14,31,44,.18)); animation: bootFloat 2.8s ease-in-out infinite; }
-html[data-game-boot="true"] body { background: #1f1751; color: #f7fbff; }
-html[data-game-boot="true"] .boot-splash { background: radial-gradient(circle at 28% 18%, rgba(143, 119, 255, .38), transparent 32%), radial-gradient(circle at 74% 78%, rgba(126, 223, 241, .35), transparent 34%), linear-gradient(160deg, #100b31 0%, #20154b 48%, #a9e8ee 140%); }
-html[data-game-boot="true"] .boot-splash::before { background-image: linear-gradient(rgba(255,255,255,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.06) 1px, transparent 1px); background-size: 54px 54px; mask-image: linear-gradient(to bottom, rgba(0,0,0,.8), transparent 90%); opacity: 1; }
-html[data-game-boot="true"] .boot-card { width: min(440px, 100%); padding: 28px; border: 1px solid rgba(255,255,255,.18); border-radius: 28px; background: rgba(255,255,255,.11); box-shadow: 0 28px 90px rgba(6, 10, 32, .34), inset 0 1px 0 rgba(255,255,255,.22); }
-html[data-game-boot="true"] .boot-icon { width: 88px; height: 88px; border-radius: 24px; background: url("assets/monerge-icon-512.png") center/cover no-repeat, linear-gradient(135deg, #987fff, #9ee7f1); box-shadow: 0 16px 42px rgba(126, 223, 241, .28); margin-bottom: 20px; }
-.boot-kicker { margin: 0 0 8px; font: 700 12px/1 JetBrains Mono, monospace; letter-spacing: .24em; text-transform: uppercase; color: rgba(16,35,51,.54); }
-html[data-game-boot="true"] .boot-kicker { color: rgba(222, 240, 255, .68); }
-.boot-card h1 { margin: 0; font: 800 clamp(42px, 10vw, 72px)/.92 Inter Tight, Inter, sans-serif; letter-spacing: 0; }
-.boot-game-title { display: none; }
-.boot-game-kicker { display: none; }
-.boot-game-status { display: none; }
-html[data-game-boot="true"] .boot-site-title { display: none; }
-html[data-game-boot="true"] .boot-game-title { display: inline; }
-html[data-game-boot="true"] .boot-site-kicker { display: none; }
-html[data-game-boot="true"] .boot-game-kicker { display: inline; }
-html[data-game-boot="true"] .boot-site-status { display: none; }
-html[data-game-boot="true"] .boot-game-status { display: inline; }
-.boot-status, .file-hint { margin: 18px 0 0; font-size: 16px; line-height: 1.55; color: rgba(16,35,51,.68); }
-html[data-game-boot="true"] .boot-status, html[data-game-boot="true"] .file-hint { color: rgba(247, 251, 255, .78); }
-.file-hint { display: none; }
-html[data-file-mode="true"] .boot-status { display: none; }
-html[data-file-mode="true"] .file-hint { display: block; }
-.file-hint strong { color: #fff; }
-.boot-bar { height: 12px; margin-top: 24px; border-radius: 999px; overflow: hidden; background: rgba(255,255,255,.16); box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); }
-.boot-bar span { display: block; width: 42%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #a48cff, #8fe8f1, #fff); animation: bootLoad 1.35s ease-in-out infinite; }
-@keyframes bootLoad { 0% { transform: translateX(-115%); } 100% { transform: translateX(245%); } }
-@keyframes bootFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
-@media (max-width: 520px) { .boot-splash { padding: 18px; align-items: start; padding-top: 18dvh; } .boot-card { padding: 22px; border-radius: 24px; } .boot-icon { width: 76px; height: 76px; } }
+html, body { margin: 0; background: #f1f9fb; color: #102333; }
+/* First paint: the hero poster straight from HTML, framed exactly like the
+   React hero's <video poster>, so the swap on mount is invisible. */
+.boot-hero { position: relative; height: 100svh; min-height: 560px; overflow: hidden; background: #d2edf3; }
+.boot-hero img { position: absolute; inset: -24px; width: calc(100% + 48px); height: calc(100% + 48px); object-fit: cover; object-position: 64% 50%; }
+.boot-hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgb(241 249 251 / 0.9) 0%, rgb(241 249 251 / 0.62) 40%, rgb(241 249 251 / 0) 60%); }
+@media (max-aspect-ratio: 1/1) { .boot-hero img { object-position: 50% 72%; } }
+@media (min-width: 768px) { .boot-hero::after { background: linear-gradient(90deg, rgb(241 249 251 / 0.94) 0%, rgb(241 249 251 / 0.74) 30%, rgb(241 249 251 / 0) 58%); } }
 </style>
 </head>
 <body>
 <div id="root">
-  <main class="boot-splash" aria-label="Loading">
-    <section class="boot-card">
-      <div class="boot-icon" aria-hidden="true"></div>
-      <p class="boot-kicker"><span class="boot-site-kicker">Iglu loading</span><span class="boot-game-kicker">Game app</span></p>
-      <h1><span class="boot-site-title">gerrystephen.com</span><span class="boot-game-title">Monerge</span></h1>
-      <p class="boot-status"><span class="boot-site-status">Pudgy at the door. Warming up the iglu.</span><span class="boot-game-status">Loading the app, wallet, and leaderboard.</span></p>
-      <p class="file-hint">This app needs the live site or local dev server. Open <strong>gerrystephen.com/monerge</strong>, or run <strong>npm run dev</strong> and use the local URL.</p>
-      <div class="boot-bar" aria-hidden="true"><span></span></div>
-    </section>
-  </main>
+  <div class="boot-hero" aria-hidden="true">
+    <picture>
+      <source media="(max-aspect-ratio: 1/1)" srcset="/media/iglu-v1/port/poster-1080.webp" />
+      <img src="/media/iglu-v1/land/poster-1920.webp" alt="" fetchpriority="high" />
+    </picture>
+  </div>
 </div>
-<script type="module" src="/app.jsx?v=ecosystems-app-107"></script>
+<noscript>
+  <main style="max-width:40rem;margin:0 auto;padding:6rem 1.5rem;font-family:Inter,system-ui,sans-serif;line-height:1.6">
+    <h1 style="font-size:3rem;line-height:1;margin:0 0 1rem">Welcome to Gerry's iglu.</h1>
+    <p>A home base for the journey: business, Web3, legacy, and the Pengu that made the cold Internet feel warm.</p>
+    <p><a href="/monerge">Play Monerge</a> · <a href="/agents">AI Agents</a> · <a href="https://sappy.gerrystephen.com">Sappy</a> · <a href="https://www.bluestarstay.com/web3">Blue Star</a> · <a href="https://zeppoledolci.com/">Zeppole Dolci</a> · <a href="https://x.com/gerrydoteth">@gerrydoteth</a></p>
+  </main>
+</noscript>
+<script type="module" src="/src/home/main.tsx"></script>
 <script>
-const GERRY_SHELL_VERSION = 'ecosystems-app-107';
-function gerryShellStorage() {
-  try {
-    return window.localStorage || null;
-  } catch (_) {
-    return null;
-  }
-}
-async function resetOldGerryShell() {
-  try {
-    const shellStorage = gerryShellStorage();
-    const currentVersion = shellStorage?.getItem('gerry-shell-version');
-    const forcedReset = new URLSearchParams(window.location.search).has('reset');
-    shellStorage?.setItem('gerry-shell-version', GERRY_SHELL_VERSION);
-    if ('caches' in window) {
-      const keys = await caches.keys();
-      await Promise.all(keys.filter((key) => key.includes('gerry-iglu')).map((key) => caches.delete(key)));
-    }
-    if ('serviceWorker' in navigator) {
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(registrations.map((registration) => registration.unregister()));
-      if ((currentVersion !== GERRY_SHELL_VERSION && navigator.serviceWorker.controller) || forcedReset) {
-        const next = new URL(window.location.href);
-        next.searchParams.set('v', GERRY_SHELL_VERSION);
-        next.searchParams.delete('reset');
-        window.location.replace(next.toString());
-        return true;
-      }
-    }
-  } catch (_) {}
-  return false;
-}
+// Earlier versions installed a service worker; retire it and its caches.
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    resetOldGerryShell().catch(() => {});
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.getRegistrations().then(function (registrations) {
+      registrations.forEach(function (registration) { registration.unregister(); });
+    }).catch(function () {});
+    if ('caches' in window) {
+      caches.keys().then(function (keys) {
+        keys.filter(function (key) { return key.indexOf('gerry-iglu') !== -1; }).forEach(function (key) { caches.delete(key); });
+      }).catch(function () {});
+    }
   });
 }
 </script>

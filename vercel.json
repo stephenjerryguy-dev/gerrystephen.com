@@ -3,6 +3,16 @@
   "buildCommand": "npm run build",
   "cleanUrls": true,
   "outputDirectory": "dist",
+  "images": {
+    "sizes": [256, 384, 640],
+    "formats": ["image/avif", "image/webp"],
+    "minimumCacheTTL": 2678400,
+    "remotePatterns": [
+      { "protocol": "https", "hostname": "ipfs.filebase.io", "pathname": "/ipfs/**" },
+      { "protocol": "https", "hostname": "gateway.pinata.cloud", "pathname": "/ipfs/**" },
+      { "protocol": "https", "hostname": "storage.googleapis.com", "pathname": "/pv-pp-bucket-1/**" }
+    ]
+  },
   "redirects": [
     {
       "source": "/",
@@ -144,15 +154,39 @@
       ]
     },
     {
+      "source": "/((?!assets/|media/).*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    },
+    {
       "source": "/assets/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=86400, stale-while-revalidate=604800" }
+      ]
+    },
+    {
+      "source": "/assets/:file([^/]+-[A-Za-z0-9_-]{8}\\.(?:js|css))",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
     },
     {
-      "source": "/(.*)",
+      "source": "/media/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/media/(.*).m3u8",
+      "headers": [
+        { "key": "Content-Type", "value": "application/vnd.apple.mpegurl" }
+      ]
+    },
+    {
+      "source": "/media/(.*).m4s",
+      "headers": [
+        { "key": "Content-Type", "value": "video/iso.segment" }
       ]
     }
   ]

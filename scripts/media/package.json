@@ -1,0 +1,17 @@
+{
+  "name": "gerrystephen-media",
+  "private": true,
+  "type": "module",
+  "description": "Offline media tooling for the homepage: the rendered iglu hero (HLS) and optimized images.",
+  "scripts": {
+    "render": "node render.mjs",
+    "optimize-images": "node optimize-images.mjs"
+  },
+  "dependencies": {
+    "esbuild": "^0.25.0",
+    "ffmpeg-static": "^5.2.0",
+    "puppeteer-core": "^24.0.0",
+    "sharp": "^0.34.0",
+    "three": "0.185.1"
+  }
+}
