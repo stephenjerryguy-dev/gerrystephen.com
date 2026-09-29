@@ -168,7 +168,7 @@ export function Hero() {
             rel="noopener"
             aria-label="Abstract Gold II veteran wallet"
           >
-            <img src="/assets/opt/abstract-gold-tier-card.webp" alt="Abstract wallet Gold Tier II" width={220} height={138} loading="lazy" className="w-[180px] sm:w-[220px]" />
+            <img src="/assets/opt/abstract-gold-tier-card-ii.webp" alt="Abstract wallet Gold Tier II" width={220} height={138} loading="lazy" className="w-[180px] sm:w-[220px]" />
           </a>
         </div>
       </div>

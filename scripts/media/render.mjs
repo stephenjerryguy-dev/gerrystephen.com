@@ -10,7 +10,7 @@ import puppeteer from 'puppeteer-core';
 import ffmpegPath from 'ffmpeg-static';
 import sharp from 'sharp';
 import { spawn } from 'node:child_process';
-import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -21,7 +21,7 @@ const encodeOnly = args.has('--encode-only');
 const only = [...args].find((arg) => arg.startsWith('--only='))?.slice(7);
 const FPS = 30;
 const LOOP_SECONDS = 12;
-const MEDIA_VERSION = 'iglu-v1';
+const MEDIA_VERSION = 'iglu-v2';
 const outDir = resolve(here, '../../public/media', MEDIA_VERSION);
 const frameRoot = join(here, 'out', preview ? 'preview' : 'frames');
 
@@ -67,6 +67,8 @@ async function bundleScene() {
   return result.outputFiles[0].text;
 }
 
+const pudgyDataUrl = `data:image/png;base64,${(await readFile(resolve(here, '../../public/assets/pudgy-penguin-cutout.png'))).toString('base64')}`;
+
 async function renderFrames(browser, sceneSource, key, variant) {
   const dir = join(frameRoot, key);
   await rm(dir, { recursive: true, force: true });
@@ -75,13 +77,16 @@ async function renderFrames(browser, sceneSource, key, variant) {
   await page.setViewport({ width: 800, height: 600 });
   page.on('console', (message) => console.log(`[page] ${message.text()}`));
   await page.setContent(`<!doctype html><html><body style="margin:0;background:#000"><canvas id="c"></canvas><script>${sceneSource}</script></body></html>`);
-  const gpu = await page.evaluate(({ width, height, portrait, loopSeconds }) => {
+  const gpu = await page.evaluate(async ({ width, height, portrait, loopSeconds, pudgySrc }) => {
     const canvas = document.getElementById('c');
-    window.igluScene = window.IgluScene.createIgluScene({ canvas, width, height, portrait, loopSeconds });
+    const pudgy = new Image();
+    pudgy.src = pudgySrc;
+    await pudgy.decode();
+    window.igluScene = window.IgluScene.createIgluScene({ canvas, width, height, portrait, loopSeconds, pudgy });
     const gl = canvas.getContext('webgl2');
     const info = gl.getExtension('WEBGL_debug_renderer_info');
     return info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : 'unknown';
-  }, { width: variant.width, height: variant.height, portrait: key === 'port', loopSeconds: LOOP_SECONDS });
+  }, { width: variant.width, height: variant.height, portrait: key === 'port', loopSeconds: LOOP_SECONDS, pudgySrc: pudgyDataUrl });
   console.log(`${key}: WebGL renderer = ${gpu}`);
 
   const total = FPS * LOOP_SECONDS;

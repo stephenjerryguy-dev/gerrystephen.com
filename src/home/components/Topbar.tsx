@@ -39,9 +39,7 @@ export function Topbar() {
     >
       <div className="mx-auto flex h-14 max-w-[1240px] items-center gap-3 rounded-full pr-2 pl-2 transition-[background-color,box-shadow] duration-500 group-data-[scrolled=true]/bar:glass sm:h-16 sm:pl-3">
         <a href="#top" className="flex items-center gap-2.5 rounded-full pr-2" aria-label="Gerry Stephen home">
-          <span className="grid size-10 place-items-center overflow-hidden rounded-full bg-white ring-1 ring-ink/10">
-            <img src="/assets/opt/pudgy-penguin-cutout.webp" alt="" width={40} height={40} className="size-9 object-contain" />
-          </span>
+          <img src="/assets/opt/pudgy-avatar.webp" alt="" width={40} height={40} className="size-10 rounded-full ring-1 ring-ink/10" />
           <span className="font-display text-[17px] font-semibold tracking-[-0.02em]">
             gerrystephen<span className="text-teal">.com</span>
           </span>

@@ -141,7 +141,7 @@ function floeGeometry(radius, thickness) {
   return new THREE.LatheGeometry(points.reverse(), 96);
 }
 
-export function createIgluScene({ canvas, width, height, portrait, loopSeconds }) {
+export function createIgluScene({ canvas, width, height, portrait, loopSeconds, pudgy }) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
   renderer.setPixelRatio(1);
   renderer.setSize(width, height, false);
@@ -240,7 +240,7 @@ export function createIgluScene({ canvas, width, height, portrait, loopSeconds }
   ];
   const rand = mulberry32(20260928);
   const blocks = [];
-  const addBlock = (home, rotationY) => {
+  const addBlock = (home, rotationY, driftTo) => {
     const index = blocks.length;
     const mesh = new THREE.Mesh(blockGeometry, materials[index % materials.length]);
     mesh.castShadow = true;
@@ -252,7 +252,7 @@ export function createIgluScene({ canvas, width, height, portrait, loopSeconds }
       mesh,
       home,
       rotationY,
-      drift: home.clone().add(radial.multiplyScalar(push)).add(new THREE.Vector3(0, lift, 0)),
+      drift: driftTo ?? home.clone().add(radial.multiplyScalar(push)).add(new THREE.Vector3(0, lift, 0)),
       spinX: (rand() - 0.5) * 0.7,
       spinY: (rand() - 0.5) * 0.8,
       spinZ: (rand() - 0.5) * 0.5,
@@ -284,7 +284,9 @@ export function createIgluScene({ canvas, width, height, portrait, loopSeconds }
   const archCount = 11;
   for (let i = 0; i < archCount; i += 1) {
     const angle = Math.PI - (i / (archCount - 1)) * Math.PI;
-    addBlock(new THREE.Vector3(Math.cos(angle) * 1.22, -1.43 + Math.sin(angle) * 1.62, 2.9), -angle + Math.PI / 2);
+    const home = new THREE.Vector3(Math.cos(angle) * 1.22, -1.43 + Math.sin(angle) * 1.62, 2.9);
+    // The doorway lifts like a gate instead of flying forward into the Pudgy standee.
+    addBlock(home, -angle + Math.PI / 2, home.clone().add(new THREE.Vector3(home.x * 0.25, 1.05 + (home.y + 1.43) * 0.35, 0.2)));
   }
 
   // Warm light spilling from the doorway.
@@ -302,6 +304,66 @@ export function createIgluScene({ canvas, width, height, portrait, loopSeconds }
   glow.scale.set(3.2, 2.4, 1);
   glow.position.set(0, -1.2, 2.2);
   floeGroup.add(glow);
+
+  // Gerry's Pudgy as an acrylic standee: the exact PFP art (unlit, so colours
+  // stay true) on a white-bordered cutout that casts a real shadow on the floe.
+  if (pudgy) {
+    const crop = { x: 130, y: 170, w: 790, h: 830 };
+    const pad = 22;
+    const art = document.createElement('canvas');
+    art.width = crop.w + pad * 2;
+    art.height = crop.h + pad;
+    const artCtx = art.getContext('2d');
+    artCtx.drawImage(pudgy, crop.x, crop.y, crop.w, crop.h, pad, pad, crop.w, crop.h);
+    const border = document.createElement('canvas');
+    border.width = art.width;
+    border.height = art.height;
+    const borderCtx = border.getContext('2d');
+    for (let step = 0; step < 48; step += 1) {
+      const a = (step / 48) * TAU;
+      borderCtx.drawImage(art, Math.cos(a) * 16, Math.sin(a) * 16);
+    }
+    borderCtx.globalCompositeOperation = 'source-in';
+    borderCtx.fillStyle = '#ffffff';
+    borderCtx.fillRect(0, 0, border.width, border.height);
+    const artTexture = new THREE.CanvasTexture(art);
+    artTexture.colorSpace = THREE.SRGBColorSpace;
+    artTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    const borderTexture = new THREE.CanvasTexture(border);
+    borderTexture.colorSpace = THREE.SRGBColorSpace;
+
+    const standeeHeight = 2.45;
+    const standeeWidth = standeeHeight * (art.width / art.height);
+    const plane = new THREE.PlaneGeometry(standeeWidth, standeeHeight);
+    const standee = new THREE.Group();
+    const backing = new THREE.Mesh(plane, new THREE.MeshPhysicalMaterial({
+      map: borderTexture,
+      alphaTest: 0.5,
+      side: THREE.DoubleSide,
+      roughness: 0.25,
+      clearcoat: 0.8,
+    }));
+    backing.castShadow = true;
+    backing.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: borderTexture, alphaTest: 0.5 });
+    standee.add(backing);
+    const front = new THREE.Mesh(plane, new THREE.MeshBasicMaterial({ map: artTexture, alphaTest: 0.5, toneMapped: false }));
+    front.position.z = 0.006;
+    standee.add(front);
+    standee.position.set(0, standeeHeight / 2 - 0.03, 0);
+
+    const base = new THREE.Mesh(
+      new RoundedBoxGeometry(standeeWidth * 0.62, 0.12, 0.5, 4, 0.05),
+      new THREE.MeshPhysicalMaterial({ color: 0xffffff, transmission: 0.85, thickness: 0.4, roughness: 0.08, ior: 1.45 }),
+    );
+    base.position.y = 0.03;
+    base.castShadow = true;
+
+    const mount = new THREE.Group();
+    mount.add(standee, base);
+    mount.position.set(0.55, -1.89, 3.85);
+    mount.rotation.y = -0.34;
+    floeGroup.add(mount);
+  }
 
   // Distant bergs for depth.
   const bergMaterial = new THREE.MeshStandardMaterial({ color: 0xd9f4f3, roughness: 0.6, flatShading: true });

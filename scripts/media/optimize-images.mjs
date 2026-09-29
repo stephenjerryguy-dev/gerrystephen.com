@@ -28,7 +28,7 @@ const IMAGES = [
   ['inkfinity-professor.png', 900, 78],
   ['inkfinity-thoughts.png', 900, 78],
   ['buildanything-student-card.png', 900, 80],
-  ['abstract-gold-tier-card.png', 640, 82],
+  ['abstract-gold-tier-card-ii.png', 640, 84],
   ['pixl-logo.png', 360, 86],
   ['pudgy-penguin.webp', 560, 80],
   ['digital-artifact-93.jpg', 640, 76],
@@ -64,6 +64,18 @@ for (const [source, width, quality] of IMAGES) {
   const output = join(optDir, name);
   await sharp(input).resize({ width, withoutEnlargement: true }).webp({ quality, effort: 6, alphaQuality: 90 }).toFile(output);
   console.log(`${source.padEnd(42)} ${(await kb(input)).padStart(10)} -> ${(await kb(output)).padStart(9)}`);
+}
+
+// Round avatar for the top bar: the PFP cropped so the cap sits fully inside a
+// circle, on a soft ice background.
+{
+  const size = 900;
+  const background = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c7ebf3"/><stop offset="1" stop-color="#f1fafc"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/></svg>`);
+  const pfp = await sharp(join(assets, 'pudgy-penguin-cutout.png')).extract({ left: 110, top: 180, width: 820, height: 820 }).resize(780).toBuffer();
+  const base = await sharp(background, { density: 72 }).resize(size, size).png().toBuffer();
+  // sharp resizes before compositing, so flatten first.
+  const avatar = await sharp(base).composite([{ input: pfp, left: 60, top: 120 }]).png().toBuffer();
+  await sharp(avatar).resize(192).webp({ quality: 86 }).toFile(join(optDir, 'pudgy-avatar.webp'));
 }
 
 // Small tab icon (the 512px PNG stays for home-screen icons).

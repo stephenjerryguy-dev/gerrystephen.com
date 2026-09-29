@@ -3,7 +3,7 @@ import type Hls from 'hls.js';
 
 // Pre-rendered three.js loop (scripts/media/render.mjs). The iglu sits right of
 // centre in `land` and low-centre in `port`, so each crop keeps it in frame.
-const MEDIA_ROOT = '/media/iglu-v1';
+const MEDIA_ROOT = '/media/iglu-v2';
 
 export type HeroVariant = 'land' | 'port';
 
