@@ -19,10 +19,11 @@ const OPTIMIZED_LOCAL: Record<string, string> = {
   'great-terriers-coming-soon.png': '/assets/opt/great-terriers-coming-soon.webp',
 };
 
-const IPFS_GATEWAYS = ['https://ipfs.filebase.io', 'https://gateway.pinata.cloud'];
+// OpenSea's IPFS gateway is fast and cache-friendly; the public gateways now rate-limit or time out.
+const IPFS_GATEWAYS = ['https://ipfs2.seadn.io', 'https://gateway.pinata.cloud'];
 
 // Hosts Vercel's image optimizer may fetch (mirrors `images.remotePatterns` in vercel.json).
-const OPTIMIZABLE_HOSTS = new Set(['ipfs.filebase.io', 'gateway.pinata.cloud', 'storage.googleapis.com']);
+const OPTIMIZABLE_HOSTS = new Set(['ipfs2.seadn.io', 'i2c.seadn.io', 'ipfs.filebase.io', 'gateway.pinata.cloud', 'storage.googleapis.com']);
 
 function vercelImage(url: string, width: number) {
   return `/_vercel/image?url=${encodeURIComponent(url)}&w=${width}&q=72`;

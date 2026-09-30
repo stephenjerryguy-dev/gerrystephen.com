@@ -4,73 +4,152 @@
   "cleanUrls": true,
   "outputDirectory": "dist",
   "images": {
-    "sizes": [256, 384, 640],
-    "formats": ["image/avif", "image/webp"],
+    "sizes": [
+      256,
+      384,
+      640
+    ],
+    "formats": [
+      "image/avif",
+      "image/webp"
+    ],
     "minimumCacheTTL": 2678400,
     "remotePatterns": [
-      { "protocol": "https", "hostname": "ipfs.filebase.io", "pathname": "/ipfs/**" },
-      { "protocol": "https", "hostname": "gateway.pinata.cloud", "pathname": "/ipfs/**" },
-      { "protocol": "https", "hostname": "storage.googleapis.com", "pathname": "/pv-pp-bucket-1/**" }
+      {
+        "protocol": "https",
+        "hostname": "i2c.seadn.io",
+        "pathname": "/**"
+      },
+      {
+        "protocol": "https",
+        "hostname": "ipfs2.seadn.io",
+        "pathname": "/ipfs/**"
+      },
+      {
+        "protocol": "https",
+        "hostname": "ipfs.filebase.io",
+        "pathname": "/ipfs/**"
+      },
+      {
+        "protocol": "https",
+        "hostname": "gateway.pinata.cloud",
+        "pathname": "/ipfs/**"
+      },
+      {
+        "protocol": "https",
+        "hostname": "storage.googleapis.com",
+        "pathname": "/pv-pp-bucket-1/**"
+      }
     ]
   },
   "redirects": [
     {
       "source": "/",
-      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
+      "has": [
+        {
+          "type": "host",
+          "value": "sappy.gerrystephen.com"
+        }
+      ],
       "destination": "https://sappy.gerrystephen.com/sappy",
       "permanent": true
     },
     {
       "source": "/studio",
-      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
+      "has": [
+        {
+          "type": "host",
+          "value": "sappy.gerrystephen.com"
+        }
+      ],
       "destination": "https://sappy.gerrystephen.com/sappy/studio",
       "permanent": true
     },
     {
       "source": "/sealfolio",
-      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
+      "has": [
+        {
+          "type": "host",
+          "value": "sappy.gerrystephen.com"
+        }
+      ],
       "destination": "https://sappy.gerrystephen.com/sappy/sealfolio",
       "permanent": true
     },
     {
       "source": "/community",
-      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
+      "has": [
+        {
+          "type": "host",
+          "value": "sappy.gerrystephen.com"
+        }
+      ],
       "destination": "https://sappy.gerrystephen.com/sappy/community",
       "permanent": true
     },
     {
       "source": "/ecosystem",
-      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
+      "has": [
+        {
+          "type": "host",
+          "value": "sappy.gerrystephen.com"
+        }
+      ],
       "destination": "https://sappy.gerrystephen.com/sappy/ecosystem",
       "permanent": true
     },
     {
       "source": "/memes",
-      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
+      "has": [
+        {
+          "type": "host",
+          "value": "sappy.gerrystephen.com"
+        }
+      ],
       "destination": "https://sappy.gerrystephen.com/sappy/memes",
       "permanent": true
     },
     {
       "source": "/sappy",
-      "has": [{ "type": "host", "value": "gerrystephen.com" }],
+      "has": [
+        {
+          "type": "host",
+          "value": "gerrystephen.com"
+        }
+      ],
       "destination": "https://sappy.gerrystephen.com/sappy",
       "permanent": true
     },
     {
       "source": "/sappy/:path*",
-      "has": [{ "type": "host", "value": "gerrystephen.com" }],
+      "has": [
+        {
+          "type": "host",
+          "value": "gerrystephen.com"
+        }
+      ],
       "destination": "https://sappy.gerrystephen.com/sappy/:path*",
       "permanent": true
     },
     {
       "source": "/sappy",
-      "has": [{ "type": "host", "value": "www.gerrystephen.com" }],
+      "has": [
+        {
+          "type": "host",
+          "value": "www.gerrystephen.com"
+        }
+      ],
       "destination": "https://sappy.gerrystephen.com/sappy",
       "permanent": true
     },
     {
       "source": "/sappy/:path*",
-      "has": [{ "type": "host", "value": "www.gerrystephen.com" }],
+      "has": [
+        {
+          "type": "host",
+          "value": "www.gerrystephen.com"
+        }
+      ],
       "destination": "https://sappy.gerrystephen.com/sappy/:path*",
       "permanent": true
     },
@@ -102,91 +181,187 @@
     },
     {
       "source": "/api/:path*",
-      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
+      "has": [
+        {
+          "type": "host",
+          "value": "sappy.gerrystephen.com"
+        }
+      ],
       "destination": "/api/:path*"
     },
     {
       "source": "/assets/:path*",
-      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
+      "has": [
+        {
+          "type": "host",
+          "value": "sappy.gerrystephen.com"
+        }
+      ],
       "destination": "/assets/:path*"
     },
     {
       "source": "/src/:path*",
-      "has": [{ "type": "host", "value": "sappy.gerrystephen.com" }],
+      "has": [
+        {
+          "type": "host",
+          "value": "sappy.gerrystephen.com"
+        }
+      ],
       "destination": "/src/:path*"
     },
-    { "source": "/fresh", "destination": "/" },
-    { "source": "/reset-app", "destination": "/" },
-    { "source": "/dynamic-api/:path*", "destination": "https://app.dynamicauth.com/api/v0/:path*" },
-    { "source": "/monerge", "destination": "/monerge.html" },
-    { "source": "/monerge/:path*", "destination": "/monerge.html" },
-    { "source": "/moncade", "destination": "/moncade.html" },
-    { "source": "/moncade/:path*", "destination": "/moncade.html" },
-    { "source": "/moncade-game", "destination": "/moncade-game.html" },
-    { "source": "/moncade-game/:path*", "destination": "/moncade-game.html" },
-    { "source": "/sappy", "destination": "/sappy.html" },
-    { "source": "/sappy/studio", "destination": "/sappy/studio.html" },
-    { "source": "/sappy/studio/", "destination": "/sappy/studio.html" },
-    { "source": "/agents", "destination": "/agents.html" },
-    { "source": "/agents/jerryquant", "destination": "/agents/jerryquant.html" },
-    { "source": "/agents/jerryquant/", "destination": "/agents/jerryquant.html" },
-    { "source": "/agents/:path*", "destination": "/agents.html" },
-    { "source": "/:path*", "destination": "/" }
+    {
+      "source": "/fresh",
+      "destination": "/"
+    },
+    {
+      "source": "/reset-app",
+      "destination": "/"
+    },
+    {
+      "source": "/dynamic-api/:path*",
+      "destination": "https://app.dynamicauth.com/api/v0/:path*"
+    },
+    {
+      "source": "/monerge",
+      "destination": "/monerge.html"
+    },
+    {
+      "source": "/monerge/:path*",
+      "destination": "/monerge.html"
+    },
+    {
+      "source": "/moncade",
+      "destination": "/moncade.html"
+    },
+    {
+      "source": "/moncade/:path*",
+      "destination": "/moncade.html"
+    },
+    {
+      "source": "/moncade-game",
+      "destination": "/moncade-game.html"
+    },
+    {
+      "source": "/moncade-game/:path*",
+      "destination": "/moncade-game.html"
+    },
+    {
+      "source": "/sappy",
+      "destination": "/sappy.html"
+    },
+    {
+      "source": "/sappy/studio",
+      "destination": "/sappy/studio.html"
+    },
+    {
+      "source": "/sappy/studio/",
+      "destination": "/sappy/studio.html"
+    },
+    {
+      "source": "/agents",
+      "destination": "/agents.html"
+    },
+    {
+      "source": "/agents/jerryquant",
+      "destination": "/agents/jerryquant.html"
+    },
+    {
+      "source": "/agents/jerryquant/",
+      "destination": "/agents/jerryquant.html"
+    },
+    {
+      "source": "/agents/:path*",
+      "destination": "/agents.html"
+    },
+    {
+      "source": "/:path*",
+      "destination": "/"
+    }
   ],
   "headers": [
     {
       "source": "/(fresh|reset-app)",
       "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
-        { "key": "Clear-Site-Data", "value": "\"cache\", \"storage\", \"executionContexts\"" }
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        },
+        {
+          "key": "Clear-Site-Data",
+          "value": "\"cache\", \"storage\", \"executionContexts\""
+        }
       ]
     },
     {
       "source": "/",
       "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
       ]
     },
     {
       "source": "/(index.html|agents.html|sappy.html|monerge.html|moncade.html|moncade-game.html|service-worker.js|manifest.webmanifest|agents.webmanifest|monerge.webmanifest|sappy|agents|monerge|moncade|moncade-game)",
       "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
       ]
     },
     {
       "source": "/((?!assets/|media/).*)",
       "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
       ]
     },
     {
       "source": "/assets/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=86400, stale-while-revalidate=604800" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400, stale-while-revalidate=604800"
+        }
       ]
     },
     {
       "source": "/assets/:file([^/]+-[A-Za-z0-9_-]{8}\\.(?:js|css))",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
       ]
     },
     {
       "source": "/media/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
       ]
     },
     {
       "source": "/media/(.*).m3u8",
       "headers": [
-        { "key": "Content-Type", "value": "application/vnd.apple.mpegurl" }
+        {
+          "key": "Content-Type",
+          "value": "application/vnd.apple.mpegurl"
+        }
       ]
     },
     {
       "source": "/media/(.*).m4s",
       "headers": [
-        { "key": "Content-Type", "value": "video/iso.segment" }
+        {
+          "key": "Content-Type",
+          "value": "video/iso.segment"
+        }
       ]
     }
   ]

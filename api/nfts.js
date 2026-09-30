@@ -27,11 +27,11 @@ const DIGITAL_ARTIFACT_CONTRACT = '0xb1cdf2bfab043ea1d81d0a73b3b849efaac1d31a';
 const PIXL_CONTRACT = '0x427a03fb96d9a94a6727fbcfbba143444090dd64';
 const SAPPY_KEY_CONTRACT = '0x3d3ad7b00e885d3d969e03bfcbaed80fb3df6667';
 const SAPPY_KEY_IMAGE = 'https://gold-ready-vicuna-5.mypinata.cloud/ipfs/QmUYJi27E6p9f4BpvqEijtEe2kKyztqrtcEwr7iM3RAqLi/KeyGIF.gif';
-const OMNIA_ITEM_IMAGE_BASE = 'https://dweb.link/ipfs/QmZbN8LpJe6aRdey277wx5SvsyVTom8AS9FzKMmJYFDtdh';
+const OMNIA_ITEM_IMAGE_BASE = 'https://ipfs2.seadn.io/ipfs/QmZbN8LpJe6aRdey277wx5SvsyVTom8AS9FzKMmJYFDtdh';
 const DIGITAL_ARTIFACT_93_IMAGE = 'https://i2c.seadn.io/ethereum/0xb1cdf2bfab043ea1d81d0a73b3b849efaac1d31a/8f01708a2265650570c246d98b7f4f21.png';
 const DIGITAL_ARTIFACT_93_HTML = 'https://ipfs2.seadn.io/ipfs/bafybeia3j3pdbydo4ensqryfs6e2fq7oji6tywjto3uokbtw7je5vo2lpe/93.html';
 const OMNIA_PET_IMAGE_OVERRIDES = {
-  7262: 'https://dweb.link/ipfs/QmWrbaUmFYMga5uXNo32ff8fEbHEDGvCinGGmEsph4bY2c/Water.gif',
+  7262: 'https://ipfs2.seadn.io/ipfs/QmWrbaUmFYMga5uXNo32ff8fEbHEDGvCinGGmEsph4bY2c/Water.gif',
   7263: 'https://storage.googleapis.com/pv-pp-bucket-1/images-v2/19d2d613d9e662c86e1306505316e5d25a66cfb104d4cf6e3454c98310288c96.png',
   9162: 'https://storage.googleapis.com/pv-pp-bucket-1/images-v2/87a3d35cdaa08756e2dfe9caae1969629147d0e1e3a73575473b76b4522606ac.png',
   9163: 'https://storage.googleapis.com/pv-pp-bucket-1/images-v2/0771b981bcf5a6235d7bc42259f143f305c4c8426d9935891294b3f1c98ad22f.png',
@@ -40,7 +40,7 @@ const OMNIA_PET_IMAGE_OVERRIDES = {
 };
 const SAPPY_SEALS_CONTRACT = '0x364c828ee171616a39897688a831c2499ad972ec';
 const STAKED_SAPPY_SEALS_CONTRACT = '0x1c70d0a86475cc707b48aa79f112857e7957274f';
-const SAPPY_SEAL_IMAGE_BASE = 'https://dweb.link/ipfs/QmUs4WQP47QKGwzPLjVMmhqTbspJfAC344abDEE2UT52HF';
+const SAPPY_SEAL_IMAGE_BASE = 'https://ipfs2.seadn.io/ipfs/QmUs4WQP47QKGwzPLjVMmhqTbspJfAC344abDEE2UT52HF';
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
 const LOCAL_INKFINITY_IMAGES = {
   1: 'assets/inkfinity-visionary.png',
@@ -71,7 +71,7 @@ const STATIC_PREVIEW_NFTS = [
   {
     name: 'Pixseal #525',
     collection: 'Pixseals by Sappy Seals',
-    image: 'https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/525.png',
+    image: 'https://ipfs2.seadn.io/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/525.png',
     href: `https://opensea.io/item/polygon/${PIXSEALS_CONTRACT}/525`,
     contract: PIXSEALS_CONTRACT,
     tokenId: '525',
@@ -80,7 +80,7 @@ const STATIC_PREVIEW_NFTS = [
   {
     name: 'Pixseal #3600',
     collection: 'Pixseals by Sappy Seals',
-    image: 'https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/3600.png',
+    image: 'https://ipfs2.seadn.io/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/3600.png',
     href: `https://opensea.io/item/polygon/${PIXSEALS_CONTRACT}/3600`,
     contract: PIXSEALS_CONTRACT,
     tokenId: '3600',
@@ -89,7 +89,7 @@ const STATIC_PREVIEW_NFTS = [
   {
     name: 'Pixseal #9690',
     collection: 'Pixseals by Sappy Seals',
-    image: 'https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/9690.png',
+    image: 'https://ipfs2.seadn.io/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/9690.png',
     href: `https://opensea.io/item/polygon/${PIXSEALS_CONTRACT}/9690`,
     contract: PIXSEALS_CONTRACT,
     tokenId: '9690',
@@ -98,7 +98,7 @@ const STATIC_PREVIEW_NFTS = [
   {
     name: 'Pixseal #9815',
     collection: 'Pixseals by Sappy Seals',
-    image: 'https://dweb.link/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/9815.png',
+    image: 'https://ipfs2.seadn.io/ipfs/QmTf7L21LjxdALt1bpLdfB9bm9z8R7Gi76pPtYEiw9o9j4/9815.png',
     href: `https://opensea.io/item/polygon/${PIXSEALS_CONTRACT}/9815`,
     contract: PIXSEALS_CONTRACT,
     tokenId: '9815',
@@ -345,8 +345,8 @@ function curatedEcosystemNfts(nfts, options = {}) {
 
 function ipfsToHttps(uri) {
   if (!uri || typeof uri !== 'string') return undefined;
-  if (uri.startsWith('ipfs://ipfs/')) return `https://ipfs.io/ipfs/${uri.slice(12)}`;
-  if (uri.startsWith('ipfs://')) return `https://ipfs.io/ipfs/${uri.slice(7)}`;
+  if (uri.startsWith('ipfs://ipfs/')) return `https://ipfs2.seadn.io/ipfs/${uri.slice(12)}`;
+  if (uri.startsWith('ipfs://')) return `https://ipfs2.seadn.io/ipfs/${uri.slice(7)}`;
   if (uri.startsWith('ar://')) return `https://arweave.net/${uri.slice(5)}`;
   return uri;
 }

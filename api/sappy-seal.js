@@ -18,8 +18,8 @@ function setCors(res) {
 
 function ipfsToHttps(uri) {
   if (!uri || typeof uri !== 'string') return undefined;
-  if (uri.startsWith('ipfs://ipfs/')) return `https://ipfs.io/ipfs/${uri.slice(12)}`;
-  if (uri.startsWith('ipfs://')) return `https://ipfs.io/ipfs/${uri.slice(7)}`;
+  if (uri.startsWith('ipfs://ipfs/')) return `https://ipfs2.seadn.io/ipfs/${uri.slice(12)}`;
+  if (uri.startsWith('ipfs://')) return `https://ipfs2.seadn.io/ipfs/${uri.slice(7)}`;
   if (uri.startsWith('ar://')) return `https://arweave.net/${uri.slice(5)}`;
   return uri;
 }
