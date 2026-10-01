@@ -108,7 +108,7 @@ export function FloatingControls() {
         aria-pressed={soundOn}
         aria-label={soundOn ? 'Turn sound off' : 'Turn sound on'}
         title={soundOn ? 'Sound on' : 'Sound off'}
-        className="glass fixed bottom-4 left-4 z-40 grid size-12 place-items-center rounded-full text-ink transition-transform hover:-translate-y-0.5 sm:bottom-6 sm:left-6"
+        className="glass fixed bottom-[max(16px,env(safe-area-inset-bottom))] left-[max(16px,env(safe-area-inset-left))] z-40 grid size-12 place-items-center rounded-full text-ink transition-transform hover:-translate-y-0.5 sm:bottom-[max(24px,env(safe-area-inset-bottom))] sm:left-[max(24px,env(safe-area-inset-left))]"
       >
         <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M4.75 9.25h3.3l5.2-4.05v13.6l-5.2-4.05h-3.3z" fill="currentColor" stroke="none" />
@@ -132,7 +132,7 @@ export function FloatingControls() {
         onPointerEnter={() => setIgluMounted(true)}
         aria-label="Open the interactive Iglu"
         aria-expanded={igluOpen}
-        className="fixed right-4 bottom-4 z-40 flex h-12 items-center gap-2 rounded-full bg-ink pr-5 pl-2 font-mono text-[12px] font-semibold tracking-[0.2em] text-snow shadow-[0_18px_40px_-16px_rgb(16_35_51/0.8)] transition-transform hover:-translate-y-0.5 sm:right-6 sm:bottom-6"
+        className="fixed right-[max(16px,env(safe-area-inset-right))] bottom-[max(16px,env(safe-area-inset-bottom))] z-40 flex h-12 items-center gap-2 rounded-full bg-ink pr-5 pl-2 font-mono text-[12px] font-semibold tracking-[0.2em] text-snow shadow-[0_18px_40px_-16px_rgb(16_35_51/0.8)] transition-transform hover:-translate-y-0.5 sm:right-[max(24px,env(safe-area-inset-right))] sm:bottom-[max(24px,env(safe-area-inset-bottom))]"
       >
         <img src="/assets/iglu-mark.svg" alt="" className="size-8 rounded-full bg-white/10 p-1" />
         IGLU

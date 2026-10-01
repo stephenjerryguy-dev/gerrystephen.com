@@ -96,7 +96,7 @@ export function Hero() {
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_45%,rgb(11_60_73/0.25),rgb(11_60_73/0.62)_70%),linear-gradient(180deg,rgb(179_224_234/0.35),rgb(16_35_51/0.35))] opacity-0"
       />
 
-      <div className="shell relative z-10 flex h-full flex-col pt-[5.5rem] pb-10 md:justify-center md:pt-20">
+      <div className="shell relative z-10 flex h-full flex-col pt-[calc(5.5rem+env(safe-area-inset-top))] pb-[max(2.5rem,env(safe-area-inset-bottom))] md:justify-center md:pt-[calc(5rem+env(safe-area-inset-top))]">
         <div data-hero-copy className="max-w-[40rem] will-change-transform">
           <p className="animate-rise glass kicker mb-5 inline-flex items-center gap-2.5 rounded-full py-2 pr-4 pl-3 text-ink-soft sm:mb-6" style={{ animationDelay: '50ms' }}>
             <span className="size-2 animate-pulse-dot rounded-full bg-aqua" aria-hidden="true" />

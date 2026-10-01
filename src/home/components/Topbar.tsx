@@ -35,7 +35,7 @@ export function Topbar() {
       ref={barRef}
       data-hidden="false"
       data-scrolled="false"
-      className="group/bar fixed inset-x-0 top-0 z-50 px-3 pt-3 transition-transform duration-500 ease-(--ease-out-expo) data-[hidden=true]:-translate-y-[130%] sm:px-5"
+      className="group/bar fixed inset-x-0 top-0 z-50 pt-[max(12px,env(safe-area-inset-top))] pr-[max(12px,env(safe-area-inset-right))] pl-[max(12px,env(safe-area-inset-left))] transition-transform duration-500 ease-(--ease-out-expo) data-[hidden=true]:-translate-y-[130%] sm:pr-[max(20px,env(safe-area-inset-right))] sm:pl-[max(20px,env(safe-area-inset-left))]"
     >
       <div className="mx-auto flex h-14 max-w-[1240px] items-center gap-3 rounded-full pr-2 pl-2 transition-[background-color,box-shadow] duration-500 group-data-[scrolled=true]/bar:glass sm:h-16 sm:pl-3">
         <a href="#top" className="flex items-center gap-2.5 rounded-full pr-2" aria-label="Gerry Stephen home">

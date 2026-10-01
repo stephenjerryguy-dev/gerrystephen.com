@@ -166,7 +166,7 @@ function CollectionModal({ group, onClose }: { group: EcosystemGroup; onClose: (
   }, [onClose]);
 
   return (
-    <m.div className="fixed inset-0 z-[80] grid place-items-center p-3 sm:p-6" role="dialog" aria-modal="true" aria-label={`${group.label} collection`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+    <m.div className="fixed inset-0 z-[80] grid place-items-center px-3 pt-[max(12px,env(safe-area-inset-top))] pb-[max(12px,env(safe-area-inset-bottom))] sm:px-6 sm:pt-[max(24px,env(safe-area-inset-top))] sm:pb-[max(24px,env(safe-area-inset-bottom))]" role="dialog" aria-modal="true" aria-label={`${group.label} collection`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
       <button type="button" className="absolute inset-0 bg-ink/45 backdrop-blur-sm" aria-label="Close collection" onClick={onClose} />
       <m.div
         className="relative flex max-h-[88svh] w-full max-w-5xl flex-col overflow-hidden rounded-[32px] bg-ice-50 shadow-2xl ring-1 ring-white"

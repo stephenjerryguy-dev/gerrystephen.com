@@ -63,6 +63,8 @@
   html {
     -webkit-text-size-adjust: 100%;
     background: var(--color-ice-50);
+    /* Section links land below the fixed bar (and the iPhone status bar). */
+    scroll-padding-top: calc(5rem + env(safe-area-inset-top));
   }
   body {
     font-family: var(--font-sans);
