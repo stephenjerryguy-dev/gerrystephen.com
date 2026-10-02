@@ -89,7 +89,6 @@
       if (h) h.innerHTML = header(active);
       if (f) f.innerHTML = footer(active);
       wireMobileMenu(h);
-      window.Sappy.renderDir(document.getElementById("dir"));
     },
   };
 

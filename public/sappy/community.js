@@ -1,7 +1,6 @@
 /* ============ community.js — the pod ============ */
 (function () {
   const S = window.Sappy;
-  const NAMES = ["wabdoteth", "diakou", "stormrdoteth", "DylanKentish", "lilstovetop", "pixlpilled", "arfarf", "sealmaxi", "coldwater", "blubber", "icefloe", "frostbite", "sappykorea", "norekme", "sealchemist", "podfather"];
   const VIBES = ["ARF ARF", "Sappy on X", "Diamond Flipper", "Pod Leader", "New Collector", "Staker", "Whale", "Cold Water Club"];
   const state = {
     holders: null,

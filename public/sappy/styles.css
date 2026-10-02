@@ -1579,3 +1579,10 @@ body.eco-dark .chip.poly{background:rgba(150,90,255,.2);color:#cbb0ff;}
   .badge .bt{font-size:8px;margin-top:3px;}
   .badge .role-dot{width:9px;height:9px;}
 }
+
+/* ---------- Omnia renames (Pixlverse → Omnia) ---------- */
+.omnia-renames{list-style:none;display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 0;padding:0;}
+.omnia-renames li{font-family:var(--font-pixel);font-size:9px;letter-spacing:.04em;line-height:1.4;color:#eaf5ff;background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.16);padding:8px 11px;border-radius:999px;}
+.omnia-renames s{color:rgba(234,245,255,.5);text-decoration-thickness:1.5px;}
+.eco-hero .omnia-renames{justify-content:center;margin-top:16px;}
+@media(max-width:900px){.omnia-band .omnia-renames{justify-content:center;}}

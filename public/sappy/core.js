@@ -218,27 +218,6 @@ window.Sappy = (function () {
     el.querySelectorAll(".team-pic").forEach((f) => addLoader(f));
   }
 
-  // ---- directory (random pod sample) ----
-  const HOLDERS = [
-    { h: "wabdoteth", t: "Seal Father", n: 47, seed: "wab" },
-    { h: "pixlpilled", t: "Diamond Flipper", n: 12, seed: "pixlpilled" },
-    { h: "arfarf.eth", t: "ARF ARF", n: 8, seed: "arfarf" },
-    { h: "sealmaxi", t: "Pod Leader", n: 21, seed: "sealmaxi" },
-    { h: "coldwater", t: "New Collector", n: 1, seed: "coldwater" },
-    { h: "blubber.eth", t: "Staker", n: 5, seed: "blubber" },
-    { h: "icefloe", t: "Collector", n: 3, seed: "icefloe" },
-    { h: "frostbite", t: "Whale", n: 33, seed: "frostbite" },
-  ];
-  function renderDir(el, count) {
-    if (!el) return;
-    el.innerHTML = HOLDERS.slice(0, count || HOLDERS.length).map((p) => `
-      <a class="dir-row" href="#">
-        <div class="sealframe" data-kind="seal" data-seed="${p.seed}" data-px="90"></div>
-        <div><div class="n">${p.h}</div><div class="t">${p.t}</div></div>
-        <span class="cnt">${p.n} ${p.n === 1 ? "SEAL" : "SEALS"}</span>
-      </a>`).join("");
-  }
-
   // ---- toast + login/connect modal ----
   let modalEl = null;
   function ensureModal() {
@@ -508,5 +487,5 @@ window.Sappy = (function () {
 
   return { GW, SEAL_CID, sealUrls, ipfsToHttp, randId, ethCall, decodeAbiString, fetchJson,
     addPhoto, resolveContract, hydrate, reroll, buildFrame, runStats, countUp,
-    renderTeam, renderDir, toast, xModal, walletModal, discordLogin: startDiscordLogin, init, ready, TEAM, HOLDERS, LINKS, BRAND };
+    renderTeam, toast, xModal, walletModal, discordLogin: startDiscordLogin, init, ready, TEAM, LINKS, BRAND };
 })();
