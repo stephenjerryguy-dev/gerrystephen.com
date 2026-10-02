@@ -7,14 +7,15 @@ type ChapterProps = {
   title: ReactNode;
   tone?: 'light' | 'dark';
   className?: string;
+  titleClassName?: string;
 };
 
-export function Chapter({ num, kicker, title, tone = 'light', className = '' }: ChapterProps) {
+export function Chapter({ num, kicker, title, tone = 'light', className = '', titleClassName = '' }: ChapterProps) {
   const dark = tone === 'dark';
   return (
     <header className={`max-w-4xl ${className}`}>
       <m.div
-        className={`mb-5 flex items-center gap-3 ${dark ? 'text-lilac/80' : 'text-ink-mute'}`}
+        className={`mb-3 flex items-center gap-3 sm:mb-5 ${dark ? 'text-lilac/80' : 'text-ink-mute'}`}
         initial={{ opacity: 0, y: 12 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: '-10% 0px' }}
@@ -26,7 +27,7 @@ export function Chapter({ num, kicker, title, tone = 'light', className = '' }: 
         <span className="kicker">{kicker}</span>
       </m.div>
       <m.h2
-        className={`font-display text-[clamp(2.3rem,5.6vw,4.6rem)] leading-[0.98] font-semibold tracking-[-0.035em] text-balance ${dark ? 'text-white' : 'text-ink'}`}
+        className={`font-display text-[clamp(2.1rem,5.6vw,4.6rem)] leading-[0.98] font-semibold tracking-[-0.035em] text-balance ${dark ? 'text-white' : 'text-ink'} ${titleClassName}`}
         initial={{ opacity: 0, y: 26 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: '-10% 0px' }}

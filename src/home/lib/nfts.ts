@@ -2,6 +2,8 @@
 // /api/nfts returns the wallet's owned tokens; /api/ecosystem-assets returns
 // live token balances. Curated fallbacks keep the section useful offline.
 
+import { resolveMedia } from './media';
+
 export type Nft = {
   ecosystem?: string;
   name: string;
@@ -99,13 +101,16 @@ function isLocalDev() {
   return ['127.0.0.1', 'localhost'].includes(window.location.hostname);
 }
 
-async function fetchJson<T>(path: string, signal: AbortSignal): Promise<T | null> {
+// Default caching on purpose: `cache: 'no-store'` sends `Pragma: no-cache`, which
+// makes Vercel's CDN revalidate a stale /api/nfts synchronously, so the visitor
+// waits on every upstream wallet lookup instead of getting the cached copy.
+async function fetchJson<T>(path: string): Promise<T | null> {
   const url = `${path}${path.includes('?') ? '&' : '?'}v=${BUILD_VERSION}`;
-  const local = await fetch(url, { signal, cache: 'no-store' }).catch(() => undefined);
+  const local = await fetch(url).catch(() => undefined);
   if (local?.ok && local.headers.get('content-type')?.includes('application/json')) return local.json() as Promise<T>;
   // `vite dev` has no serverless functions; read the live API instead.
   if (!isLocalDev()) return null;
-  const live = await fetch(`${LIVE_API_ORIGIN}${url}`, { signal, cache: 'no-store' }).catch(() => undefined);
+  const live = await fetch(`${LIVE_API_ORIGIN}${url}`).catch(() => undefined);
   return live?.ok ? (live.json() as Promise<T>) : null;
 }
 
@@ -180,12 +185,42 @@ export function buildGroups(owned: Nft[], assets: Nft[] = []): EcosystemGroup[] 
 
 type NftsResponse = { nfts?: Nft[]; pixlBalance?: number | string };
 type AssetsResponse = { assets?: Nft[] };
+type Snapshot = { owned: Nft[]; assets: Nft[] };
 
-export async function loadEcosystemGroups(signal: AbortSignal): Promise<EcosystemGroup[]> {
+// The last good wallet read is kept on the device so a returning visitor sees
+// the real collection (and already-cached art) on first paint.
+const SNAPSHOT_KEY = `gerry:ecosystems:${BUILD_VERSION}`;
+const SNAPSHOT_MAX_AGE = 14 * 24 * 60 * 60 * 1000;
+
+function readSnapshot(): Snapshot | null {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(SNAPSHOT_KEY) ?? 'null') as (Snapshot & { savedAt?: number }) | null;
+    if (!parsed || !Array.isArray(parsed.owned) || Date.now() - (parsed.savedAt ?? 0) > SNAPSHOT_MAX_AGE) return null;
+    return { owned: parsed.owned, assets: Array.isArray(parsed.assets) ? parsed.assets : [] };
+  } catch {
+    return null;
+  }
+}
+
+function writeSnapshot(snapshot: Snapshot) {
+  try {
+    window.localStorage.setItem(SNAPSHOT_KEY, JSON.stringify({ ...snapshot, savedAt: Date.now() }));
+  } catch {
+    // Private mode or a full quota: the live read still renders.
+  }
+}
+
+export function cachedEcosystemGroups(): EcosystemGroup[] | null {
+  const snapshot = readSnapshot();
+  return snapshot ? buildGroups(snapshot.owned, snapshot.assets) : null;
+}
+
+async function fetchSnapshot(): Promise<Snapshot | null> {
   const [nftData, assetData] = await Promise.all([
-    fetchJson<NftsResponse>('/api/nfts', signal).catch(() => null),
-    fetchJson<AssetsResponse>('/api/ecosystem-assets', signal).catch(() => null),
+    fetchJson<NftsResponse>('/api/nfts').catch(() => null),
+    fetchJson<AssetsResponse>('/api/ecosystem-assets').catch(() => null),
   ]);
+  if (!nftData && !assetData) return null;
   const owned = (nftData?.nfts ?? []).filter((nft) => nft?.image || nft?.animationUrl || nft?.tokenId === 'asset');
   const pixl = Number(nftData?.pixlBalance ?? 0);
   if (pixl > 0) {
@@ -194,7 +229,40 @@ export async function loadEcosystemGroups(signal: AbortSignal): Promise<Ecosyste
       amount: pixl.toLocaleString('en-US', { maximumFractionDigits: 2 }),
     });
   }
-  return buildGroups(owned, assetData?.assets ?? []);
+  return { owned, assets: assetData?.assets ?? [] };
+}
+
+let inflight: Promise<EcosystemGroup[]> | null = null;
+
+/** Reads the wallets once per page view; safe to call early and from several places. */
+export function loadEcosystemGroups(): Promise<EcosystemGroup[]> {
+  inflight ??= fetchSnapshot().then((fresh) => {
+    if (fresh?.owned.length) {
+      writeSnapshot(fresh);
+      return buildGroups(fresh.owned, fresh.assets);
+    }
+    // The wallet read failed: keep what this device saw last, with any fresh balances.
+    const cached = readSnapshot();
+    return buildGroups(cached?.owned ?? [], fresh?.assets.length ? fresh.assets : (cached?.assets ?? []));
+  });
+  return inflight;
+}
+
+const warmed = new Set<string>();
+
+/** Starts downloading the first cards of every tab, so switching tabs shows art immediately. */
+export function warmEcosystemArt(groups: EcosystemGroup[], perGroup = 6) {
+  for (const group of groups) {
+    for (const nft of group.items.slice(0, perGroup)) {
+      const media = resolveMedia(nft.image);
+      const src = media.poster ?? media.sources[0];
+      if (!src || warmed.has(src)) continue;
+      warmed.add(src);
+      const image = new Image();
+      image.decoding = 'async';
+      image.src = src;
+    }
+  }
 }
 
 export function describeToken(nft: Nft) {

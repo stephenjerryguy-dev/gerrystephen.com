@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { AnimatePresence, m } from 'framer-motion';
-import { buildGroups, describeToken, loadEcosystemGroups, type EcosystemGroup, type Nft } from '../lib/nfts';
+import { buildGroups, cachedEcosystemGroups, describeToken, loadEcosystemGroups, warmEcosystemArt, type EcosystemGroup, type Nft } from '../lib/nfts';
 import { resolveMedia } from '../lib/media';
 import { Chapter } from './Chapter';
 
 function NftArt({ nft, eager = false }: { nft: Nft; eager?: boolean }) {
   const media = useMemo(() => resolveMedia(nft.image), [nft.image]);
   const [attempt, setAttempt] = useState(0);
+  const [loadedSrc, setLoadedSrc] = useState<string>();
   const videoRef = useRef<HTMLVideoElement>(null);
 
   // Animated art only plays while its card is on screen.
@@ -32,16 +33,25 @@ function NftArt({ nft, eager = false }: { nft: Nft; eager?: boolean }) {
       </span>
     );
   }
+  const loaded = loadedSrc === src;
   return (
-    <img
-      key={src}
-      src={src}
-      alt={nft.name}
-      loading={eager ? 'eager' : 'lazy'}
-      decoding="async"
-      className="size-full object-cover [image-rendering:auto]"
-      onError={() => setAttempt((value) => value + 1)}
-    />
+    <>
+      {!loaded && <span className="absolute inset-0 animate-pulse bg-[linear-gradient(135deg,var(--color-ice-100),var(--color-ice-300))]" aria-hidden="true" />}
+      <img
+        key={src}
+        // Already-cached art (warmed earlier, or from a previous visit) is complete before onLoad is wired up.
+        ref={(img) => {
+          if (img?.complete && img.naturalWidth > 0) setLoadedSrc(src);
+        }}
+        src={src}
+        alt={nft.name}
+        loading={eager ? 'eager' : 'lazy'}
+        decoding="async"
+        className={`relative size-full object-cover transition-opacity duration-300 [image-rendering:auto] ${loaded ? 'opacity-100' : 'opacity-0'}`}
+        onLoad={() => setLoadedSrc(src)}
+        onError={() => setAttempt((value) => value + 1)}
+      />
+    </>
   );
 }
 
@@ -54,10 +64,10 @@ function NftCard({ nft, eager }: { nft: Nft; eager?: boolean }) {
       target={disabled ? undefined : '_blank'}
       rel="noopener"
       aria-disabled={disabled || undefined}
-      className="group/card card flex w-[210px] shrink-0 snap-start flex-col overflow-hidden p-2.5 transition-transform duration-500 ease-(--ease-out-expo) hover:-translate-y-1.5 sm:w-[228px]"
+      className="group/card card flex w-[190px] shrink-0 snap-start flex-col overflow-hidden p-2.5 transition-transform duration-500 ease-(--ease-out-expo) hover:-translate-y-1.5 sm:w-[228px]"
     >
       <span className={`relative block aspect-square overflow-hidden rounded-[20px] ${isAsset ? 'bg-[radial-gradient(circle_at_30%_20%,white,var(--color-ice-200))] p-8' : 'bg-ice-100'}`}>
-        <span className={`block size-full overflow-hidden transition-transform duration-700 ease-(--ease-out-expo) group-hover/card:scale-[1.04] ${isAsset ? 'rounded-full' : ''}`}>
+        <span className={`relative block size-full overflow-hidden transition-transform duration-700 ease-(--ease-out-expo) group-hover/card:scale-[1.04] ${isAsset ? 'rounded-full' : ''}`}>
           <NftArt nft={nft} eager={eager} />
         </span>
         {isAsset && <span className="kicker absolute top-3 left-3 rounded-full bg-ink px-2.5 py-1 text-[9px] text-snow">token</span>}
@@ -194,51 +204,82 @@ function CollectionModal({ group, onClose }: { group: EcosystemGroup; onClose: (
   );
 }
 
+/** Runs `callback` once the page has loaded and the main thread is quiet. */
+function whenIdle(callback: () => void) {
+  let timer = 0;
+  let idle = 0;
+  const schedule = () => {
+    if (typeof window.requestIdleCallback === 'function') idle = window.requestIdleCallback(callback, { timeout: 2500 });
+    else timer = window.setTimeout(callback, 1200);
+  };
+  if (document.readyState === 'complete') schedule();
+  else window.addEventListener('load', schedule, { once: true });
+  return () => {
+    window.removeEventListener('load', schedule);
+    window.clearTimeout(timer);
+    if (idle) window.cancelIdleCallback?.(idle);
+  };
+}
+
 export function Communities() {
-  const [groups, setGroups] = useState<EcosystemGroup[]>(() => buildGroups([]));
+  const [cached] = useState(cachedEcosystemGroups);
+  const [groups, setGroups] = useState<EcosystemGroup[]>(() => cached ?? buildGroups([]));
   const [active, setActive] = useState(0);
   const [expanded, setExpanded] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(!cached);
+  const [near, setNear] = useState(false);
   const trackRef = useRef<HTMLDivElement>(null);
   const sectionRef = useRef<HTMLElement>(null);
 
-  // Fetch when the section is about to scroll into view, not at page load.
+  // The wallet JSON is small and CDN-cached: ask for it as soon as the page is
+  // idle, or earlier if the visitor is already heading to this section.
   useEffect(() => {
     const section = sectionRef.current;
     if (!section) return undefined;
-    const controller = new AbortController();
+    let cancelled = false;
+    const load = () =>
+      void loadEcosystemGroups().then((next) => {
+        if (cancelled) return;
+        setGroups(next);
+        setSyncing(false);
+      });
+    const cancelIdle = whenIdle(load);
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (!entry.isIntersecting) return;
         observer.disconnect();
-        loadEcosystemGroups(controller.signal)
-          .then(setGroups)
-          .catch(() => {})
-          .finally(() => setLoading(false));
+        setNear(true);
+        load();
       },
-      { rootMargin: '120% 0px' },
+      { rootMargin: '150% 0px' },
     );
     observer.observe(section);
     return () => {
+      cancelled = true;
+      cancelIdle();
       observer.disconnect();
-      controller.abort();
     };
   }, []);
+
+  // Once the section is close, fetch the first art of both tabs, not just the open one.
+  useEffect(() => {
+    if (near) warmEcosystemArt(groups);
+  }, [near, groups]);
 
   const group = groups[active] ?? groups[0];
   const loop = group.items.length > 2 ? [...group.items, ...group.items] : group.items;
   useAutoDrift(trackRef, `${group.id}-${group.items.length}`, group.items.length);
 
   return (
-    <section ref={sectionRef} id="nfts" className="relative overflow-hidden bg-ice-50 py-24 sm:py-32">
+    <section ref={sectionRef} id="nfts" className="relative overflow-hidden bg-ice-50 pt-14 pb-8 sm:py-32">
       <div className="pointer-events-none absolute -top-40 right-[-10%] size-[520px] rounded-full bg-aqua/15 blur-3xl" aria-hidden="true" />
       <div className="shell relative">
         <Chapter num="02" kicker="My community ecosystems" title="My forever communities: Pudgy & Sappy." />
-        <p className="mt-6 max-w-2xl text-lg leading-relaxed text-pretty text-ink-soft">
+        <p className="mt-6 max-w-2xl text-lg leading-relaxed text-pretty text-ink-soft max-sm:hidden">
           A curated view of my owned Pudgy and Sappy collections: $PENGU, $PIXL, Sappy Faithful Key, Sappy Seals, Omnia Pets, Omnia items, Pixseals, and a Bitcoin ordinal. Cards open the matching asset, collection, or explorer page.
         </p>
 
-        <div className="mt-10 flex flex-wrap items-center justify-between gap-4">
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 sm:mt-10 sm:gap-4">
           <div className="glass relative inline-flex rounded-full p-1" role="tablist" aria-label="Ecosystem">
             {groups.map((item, index) => (
               <button
@@ -256,24 +297,24 @@ export function Communities() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {group.links.map((link) => (
-              <a key={link.href} href={link.href} target="_blank" rel="noopener" className="rounded-full bg-white px-4 py-2 text-sm font-semibold ring-1 ring-ink/10 transition-transform hover:-translate-y-0.5">
+              <a key={link.href} href={link.href} target="_blank" rel="noopener" className="rounded-full bg-white px-3 py-1.5 text-[13px] font-semibold ring-1 ring-ink/10 transition-transform hover:-translate-y-0.5 sm:px-4 sm:py-2 sm:text-sm">
                 {link.label} <span aria-hidden="true">↗</span>
               </a>
             ))}
-            <button type="button" onClick={() => setExpanded(true)} className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-snow transition-transform hover:-translate-y-0.5">
+            <button type="button" onClick={() => setExpanded(true)} className="rounded-full bg-ink px-3 py-1.5 text-[13px] font-semibold text-snow transition-transform hover:-translate-y-0.5 sm:px-4 sm:py-2 sm:text-sm">
               View all {group.items.length}
             </button>
           </div>
         </div>
         <AnimatePresence mode="wait">
-          <m.p key={group.id} className="mt-5 max-w-2xl text-[15px] text-ink-mute" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.25 }}>
+          <m.p key={group.id} className="mt-4 max-w-2xl text-[14.5px] text-ink-mute sm:mt-5 sm:text-[15px]" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.25 }}>
             {group.note}
-            {loading && <span className="ml-2 font-mono text-[11px] tracking-[0.16em] text-teal uppercase">syncing wallet…</span>}
+            {syncing && <span className="ml-2 font-mono text-[11px] tracking-[0.16em] text-teal uppercase">syncing wallet…</span>}
           </m.p>
         </AnimatePresence>
       </div>
 
-      <div ref={trackRef} className="no-scrollbar mask-fade-x mt-8 flex gap-4 overflow-x-auto px-5 py-6 sm:px-8" aria-label={`${group.label} items`}>
+      <div ref={trackRef} className="no-scrollbar mask-fade-x mt-3 flex gap-3 overflow-x-auto px-5 py-4 sm:mt-8 sm:gap-4 sm:px-8 sm:py-6" aria-label={`${group.label} items`}>
         {loop.map((nft, index) => (
           <m.div
             key={`${group.id}-${nft.name}-${nft.tokenId}-${index}`}

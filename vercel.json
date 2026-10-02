@@ -22,6 +22,21 @@
       },
       {
         "protocol": "https",
+        "hostname": "i.seadn.io",
+        "pathname": "/**"
+      },
+      {
+        "protocol": "https",
+        "hostname": "raw2.seadn.io",
+        "pathname": "/**"
+      },
+      {
+        "protocol": "https",
+        "hostname": "openseauserdata.com",
+        "pathname": "/**"
+      },
+      {
+        "protocol": "https",
         "hostname": "ipfs2.seadn.io",
         "pathname": "/ipfs/**"
       },

@@ -130,12 +130,23 @@ export function FloatingControls() {
           setIgluOpen(true);
         }}
         onPointerEnter={() => setIgluMounted(true)}
-        aria-label="Open the interactive Iglu"
+        aria-label="Play now: the Iglu, Gerry's Abstract world"
         aria-expanded={igluOpen}
-        className="fixed right-[max(16px,env(safe-area-inset-right))] bottom-[max(16px,env(safe-area-inset-bottom))] z-40 flex h-12 items-center gap-2 rounded-full bg-ink pr-5 pl-2 font-mono text-[12px] font-semibold tracking-[0.2em] text-snow shadow-[0_18px_40px_-16px_rgb(16_35_51/0.8)] transition-transform hover:-translate-y-0.5 sm:right-[max(24px,env(safe-area-inset-right))] sm:bottom-[max(24px,env(safe-area-inset-bottom))]"
+        className="fixed right-[max(16px,env(safe-area-inset-right))] bottom-[max(16px,env(safe-area-inset-bottom))] z-40 flex h-14 animate-iglu-pulse items-center gap-2.5 rounded-full bg-ink pr-5 pl-1.5 text-left text-snow ring-1 ring-aqua/40 transition-[translate] hover:-translate-y-0.5 hover:[animation-play-state:paused] sm:right-[max(24px,env(safe-area-inset-right))] sm:bottom-[max(24px,env(safe-area-inset-bottom))]"
       >
-        <img src="/assets/iglu-mark.svg" alt="" className="size-8 rounded-full bg-white/10 p-1" />
-        IGLU
+        <span className="relative grid size-11 shrink-0 place-items-center">
+          <span className="absolute inset-0 animate-cue-ring rounded-full" aria-hidden="true" />
+          <img src="/assets/iglu-mark.svg" alt="" className="relative size-11 rounded-full bg-white/10 p-1.5" />
+        </span>
+        <span className="flex flex-col leading-none">
+          <span className="font-mono text-[9.5px] font-medium tracking-[0.16em] text-aqua uppercase">The Iglu · Abstract world</span>
+          <span className="mt-1.5 flex items-center gap-1.5 font-display text-[16px] font-bold tracking-[0.02em] uppercase">
+            Play now
+            <svg viewBox="0 0 24 24" className="size-3.5 animate-nudge-x" fill="currentColor" aria-hidden="true">
+              <path d="M7 4.5v15l12-7.5z" />
+            </svg>
+          </span>
+        </span>
       </button>
 
       {/* The Iglu is its own app; it only loads when asked for (or hovered on desktop). */}

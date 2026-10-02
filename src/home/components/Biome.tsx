@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { AnimatePresence, m } from 'framer-motion';
 import { BUILDANYTHING_STATS, MONANIMALS } from '../data/content';
 import { Chapter } from './Chapter';
 import { Reveal } from './Reveal';
+import { SwipeCue } from './SwipeCue';
 
 // A static preview board; the real game only loads when someone asks to play.
 const PREVIEW_BOARD = [0, 1, 0, 2, 3, 0, 1, 0, 0, 4, 2, 0, 1, 0, 5, 3];
@@ -53,15 +54,16 @@ function GameConsole() {
 }
 
 export function Biome() {
+  const notesRef = useRef<HTMLDivElement>(null);
   return (
-    <section id="monerge" className="relative overflow-hidden bg-night-900 py-24 text-white sm:py-32">
+    <section id="monerge" className="relative overflow-hidden bg-night-900 py-14 text-white sm:py-32">
       <div
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgb(152_127_255/0.35),transparent_40%),radial-gradient(circle_at_85%_80%,rgb(88_234_219/0.18),transparent_45%)]"
         aria-hidden="true"
       />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(rgb(255_255_255/0.5)_1px,transparent_1.5px)] [background-size:44px_44px] opacity-25 [mask-image:linear-gradient(180deg,black,transparent_85%)]" aria-hidden="true" />
 
-      <div className="shell relative grid grid-cols-1 gap-16 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+      <div className="shell relative grid grid-cols-1 gap-10 sm:gap-16 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
         <div className="min-w-0">
           <Chapter
             num="04"
@@ -70,7 +72,7 @@ export function Biome() {
             title={<span className="bg-[linear-gradient(100deg,white,var(--color-lilac)_45%,var(--color-aqua))] bg-clip-text text-[1.35em] text-transparent">Biome.</span>}
           />
           <Reveal>
-            <p className="mt-6 max-w-xl text-lg leading-relaxed text-pretty text-white/75">
+            <p className="mt-4 max-w-xl text-[15.5px] leading-relaxed text-pretty text-white/75 sm:mt-6 sm:text-lg">
               Biome is being built on Monad testnet as my game network for Moncade, Monerge, and future creature games: proof-of-play, wallet profiles, and runs that connect back to the iglu.
             </p>
           </Reveal>
@@ -80,25 +82,25 @@ export function Biome() {
               href="https://buildanything.so/students/gerry"
               target="_blank"
               rel="noopener"
-              className="group mt-8 flex flex-col gap-4 rounded-[28px] bg-white/[0.06] p-4 ring-1 ring-white/12 transition-colors hover:bg-white/10 sm:flex-row sm:items-center"
+              className="group mt-6 flex flex-col gap-4 rounded-[28px] bg-white/[0.06] p-4 ring-1 ring-white/12 transition-colors hover:bg-white/10 sm:mt-8 sm:flex-row sm:items-center"
               aria-label="Open Gerry on BuildAnything"
             >
               <img src="/assets/opt/buildanything-student-card.webp" alt="BuildAnything student card for Gerry" loading="lazy" className="w-full rounded-2xl sm:w-52" />
-              <dl className="grid flex-1 grid-cols-2 gap-3">
+              <dl className="grid flex-1 grid-cols-2 gap-2 sm:gap-3">
                 {BUILDANYTHING_STATS.map((stat) => (
-                  <div key={stat.label} className="rounded-2xl bg-white/[0.05] px-4 py-3">
+                  <div key={stat.label} className="rounded-2xl bg-white/[0.05] px-3.5 py-2.5 sm:px-4 sm:py-3">
                     <dt className="kicker text-[9.5px] text-lilac/75">{stat.label}</dt>
-                    <dd className="mt-1 font-display text-2xl font-semibold tracking-[-0.03em]">{stat.value}</dd>
+                    <dd className="mt-1 font-display text-xl font-semibold tracking-[-0.03em] sm:text-2xl">{stat.value}</dd>
                   </div>
                 ))}
               </dl>
             </a>
-            <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-white/60">
+            <p className="mt-4 max-w-xl text-[14.5px] leading-relaxed text-white/60 sm:text-[15px]">
               I completed BuildAnything coursework to sharpen how I take a vibe-coded Monad app from an idea to a working public launch. Those lessons now feed directly into how I am building Biome, Moncade, and Monerge.
             </p>
           </Reveal>
 
-          <ul className="no-scrollbar mt-8 flex gap-2 overflow-x-auto pb-1" aria-label="Monad character inspirations">
+          <ul className="no-scrollbar mt-6 flex gap-2 overflow-x-auto pb-1 sm:mt-8" aria-label="Monad character inspirations">
             {MONANIMALS.map((monanimal) => (
               <li key={monanimal.name} className="flex shrink-0 items-center gap-2 rounded-full bg-white/[0.07] py-1.5 pr-4 pl-1.5 ring-1 ring-white/10">
                 <img src={monanimal.image} alt="" loading="lazy" className="size-8 rounded-full bg-white/10 object-contain p-0.5" />
@@ -109,26 +111,29 @@ export function Biome() {
             ))}
           </ul>
 
-          <div className="mt-8 flex flex-wrap gap-3">
-            <a className="btn bg-white text-night-900 hover:bg-lilac" href="https://biome.gerrystephen.com" target="_blank" rel="noopener">
+          <div className="mt-6 flex flex-wrap gap-3 sm:mt-8">
+            <a className="btn bg-white text-night-900 hover:bg-lilac max-sm:min-h-11 max-sm:px-5 max-sm:text-[14px]" href="https://biome.gerrystephen.com" target="_blank" rel="noopener">
               Open Biome <span aria-hidden="true">→</span>
             </a>
-            <a className="btn bg-white/10 text-white ring-1 ring-white/20 hover:bg-white/20" href="/monerge">
-              Monerge full screen <span aria-hidden="true">↗</span>
+            <a className="btn bg-white/10 text-white ring-1 ring-white/20 hover:bg-white/20 max-sm:min-h-11 max-sm:px-5 max-sm:text-[14px]" href="/monerge" aria-label="Play Monerge full screen">
+              Monerge <span className="max-sm:hidden">full screen</span> <span aria-hidden="true">↗</span>
             </a>
           </div>
 
-          <div className="mt-10 grid gap-4 sm:grid-cols-2">
-            {[
-              ['01 · Monad network', 'Testnet now, network next.', 'Biome is being shaped on Monad testnet so games, profiles, and proof-of-play records can connect before the larger launch.'],
-              ['02 · Moncade', 'The game hub.', 'A creature-game arcade layer for what gets built next across the Monad ecosystem.'],
-            ].map(([kicker, title, body]) => (
-              <div key={kicker} className="rounded-3xl border border-white/10 p-5">
-                <p className="kicker text-[10px] text-aqua/80">{kicker}</p>
-                <p className="mt-2 font-display text-xl font-semibold tracking-[-0.02em]">{title}</p>
-                <p className="mt-2 text-[14px] leading-relaxed text-white/60">{body}</p>
-              </div>
-            ))}
+          <div className="relative mt-6 sm:mt-10">
+            <div ref={notesRef} className="max-sm:swipe-rail sm:grid sm:grid-cols-2 sm:gap-4">
+              {[
+                ['01 · Monad network', 'Testnet now, network next.', 'Biome is being shaped on Monad testnet so games, profiles, and proof-of-play records can connect before the larger launch.'],
+                ['02 · Moncade', 'The game hub.', 'A creature-game arcade layer for what gets built next across the Monad ecosystem.'],
+              ].map(([kicker, title, body]) => (
+                <div key={kicker} className="rounded-3xl border border-white/10 p-5 max-sm:w-[78vw] max-sm:max-w-[300px] max-sm:shrink-0 max-sm:snap-start">
+                  <p className="kicker text-[10px] text-aqua/80">{kicker}</p>
+                  <p className="mt-2 font-display text-xl font-semibold tracking-[-0.02em]">{title}</p>
+                  <p className="mt-2 text-[14px] leading-relaxed text-white/60">{body}</p>
+                </div>
+              ))}
+            </div>
+            <SwipeCue rail={notesRef} tone="dark" className="sm:hidden" />
           </div>
         </div>
 
